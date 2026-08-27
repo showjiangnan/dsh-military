@@ -1,0 +1,32 @@
+{
+  "schemaVersion": "1.0.0",
+  "release": "0.1.1-rc.2",
+  "commit": "b150a551b8d465e31e418e1b2eaf5e79bbb7d28e",
+  "verifiedAt": "2026-08-24",
+  "publicSourceHashes": {
+    "packages/preset/agent-presets/src/index.ts": "6a24a89d7610a51d095d2bba8b34077d73960746",
+    "packages/subagent/subagent/src/continuation.ts": "652a3ba6c8919a1a96e1e716403d5d8a27f37df5",
+    "packages/interaction/commands/src/index.ts": "9e078938ede7d26d90c30ecc321a9b07425a25e1",
+    "packages/client/ui-settings/src/client/index.ts": "f2763da9f76c3cbb90cfe4634208b5458a1a3f40",
+    "packages/client/ui-settings/src/client/settings-scope.ts": "36e674c9375dda61bad8fc5230c5bca374ae84be",
+    "packages/client/tsdown.client.ts": "44aab8cf1b831aff6a7d9d05dcd32479ab85d03f",
+    "packages/core/session/src/types.ts": "31ce28a01bc67d8525f36c5cca16501bd4238444",
+    "packages/llm/llm-deepseek/src/adapter.ts": "8c303331316239e831a79add5807548c5b5157e1",
+    "packages/llm/token-meter/src/index.ts": "2fa53f78f1c4aa64527c111e408fdfe713f832f7",
+    "packages/bundle/web-app/cordis.patch.yml": "61151bdc6540e9b92b37aad1aa0e4b0fa2bda032"
+  },
+  "requiredContracts": {
+    "subagentReportDelivery": [
+      "quiet",
+      "next-step"
+    ],
+    "callerReservedChildId": true,
+    "selectiveDirectChildDrain": true,
+    "commandImageAttachments": true,
+    "sharedSettingsDescribeMirror": true,
+    "deepseekImageInput": true,
+    "reasoningPassback": "all-reasoning-turns",
+    "tokenMeterMethod": "measure",
+    "compactionOwnership": "preset"
+  }
+}

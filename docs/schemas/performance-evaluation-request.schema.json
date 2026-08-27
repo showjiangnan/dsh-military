@@ -1,0 +1,162 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "performance-evaluation-request.schema.json",
+  "title": "Military Performance Evaluation Request",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "evaluationRequestId",
+    "requestedBy",
+    "period",
+    "filters",
+    "minimumSamples",
+    "splitByRevision",
+    "comparisonBaseline",
+    "reportClassification",
+    "examinerTemplateId",
+    "chairTemplateId",
+    "createdAt"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0.0"
+    },
+    "evaluationRequestId": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "requestedBy": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "period": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "from",
+        "to"
+      ],
+      "properties": {
+        "from": {
+          "$ref": "common-defs.schema.json#/$defs/timestamp"
+        },
+        "to": {
+          "$ref": "common-defs.schema.json#/$defs/timestamp"
+        }
+      }
+    },
+    "filters": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "templateIds",
+        "departments",
+        "workspaceKeys",
+        "missionIds",
+        "includeIncompleteSessions"
+      ],
+      "properties": {
+        "templateIds": {
+          "type": "array",
+          "items": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "uniqueItems": true
+        },
+        "departments": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "uniqueItems": true
+        },
+        "workspaceKeys": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          },
+          "uniqueItems": true
+        },
+        "missionIds": {
+          "type": "array",
+          "items": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "uniqueItems": true
+        },
+        "includeIncompleteSessions": {
+          "type": "boolean"
+        },
+        "excludedAttemptIds": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          },
+          "uniqueItems": true,
+          "maxItems": 10000
+        }
+      }
+    },
+    "minimumSamples": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "splitByRevision": {
+      "const": true
+    },
+    "comparisonBaseline": {
+      "enum": [
+        "same-role-same-difficulty",
+        "previous-period",
+        "previous-revision",
+        "organization-baseline",
+        "none"
+      ]
+    },
+    "confidenceLevel": {
+      "enum": [
+        0.9,
+        0.95,
+        0.99
+      ],
+      "default": 0.95
+    },
+    "nonInferiorityMargin": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 0.5,
+      "default": 0.05
+    },
+    "timeoutSeconds": {
+      "type": "integer",
+      "minimum": 30,
+      "maximum": 86400,
+      "default": 1800
+    },
+    "narrativeMode": {
+      "enum": [
+        "DETERMINISTIC",
+        "COMMITTEE_MODEL"
+      ],
+      "default": "DETERMINISTIC"
+    },
+    "reportClassification": {
+      "$ref": "common-defs.schema.json#/$defs/classification"
+    },
+    "examinerTemplateId": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "chairTemplateId": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "createdAt": {
+      "$ref": "common-defs.schema.json#/$defs/timestamp"
+    },
+    "idempotencyKey": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    }
+  }
+}

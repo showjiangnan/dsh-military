@@ -1,0 +1,12 @@
+schemaVersion: 1.0.0
+strategyId: strategy-react-ui-001
+provider: deepseek-official
+model: deepseek-v4-pro
+reasoningEffort: high
+paradigm: plan-execute
+maximumSteps: 8
+verificationTier: V3
+parallelism: 2
+rationale:
+  - Two independent evidence sources are available.
+  - Write scopes are disjoint and join cost is bounded.

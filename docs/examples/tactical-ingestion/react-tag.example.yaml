@@ -1,0 +1,19 @@
+schemaVersion: 1.0.0
+tagId: tag-react
+revision: 3
+displayName: React
+status: ACTIVE
+description: React 前端架构、组件、状态、性能和测试战术。
+aliases:
+  - reactjs
+  - react-frontend
+matchTerms:
+  - React
+  - React 19
+  - hooks
+parentTagIds:
+  - tag-web-frontend
+createdAt: 2026-08-01T01:00:00Z
+updatedAt: 2026-08-18T01:10:00Z
+createdBy: user-local
+renamedFrom: ReactJS

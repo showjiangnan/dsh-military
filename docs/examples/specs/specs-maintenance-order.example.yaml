@@ -1,0 +1,30 @@
+schemaVersion: 1.0.0
+orderId: specs-order-wave-1
+missionId: mission-demo-webapi
+trigger:
+  kind: wave-completed
+  ref: wave-1-recon-and-contract
+requiredUpdates:
+  - document: specs/01-requirements/functional-requirements.md
+    purpose: 固化审计查询 API 的角色和分页需求。
+    sourceEventIds:
+      - event-task-recon-auth-accepted
+      - event-task-recon-data-accepted
+  - document: specs/02-architecture/components.md
+    purpose: 记录 policyGuard 与 AuditEventQueryService 的组件边界。
+    sourceEventIds:
+      - event-direction-auth-policy-decision
+  - document: specs/07-traceability/traceability-matrix.md
+    purpose: 建立需求、Task、测试和 Artifact 的追踪关系。
+    sourceEventIds:
+      - event-task-recon-auth-accepted
+allowedPaths:
+  - specs
+validation:
+  - git diff --check
+commitPolicy:
+  branch: main
+  localOnly: true
+  messageTemplate: 'docs(specs): record wave 1 reconnaissance baseline'
+  requireCleanNonSpecsPaths: true
+issuedAt: "2026-08-18T03:00:00Z"

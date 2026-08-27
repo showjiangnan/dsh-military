@@ -1,0 +1,28 @@
+schemaVersion: 1.0.0
+requestId: ingestion-react-session-001
+requestedBy: user-local
+source:
+  sourceType: session
+  sessionId: session-react-architecture-2026
+  startSeq: 10
+  endSeq: 148
+  includeToolResults: true
+  includeReasoning: false
+tagSelection:
+  primaryTagId: tag-react
+  additionalTagIds:
+    - tag-web-frontend
+  allowProposeNewTags: true
+desiredOutcome: AUTO
+extractionGoal: 提炼可复用的 React 大型表单性能诊断与修复经验。
+extractionPolicy:
+  classification: internal
+  visibility: user-private
+  redactSecrets: true
+  requireUserReview: true
+  allowExternalModel: false
+consent:
+  confirmed: true
+  purpose: 用户显式要求将该会话提炼为私有战术候选。
+  confirmedAt: 2026-08-18T01:20:00Z
+createdAt: 2026-08-18T01:20:00Z

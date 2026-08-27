@@ -1,0 +1,13 @@
+schemaVersion: 1.0.0
+policyId: residency-enterprise
+revision: 1
+status: ACTIVE
+allowedRegions:
+- cn-north-1
+allowedProviders:
+- deepseek-official
+- enterprise-deepseek
+classificationCeiling: confidential
+allowCrossBorder: false
+retentionDays: 30
+createdAt: '2026-08-19T00:00:00Z'

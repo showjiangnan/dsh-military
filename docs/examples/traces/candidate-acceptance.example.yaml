@@ -1,0 +1,41 @@
+schemaVersion: 1.0.0
+dshBaseline:
+  release: 0.1.1-rc.2
+  commit: b150a551b8d465e31e418e1b2eaf5e79bbb7d28e
+traceId: trace-candidate-acceptance
+scenario: candidate-acceptance
+initialState:
+  state: START
+steps:
+- index: 1
+  action: create task
+  eventType: task/created
+  expectedState: READY
+- index: 2
+  action: lease workspace
+  eventType: workspace/lease-acquired
+  expectedState: LEASED
+- index: 3
+  action: submit candidate
+  eventType: task/candidate-submitted
+  expectedState: VERIFYING
+- index: 4
+  action: verify
+  eventType: verification/completed
+  expectedState: VERIFIED
+- index: 5
+  action: accept
+  eventType: task/accepted
+  expectedState: ACCEPTED
+- index: 6
+  action: queue integration
+  eventType: task/integration-queued
+  expectedState: INTEGRATION_QUEUED
+- index: 7
+  action: integrate
+  eventType: task/integrated
+  expectedState: INTEGRATED
+finalProjectionHash: '0000000000000000000000000000000000000000000000000000000000000001'
+invariants:
+- accepted task is terminal
+- main moves only after verification

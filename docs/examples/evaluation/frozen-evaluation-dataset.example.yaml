@@ -1,0 +1,36 @@
+schemaVersion: 1.0.0
+requestHash: bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+datasetHash: cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+request:
+  schemaVersion: 1.0.0
+  evaluationRequestId: evaluation-empty-window-example
+  requestedBy: user-local
+  period:
+    from: 2026-08-01T00:00:00Z
+    to: 2026-08-02T00:00:00Z
+  filters:
+    templateIds: []
+    departments: []
+    workspaceKeys: []
+    missionIds: []
+    includeIncompleteSessions: true
+  minimumSamples: 20
+  splitByRevision: true
+  comparisonBaseline: same-role-same-difficulty
+  confidenceLevel: 0.95
+  nonInferiorityMargin: 0.05
+  timeoutSeconds: 1800
+  narrativeMode: DETERMINISTIC
+  reportClassification: internal
+  examinerTemplateId: evaluation-examiner-default
+  chairTemplateId: evaluation-chair-default
+  createdAt: 2026-08-02T00:05:00Z
+  idempotencyKey: evaluation-empty-window-example-v1
+attempts: []
+includedSessions: []
+excludedSessions: []
+excludedAttempts: []
+strata: []
+missingness: []
+sourceArtifactRefs:
+  - artifact:evaluation-source-catalog-empty-window

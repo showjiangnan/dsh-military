@@ -1,0 +1,11 @@
+flowchart TD
+  EC[contracts/event-catalog.json] --> G[Contract generator]
+  JS[JSON Schema source] --> V[Parity validator]
+  G --> ES[Event envelope schemas]
+  G --> TS[Generated TypeScript]
+  G --> JL[Golden JSONL ledgers]
+  G --> MD[Generated event catalog]
+  JS --> V
+  TS --> V
+  ES --> V
+  V --> CI[Release gate]

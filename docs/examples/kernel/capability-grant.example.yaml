@@ -1,0 +1,16 @@
+schemaVersion: 1.0.0
+grantId: grant-001
+principalId: principal-user-001
+activationId: activation-worker-001
+missionId: mission-001
+taskId: task-001
+taskVersion: 1
+allowedTools: [read_file, write_file, run_tests]
+resourcePatterns: [src/frontend/**]
+dataClassificationCeiling: confidential
+maximumUses: 40
+uses: 0
+issuedAt: '2026-08-20T00:00:00Z'
+expiresAt: '2026-08-20T01:00:00Z'
+nonce: 1c2a3b4c5d6e7f890123456789abcdef
+state: ACTIVE

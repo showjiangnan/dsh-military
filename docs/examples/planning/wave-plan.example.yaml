@@ -1,0 +1,35 @@
+schemaVersion: 1.0.0
+missionId: mission-demo-webapi
+directionId: direction-audit-read-api
+waveId: wave-1-recon-and-contract
+version: 1
+objective: 冻结现有鉴权、数据访问和分页契约，为实现波次建立可独立验收的基线。
+environmentSnapshotRef: env-snapshot-20260818-001
+entranceCriteria:
+  - Mission Intent 已批准
+  - 仓库工作区可读取
+  - 测试命令可执行
+taskIds:
+  - task-recon-auth
+  - task-recon-data
+  - task-spec-api-contract
+capacity:
+  maxWorkers: 3
+  reservedForRework: 1
+  maxVerifierConcurrency: 2
+  maxAdvisorConcurrency: 2
+budget:
+  modelSteps: 24
+  toolCalls: 80
+  guidanceRequests: 4
+  wallClockSeconds: 3600
+  maxOutputTokens: 50000
+barrier:
+  allRequiredTasksAccepted: true
+  integrationVerifierIds:
+    - verifier-contract-consistency
+  specsCommitRequired: true
+  noCriticalOversightFindings: true
+  additionalCriteria:
+    - 鉴权角色和分页排序已由证据确认
+status: READY

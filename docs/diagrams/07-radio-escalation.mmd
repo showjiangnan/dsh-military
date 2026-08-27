@@ -1,0 +1,22 @@
+sequenceDiagram
+  participant W as Child Agent
+  participant Gt as Escalation Gate
+  participant R as Staff Radio Broker
+  participant A as Specialist Advisors
+  participant TR as Tactical Registry
+  participant B as Delivery Broker
+  W->>Gt: Tactical Request
+  Gt->>Gt: identity/environment/skills/evidence/dedupe
+  alt missing evidence
+    Gt-->>W: EVIDENCE_REQUIRED
+  else strategic
+    Gt-->>W: ESCALATE_TO_GENERAL
+  else admissible
+    Gt->>R: enqueue + lease
+    R->>A: wake eligible advisor
+    A->>TR: retrieve 3-5 candidates
+    TR-->>A: versioned procedures
+    A-->>R: one compiled Directive
+    R->>B: taskVersion/expiry/permission check
+    B-->>W: guidance delivery
+  end

@@ -1,0 +1,122 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "specs-maintenance-order.schema.json",
+  "title": "Specs Maintenance Order",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "orderId",
+    "missionId",
+    "trigger",
+    "requiredUpdates",
+    "allowedPaths",
+    "validation",
+    "commitPolicy",
+    "issuedAt"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0.0"
+    },
+    "orderId": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "missionId": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "trigger": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "ref"
+      ],
+      "properties": {
+        "kind": {
+          "enum": [
+            "mission-bootstrap",
+            "wave-completed",
+            "change-order",
+            "incident",
+            "manual"
+          ]
+        },
+        "ref": {
+          "$ref": "common-defs.schema.json#/$defs/id"
+        }
+      }
+    },
+    "requiredUpdates": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "document",
+          "purpose"
+        ],
+        "properties": {
+          "document": {
+            "type": "string"
+          },
+          "purpose": {
+            "type": "string"
+          },
+          "sourceEventIds": {
+            "type": "array",
+            "items": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            }
+          }
+        }
+      },
+      "minItems": 1
+    },
+    "allowedPaths": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1
+    },
+    "validation": {
+      "description": "Deployment-owned validation. Use the exact listed command; arbitrary shell commands are never accepted.",
+      "type": "array",
+      "items": {
+        "enum": [
+          "git diff --check"
+        ]
+      },
+      "minItems": 1,
+      "maxItems": 1,
+      "uniqueItems": true
+    },
+    "commitPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "branch",
+        "localOnly",
+        "messageTemplate"
+      ],
+      "properties": {
+        "branch": {
+          "const": "main"
+        },
+        "localOnly": {
+          "const": true
+        },
+        "messageTemplate": {
+          "type": "string"
+        },
+        "requireCleanNonSpecsPaths": {
+          "type": "boolean"
+        }
+      }
+    },
+    "issuedAt": {
+      "$ref": "common-defs.schema.json#/$defs/timestamp"
+    }
+  }
+}

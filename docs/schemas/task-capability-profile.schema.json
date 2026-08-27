@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "task-capability-profile.schema.json",
+  "title": "Task Capability Profile",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "profileId", "semanticCapabilities", "toolCapabilities", "minimumReasoning", "minimumContextTokens", "riskClass", "requiredVerificationTier", "parallelismInputs"],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "profileId": { "$ref": "common-defs.schema.json#/$defs/id" },
+    "semanticCapabilities": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true },
+    "toolCapabilities": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true },
+    "minimumReasoning": { "enum": ["low", "high", "max"] },
+    "minimumContextTokens": { "type": "integer", "minimum": 1 },
+    "inputModalities": { "type": "array", "items": { "enum": ["text", "image"] }, "minItems": 1, "uniqueItems": true },
+    "riskClass": { "enum": ["low", "medium", "high", "critical"] },
+    "requiredVerificationTier": { "enum": ["V0", "V1", "V2", "V3", "V4"] },
+    "parallelismInputs": {
+      "type": "object", "additionalProperties": false,
+      "required": ["independentSubproblems", "independentEvidenceSources", "sharedContext", "writeConflict", "temporalDependency", "joinCost", "integrationRisk"],
+      "properties": {
+        "independentSubproblems": { "type": "integer", "minimum": 0, "maximum": 10 },
+        "independentEvidenceSources": { "type": "integer", "minimum": 0, "maximum": 10 },
+        "sharedContext": { "type": "integer", "minimum": 0, "maximum": 10 },
+        "writeConflict": { "type": "integer", "minimum": 0, "maximum": 10 },
+        "temporalDependency": { "type": "integer", "minimum": 0, "maximum": 10 },
+        "joinCost": { "type": "integer", "minimum": 0, "maximum": 10 },
+        "integrationRisk": { "type": "integer", "minimum": 0, "maximum": 10 }
+      }
+    }
+  }
+}

@@ -1,0 +1,47 @@
+{
+  "files": [],
+  "references": [
+    {
+      "path": "./packages/contracts"
+    },
+    {
+      "path": "./packages/core"
+    },
+    {
+      "path": "./packages/infrastructure"
+    },
+    {
+      "path": "./packages/storage-sqlite"
+    },
+    {
+      "path": "./packages/runtime"
+    },
+    {
+      "path": "./packages/testkit"
+    },
+    {
+      "path": "./packages/plugin-host"
+    },
+    {
+      "path": "./packages/tools"
+    },
+    {
+      "path": "./packages/command-brainstorm"
+    },
+    {
+      "path": "./packages/webui"
+    },
+    {
+      "path": "./packages/preset"
+    },
+    {
+      "path": "./packages/bundle"
+    },
+    {
+      "path": "./packages/installer"
+    },
+    {
+      "path": "./apps/smoke"
+    }
+  ]
+}

@@ -1,0 +1,27 @@
+schemaVersion: 1.0.0
+evaluationRequestId: evaluation-2026-07-01-to-08-18
+requestedBy: user-local
+period:
+  from: 2026-07-01T00:00:00Z
+  to: 2026-08-18T23:59:59Z
+filters:
+  templateIds:
+    - worker-default
+  departments:
+    - worker-forces
+  workspaceKeys:
+    - workspace-product-alpha
+  missionIds: []
+  includeIncompleteSessions: true
+minimumSamples: 20
+splitByRevision: true
+comparisonBaseline: same-role-same-difficulty
+confidenceLevel: 0.95
+nonInferiorityMargin: 0.05
+timeoutSeconds: 1800
+narrativeMode: DETERMINISTIC
+reportClassification: internal
+examinerTemplateId: evaluation-examiner-default
+chairTemplateId: evaluation-chair-default
+createdAt: 2026-08-18T02:00:00Z
+idempotencyKey: eval-window-20260701-20260818-v1

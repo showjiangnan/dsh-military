@@ -1,0 +1,131 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "change-order.schema.json",
+  "title": "Mission Change Order",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "changeOrderId",
+    "missionId",
+    "expectedMissionRevision",
+    "reason",
+    "requestedBy",
+    "authorizedBy",
+    "authorizationReceiptRef",
+    "changes",
+    "impact",
+    "createdAt"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0.0"
+    },
+    "changeOrderId": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "missionId": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "expectedMissionRevision": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "reason": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4000
+    },
+    "requestedBy": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "authorizedBy": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "authorizationReceiptRef": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "changes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "targetType": {
+            "enum": [
+              "MISSION",
+              "DIRECTION",
+              "WAVE",
+              "TASK",
+              "ACCEPTANCE_CONTRACT",
+              "BUDGET"
+            ]
+          },
+          "targetId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "operation": {
+            "enum": [
+              "ADD",
+              "REVISE",
+              "CANCEL",
+              "REPRIORITIZE",
+              "REAUTHORIZE"
+            ]
+          },
+          "summary": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          }
+        },
+        "required": [
+          "targetType",
+          "targetId",
+          "operation",
+          "summary"
+        ]
+      },
+      "minItems": 1
+    },
+    "impact": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "cancelTaskIds": {
+          "type": "array",
+          "items": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "uniqueItems": true
+        },
+        "invalidateCandidateIds": {
+          "type": "array",
+          "items": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "uniqueItems": true
+        },
+        "staleGuidanceIds": {
+          "type": "array",
+          "items": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "uniqueItems": true
+        },
+        "requiresUserDecision": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "cancelTaskIds",
+        "invalidateCandidateIds",
+        "staleGuidanceIds",
+        "requiresUserDecision"
+      ]
+    },
+    "createdAt": {
+      "$ref": "common-defs.schema.json#/$defs/timestamp"
+    }
+  }
+}

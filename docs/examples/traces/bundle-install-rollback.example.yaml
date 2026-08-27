@@ -1,0 +1,25 @@
+schemaVersion: 1.0.0
+dshBaseline:
+  release: 0.1.1-rc.2
+  commit: b150a551b8d465e31e418e1b2eaf5e79bbb7d28e
+traceId: trace-bundle-install-rollback
+scenario: bundle-install-rollback
+initialState:
+  state: NOT_INSTALLED
+steps:
+- index: 1
+  action: install generation assets
+  eventType: preset-generation/installed
+  expectedState: ASSETS_INSTALLED
+- index: 2
+  action: probe incompatible composition
+  eventType: compatibility/probed
+  expectedState: PROBE_FAILED
+- index: 3
+  action: roll back profile and assets
+  eventType: bundle/rolled-back
+  expectedState: ROLLED_BACK
+finalProjectionHash: '000000000000000000000000000000000000000000000000000000000000000c'
+invariants:
+- failed probe never commits active installation
+- previous profile remains recoverable

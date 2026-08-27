@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "mission-command.schema.json",
+  "title": "Mission Command",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "commandId",
+    "idempotencyKey",
+    "tenantId",
+    "missionId",
+    "expectedRevision",
+    "actorAuthorityRef",
+    "actor",
+    "type",
+    "payload",
+    "payloadSha256",
+    "createdAt"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0.0"
+    },
+    "commandId": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "idempotencyKey": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 500
+    },
+    "tenantId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 160
+    },
+    "missionId": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "expectedRevision": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "actorAuthorityRef": {
+      "type": "string",
+      "minLength": 1
+    },
+    "taskId": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "taskVersion": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "activationId": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "type": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 160
+    },
+    "payload": {
+      "type": "object"
+    },
+    "payloadSha256": {
+      "$ref": "common-defs.schema.json#/$defs/sha256"
+    },
+    "deadlineAt": {
+      "$ref": "common-defs.schema.json#/$defs/timestamp"
+    },
+    "createdAt": {
+      "$ref": "common-defs.schema.json#/$defs/timestamp"
+    },
+    "actor": {
+      "$ref": "common-defs.schema.json#/$defs/agentIdentity"
+    }
+  }
+}

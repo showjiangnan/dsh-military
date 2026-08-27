@@ -1,0 +1,264 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "agent-template-profile.schema.json",
+  "title": "Military Department Agent Template Profile",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "templateId",
+    "revision",
+    "displayName",
+    "department",
+    "role",
+    "status",
+    "modelPolicy",
+    "contextPolicy",
+    "capabilities",
+    "createdAt",
+    "taskTypes",
+    "domainTagIds",
+    "concurrencyLimit"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0.0"
+    },
+    "templateId": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "revision": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "displayName": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 160
+    },
+    "department": {
+      "enum": [
+        "staff",
+        "worker-forces",
+        "engineer-corps",
+        "oversight",
+        "logistics-research",
+        "evaluation-committee"
+      ]
+    },
+    "role": {
+      "enum": [
+        "advisor",
+        "chief-of-staff",
+        "worker",
+        "engineer",
+        "inspector",
+        "trajectory",
+        "effectiveness",
+        "museum",
+        "evaluation-examiner",
+        "evaluation-chair"
+      ]
+    },
+    "status": {
+      "enum": [
+        "DRAFT",
+        "CANARY",
+        "ACTIVE",
+        "PAUSED",
+        "RETIRED"
+      ]
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 4000
+    },
+    "rolePromptOverride": {
+      "type": "string",
+      "minLength": 32,
+      "maxLength": 12000,
+      "description": "Optional user-authored Simplified Chinese role guidance. Host tool, workspace, evidence and terminal boundaries remain immutable."
+    },
+    "taskTypes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "uniqueItems": true
+    },
+    "domainTagIds": {
+      "type": "array",
+      "items": {
+        "$ref": "common-defs.schema.json#/$defs/id"
+      },
+      "uniqueItems": true
+    },
+    "modelPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "provider",
+        "model",
+        "reasoningEffort",
+        "maxOutputTokens",
+        "fallbackTemplateIds",
+        "dataResidency",
+        "modelCapabilityProfileId",
+        "dataResidencyPolicyRef"
+      ],
+      "properties": {
+        "provider": {
+          "type": "string",
+          "minLength": 1
+        },
+        "model": {
+          "type": "string",
+          "minLength": 1
+        },
+        "reasoningEffort": {
+          "$ref": "common-defs.schema.json#/$defs/reasoningEffort"
+        },
+        "maxOutputTokens": {
+          "type": "integer",
+          "minimum": 128
+        },
+        "fallbackTemplateIds": {
+          "type": "array",
+          "items": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "uniqueItems": true
+        },
+        "dataResidency": {
+          "enum": [
+            "local",
+            "enterprise",
+            "external-allowed"
+          ]
+        },
+        "allowFallback": {
+          "type": "boolean"
+        },
+        "modelCapabilityProfileId": {
+          "$ref": "common-defs.schema.json#/$defs/id"
+        },
+        "dataResidencyPolicyRef": {
+          "$ref": "common-defs.schema.json#/$defs/id"
+        }
+      }
+    },
+    "contextPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "contextBudgetTokens",
+        "compactionTriggerPercent",
+        "retainedTailTokens",
+        "minimumRearmDeltaPercent",
+        "maxCompactionAttemptsPerTurn",
+        "onCompactionFailure"
+      ],
+      "properties": {
+        "contextBudgetTokens": {
+          "type": "integer",
+          "minimum": 8192
+        },
+        "compactionTriggerPercent": {
+          "type": "integer",
+          "minimum": 50,
+          "maximum": 99
+        },
+        "retainedTailTokens": {
+          "type": "integer",
+          "minimum": 2048
+        },
+        "minimumRearmDeltaPercent": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 50
+        },
+        "maxCompactionAttemptsPerTurn": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 3
+        },
+        "onCompactionFailure": {
+          "enum": [
+            "PAUSE_AND_ESCALATE",
+            "HANDOFF_GENERATION",
+            "FAIL_TASK"
+          ]
+        },
+        "preserveEventKinds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "uniqueItems": true
+        }
+      }
+    },
+    "capabilities": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "toolProfileId",
+        "permissionProfileId",
+        "tacticalSkillPatterns",
+        "toolProfileRevision",
+        "permissionProfileRevision",
+        "apiGrantIds"
+      ],
+      "properties": {
+        "toolProfileId": {
+          "$ref": "common-defs.schema.json#/$defs/id"
+        },
+        "permissionProfileId": {
+          "$ref": "common-defs.schema.json#/$defs/id"
+        },
+        "tacticalSkillPatterns": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "apiGrantIds": {
+          "type": "array",
+          "items": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "uniqueItems": true
+        },
+        "toolProfileRevision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "permissionProfileRevision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "verifierProfileIds": {
+          "type": "array",
+          "items": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "uniqueItems": true
+        }
+      }
+    },
+    "concurrencyLimit": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "createdAt": {
+      "$ref": "common-defs.schema.json#/$defs/timestamp"
+    },
+    "updatedAt": {
+      "$ref": "common-defs.schema.json#/$defs/timestamp"
+    },
+    "supersedesRevision": {
+      "type": "integer",
+      "minimum": 1
+    }
+  }
+}

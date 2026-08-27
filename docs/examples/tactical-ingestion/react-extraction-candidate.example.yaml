@@ -1,0 +1,67 @@
+schemaVersion: 1.0.0
+candidateId: extraction-react-form-performance-001
+requestId: ingestion-react-session-001
+sourceSnapshotRef: artifact:tactical-source-react-001
+sourceHash: bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+status: NEEDS_REVIEW
+candidateType: SUPPLEMENT
+targetSkill:
+  skillId: react-form-performance-diagnosis
+  version: 1.3.0
+tags:
+  primaryTagId: tag-react
+  additionalTagIds:
+    - tag-web-frontend
+    - tag-performance
+  proposedTags: []
+extracted:
+  title: React 大型表单提交阶段性能诊断补充
+  objective: 通过可重复测量区分状态传播、字段订阅和派生计算热点。
+  claims:
+    - claimId: claim-profiler-before-memo
+      kind: experience
+      text: 在全面增加 memo 前，先用可重复交互和 Profiler 定位提交阶段热点。
+      sourceRefs:
+        - kind: event
+          ref: session-react-architecture-2026:seq-72
+          claim: 用户总结的诊断顺序及其原因。
+  preconditions:
+    - 问题可在固定表单数据和交互脚本下复现。
+  exclusions:
+    - 不适用于纯网络等待导致的提交延迟。
+  playbook:
+    - stepId: record-baseline
+      action: 记录固定交互的 Profiler baseline 和提交时间。
+      tool: react-profiler
+      evidenceExpected:
+        - baseline profile artifact
+    - stepId: narrow-subscriptions
+      action: 检查字段订阅和全局状态传播范围，逐项缩小订阅后复测。
+      evidenceExpected:
+        - before-after render counts
+  verification:
+    - 同一交互脚本下提交阶段 p95 至少下降 20%，且功能测试通过。
+  stopConditions:
+    - 无法获得稳定 baseline 时停止并请求环境诊断。
+  rollback:
+    - 恢复订阅范围变更并重新运行表单回归测试。
+  failureModes:
+    - code: unstable-baseline
+      symptom: 连续三次 profile 方差超过 20%。
+      response: 固定数据、关闭开发扩展并重建测量环境。
+diff:
+  summary: 为现有战术增加“先测量再 memo”的场景分支和稳定 baseline 失败模式。
+  operations:
+    - op: add
+      path: /playbook/record-baseline
+      reason: 来源会话证明该步骤能减少无效优化。
+    - op: add
+      path: /knownFailureModes/unstable-baseline
+      reason: 补充无法稳定复现时的停止与恢复。
+safety:
+  secretScan: PASS
+  piiScan: PASS
+  promptInjectionScan: PASS
+  redactions: []
+createdAt: 2026-08-18T01:35:00Z
+expiresAt: 2026-08-25T01:35:00Z

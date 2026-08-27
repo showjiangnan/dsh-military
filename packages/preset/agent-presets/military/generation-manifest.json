@@ -1,0 +1,32 @@
+{
+  "schemaVersion": "1.0.0",
+  "presetId": "military",
+  "generation": "military@sha256:054486e73b1b1f8385782497cda79e9a887897fbc338dd9bc6ca80d01a1e8146",
+  "assetHash": "054486e73b1b1f8385782497cda79e9a887897fbc338dd9bc6ca80d01a1e8146",
+  "bundleVersion": "0.9.0-alpha.24",
+  "dshBaseline": {
+    "release": "0.1.1-rc.2",
+    "commit": "b150a551b8d465e31e418e1b2eaf5e79bbb7d28e"
+  },
+  "publicSelectionId": "military",
+  "hiddenArchiveId": "military-generation-054486e73b1b1f83",
+  "status": "CURRENT",
+  "files": [
+    {
+      "path": "preset.yml",
+      "sha256": "423428feb0a6a602cffe552e9c1664ec29d6127d5482a3e11fb94e54803adeff",
+      "byteLength": 165
+    },
+    {
+      "path": "agent.cordis.yml",
+      "sha256": "af0cb05b95978ec55c87a83d2c12b369e031b1933fb82e8e720f537b563f2a78",
+      "byteLength": 4112
+    }
+  ],
+  "createdAt": "2026-08-26T03:02:16.825Z",
+  "compatibility": {
+    "mode": "EXACT_RC2",
+    "breaking": true,
+    "resumeSupported": true
+  }
+}

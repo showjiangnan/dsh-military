@@ -1,0 +1,36 @@
+schemaVersion: 1.0.0
+missionId: REPLACE_ME
+specsVersion: 1
+lastSourceEventId: REPLACE_ME
+lastLocalMainCommit: null
+documents:
+  - path: 00-mission/mission-intent.md
+    owner: engineer
+    required: true
+  - path: 01-requirements/functional-requirements.md
+    owner: engineer
+    required: true
+  - path: 01-requirements/non-functional-requirements.md
+    owner: engineer
+    required: true
+  - path: 02-architecture/system-context.md
+    owner: engineer
+    required: true
+  - path: 02-architecture/components.md
+    owner: engineer
+    required: true
+  - path: 02-architecture/data-and-events.md
+    owner: engineer
+    required: true
+  - path: 04-planning/directions.md
+    owner: engineer
+    required: true
+  - path: 04-planning/waves.md
+    owner: engineer
+    required: true
+  - path: 05-verification/acceptance-matrix.md
+    owner: engineer
+    required: true
+  - path: 07-traceability/traceability-matrix.md
+    owner: engineer
+    required: true

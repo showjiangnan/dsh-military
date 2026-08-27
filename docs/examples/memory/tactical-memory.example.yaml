@@ -1,0 +1,41 @@
+schemaVersion: 1.0.0
+memoryId: memory-wave-1
+missionId: mission-demo-webapi
+boundaryRef: wave-1-recon-and-contract
+missionState: 第一波次已完成；鉴权、数据层和 API 合同基线已冻结，可进入实现波次。
+confirmedFacts:
+  - 新的受保护 API 应复用 policyGuard。
+  - 审计事件分页必须使用 created_at 与 id 复合排序。
+acceptedProgress:
+  - 已完成鉴权路径侦察。
+  - 已完成数据访问层和分页契约侦察。
+  - 工兵已更新并提交 API specs。
+decisionsAndRationale:
+  - 选择 policyGuard，因为它是当前公共 API 的默认鉴权路径，且测试夹具与错误响应一致。
+openBlockers: []
+riskChanges:
+  - cursor 稳定性风险已转化为实现波次中的并发插入验收条款。
+lessons:
+  - 当代码库并存新旧鉴权栈时，应比较调用方、默认拒绝行为和最新测试夹具，而非仅按搜索命中数选择。
+recommendedStrategicActions:
+  - 打开实现波次并优先完成查询服务与 cursor 单元测试。
+evidenceIndex:
+  - claim: policyGuard 是新端点的当前权威鉴权路径。
+    sourceEventIds:
+      - event-task-recon-auth-accepted
+      - event-direction-auth-policy-decision
+    artifactRefs:
+      - artifactId: artifact-auth-recon-report
+        sha256: "1111111111111111111111111111111111111111111111111111111111111111"
+        mediaType: application/markdown
+        byteLength: 4832
+        classification: internal
+    confidence: 0.96
+    validityScope: 当前仓库 commit env-snapshot-20260818-001
+createdBy:
+  agentId: agent-trajectory-1
+  sessionId: session-trajectory-1
+  role: trajectory
+  displayName: 战术轨迹记忆总结 Agent
+  generation: 1
+createdAt: "2026-08-18T03:12:00Z"

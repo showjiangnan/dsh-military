@@ -1,0 +1,13 @@
+schemaVersion: 1.0.0
+sessionId: session-military-001
+presetId: military
+presetGeneration: military@sha256:054486e73b1b1f8385782497cda79e9a887897fbc338dd9bc6ca80d01a1e8146
+rootAgentId: session-military-001
+activatedAt: 2026-08-18T01:00:00Z
+workspaceKey: workspace:react-dashboard:7f09
+selectionSource: new-session-selection
+capabilityFingerprint: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+tenantId: tenant-example
+generationManifestRef: preset-generation:054486e73b1b1f8385782497cda79e9a887897fbc338dd9bc6ca80d01a1e8146
+dshBaselineCommit: b150a551b8d465e31e418e1b2eaf5e79bbb7d28e
+resumeDisposition: NEW

@@ -1,0 +1,17 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "src/client",
+    "outDir": "../../.client-build/webui",
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "target": "ES2023",
+    "declaration": false,
+    "declarationMap": false,
+    "sourceMap": true,
+    "verbatimModuleSyntax": false,
+    "isolatedModules": false,
+    "jsx": "react-jsx"
+  },
+  "include": ["src/client/index.tsx"]
+}

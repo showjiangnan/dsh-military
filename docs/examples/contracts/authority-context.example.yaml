@@ -1,0 +1,19 @@
+schemaVersion: 1.0.0
+authorityContextId: authority-context-001
+principalId: user-example
+tenantId: tenant-example
+roles:
+- mission-owner
+- tactical-admin
+scopes:
+- mission:*
+- tactics:user-private:*
+sessionOwnership:
+- session-general
+workspaceMemberships:
+- workspace-example
+dataClassificationCeiling: confidential
+authorizationReceiptRefs:
+- authorization-receipt-001
+issuedAt: '2026-08-19T00:00:00Z'
+expiresAt: '2026-09-19T00:00:00Z'

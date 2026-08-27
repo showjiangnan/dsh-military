@@ -1,0 +1,72 @@
+# Composite reference for the eleven DSH RC.2 settings namespaces registered
+# by dsh-military. In normal use, edit these through the sidebar Military
+# settings dialog.
+#
+# `profilesJson`, `tagsJson`, evaluation filter JSON and result fields are
+# intentionally omitted: the visual client writes their versioned wire format.
+# Security invariants such as workspace confinement, local-only Git, terminal
+# receipts and Host-compiled tool authority are fixed and cannot be weakened
+# through settings.
+
+military-model-routing:
+  provider: deepseek-official
+  model: deepseek-v4-flash
+  reasoningEffort: high
+  maxOutputTokens: 16384
+  # Empty selects the bundled Simplified Chinese General prompt.
+  generalPromptOverride: ""
+
+military-agent-templates: {}
+
+military-core:
+  maxRadioAttempts: 5
+  radioLeaseSeconds: 120
+
+military-staff:
+  chiefOfStaffFallbackEnabled: true
+
+military-tags: {}
+
+military-tactics:
+  candidateRecallMinimum: 3
+  candidateRecallMaximum: 5
+  allowCanaryDelivery: true
+
+military-private-skills:
+  extractionProvider: deepseek-official
+  extractionModel: deepseek-v4-flash
+  maxOutputTokens: 8192
+  allowDeterministicFallback: true
+  defaultVisibility: user-private
+  defaultRetentionDays: 365
+
+military-oversight:
+  completionInterlockEnabled: true
+  freezeOnSecondMissingSubmission: true
+  requireObservedToolEvidence: true
+  maximumNoProgressTurns: 3
+
+military-specs:
+  commitMessagePrefix: "docs(specs):"
+
+military-memory:
+  trajectoryAfterWave: true
+  effectivenessAfterGeneralCompaction: true
+
+military-evaluation:
+  minimumSampleSize: 20
+  includeIncompleteByDefault: false
+  splitByRevision: true
+  comparisonBaseline: same-role-same-difficulty
+  confidenceLevel: 0.95
+  nonInferiorityMargin: 0.05
+  timeoutSeconds: 1800
+  narrativeMode: DETERMINISTIC
+  reportClassification: confidential
+  examinerTemplateId: evaluation-examiner
+  chairTemplateId: evaluation-chair
+
+military-presentation:
+  terminology: military
+  showAdvancedAudit: false
+  compactEventCards: true

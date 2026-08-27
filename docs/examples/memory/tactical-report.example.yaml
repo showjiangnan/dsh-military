@@ -1,0 +1,39 @@
+schemaVersion: 1.0.0
+reportId: report-wave-1
+missionId: mission-demo-webapi
+boundary:
+  kind: wave
+  ref: wave-1-recon-and-contract
+acceptedTasks:
+  - taskId: task-recon-auth
+    taskVersion: 1
+    candidateId: candidate-task-recon-auth-1
+    artifactRefs:
+      - artifactId: artifact-auth-recon-report
+        sha256: "1111111111111111111111111111111111111111111111111111111111111111"
+        mediaType: application/markdown
+        byteLength: 4832
+        classification: internal
+openBlockers: []
+decisions:
+  - eventId: event-direction-auth-policy-decision
+    seq: 44
+    claim: 新接口复用 policyGuard。
+skillUsage:
+  - skillId: tactic-codebase-auth-recon
+    version: 1.2.0
+    usageStage: accepted
+  - skillId: tactic-api-policy-migration-detection
+    version: 0.8.0
+    guidanceId: guidance-auth-stack-1
+    usageStage: contributed
+metrics:
+  tasksAccepted: 3
+  firstPassAccepted: 2
+  tacticalRequests: 1
+  reworkCount: 0
+sourceEventIds:
+  - event-task-recon-auth-accepted
+  - event-specs-wave-1-commit
+  - event-direction-auth-policy-decision
+createdAt: "2026-08-18T03:10:00Z"

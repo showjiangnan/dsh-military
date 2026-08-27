@@ -1,0 +1,21 @@
+schemaVersion: 1.0.0
+candidatePatchId: candidate-patch-001
+candidateId: candidate-001
+missionId: mission-example
+taskId: task-auth-api
+taskVersion: 1
+baseWorkspaceSnapshotId: workspace-snapshot-001
+patchArtifact:
+  artifactId: artifact-candidate-patch
+  sha256: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+  mediaType: text/x-diff
+  byteLength: 8192
+  classification: internal
+changedPaths:
+- src/auth.ts
+- tests/auth.spec.ts
+applyMode: UNIFIED_DIFF
+preconditions:
+- HEAD == 0123456789abcdef0123456789abcdef01234567
+patchHash: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+createdAt: '2026-08-19T00:00:00Z'

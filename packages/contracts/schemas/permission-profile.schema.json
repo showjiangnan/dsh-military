@@ -1,0 +1,138 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "permission-profile.schema.json",
+  "title": "Deny-first Permission Profile",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "permissionProfileId",
+    "revision",
+    "status",
+    "defaultDecision",
+    "filesystem",
+    "git",
+    "network",
+    "classificationCeiling",
+    "createdAt"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0.0"
+    },
+    "permissionProfileId": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "revision": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "status": {
+      "enum": [
+        "DRAFT",
+        "ACTIVE",
+        "REVOKED",
+        "RETIRED"
+      ]
+    },
+    "defaultDecision": {
+      "const": "DENY"
+    },
+    "filesystem": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "readPaths": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024
+          },
+          "uniqueItems": true
+        },
+        "writePaths": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024
+          },
+          "uniqueItems": true
+        },
+        "denyPaths": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024
+          },
+          "uniqueItems": true
+        },
+        "followSymlinks": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "readPaths",
+        "writePaths",
+        "denyPaths",
+        "followSymlinks"
+      ]
+    },
+    "git": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "allowLocalRead": {
+          "type": "boolean"
+        },
+        "allowLocalMainCommit": {
+          "type": "boolean"
+        },
+        "allowBranchCreate": {
+          "type": "boolean"
+        },
+        "allowRemoteWrite": {
+          "type": "boolean"
+        },
+        "allowDestructiveReset": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "allowLocalRead",
+        "allowLocalMainCommit",
+        "allowBranchCreate",
+        "allowRemoteWrite",
+        "allowDestructiveReset"
+      ]
+    },
+    "network": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "allowGrantIds": {
+          "type": "array",
+          "items": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "uniqueItems": true
+        },
+        "denyUnlisted": {
+          "const": true
+        }
+      },
+      "required": [
+        "allowGrantIds",
+        "denyUnlisted"
+      ]
+    },
+    "classificationCeiling": {
+      "$ref": "common-defs.schema.json#/$defs/classification"
+    },
+    "createdAt": {
+      "$ref": "common-defs.schema.json#/$defs/timestamp"
+    }
+  }
+}

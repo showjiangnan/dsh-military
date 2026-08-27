@@ -1,0 +1,14 @@
+schemaVersion: 1.0.0
+integrationOrderId: integration-order-001
+missionId: mission-example
+taskId: task-auth-api
+taskVersion: 1
+candidatePatchId: candidate-patch-001
+targetBranch: main
+expectedHead: 0123456789abcdef0123456789abcdef01234567
+expectedTreeHash: 89abcdef0123456789abcdef0123456789abcdef
+conflictPolicy: STOP_AND_REPORT
+verifierProfileRefs:
+- verifier-typescript-code
+authorizedBy: agent-harness
+createdAt: '2026-08-19T00:00:00Z'

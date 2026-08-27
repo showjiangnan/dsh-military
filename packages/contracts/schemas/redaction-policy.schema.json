@@ -1,0 +1,75 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "redaction-policy.schema.json",
+  "title": "Response Redaction Policy",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "policyId",
+    "revision",
+    "status",
+    "dropFields",
+    "maskFields",
+    "maxResponseBytes",
+    "promptInjectionIsolation",
+    "secretPatterns",
+    "createdAt"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0.0"
+    },
+    "policyId": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "revision": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "status": {
+      "enum": [
+        "ACTIVE",
+        "PAUSED",
+        "RETIRED"
+      ]
+    },
+    "dropFields": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 500
+      },
+      "uniqueItems": true
+    },
+    "maskFields": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 500
+      },
+      "uniqueItems": true
+    },
+    "maxResponseBytes": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "promptInjectionIsolation": {
+      "const": true
+    },
+    "secretPatterns": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 500
+      },
+      "uniqueItems": true
+    },
+    "createdAt": {
+      "$ref": "common-defs.schema.json#/$defs/timestamp"
+    }
+  }
+}

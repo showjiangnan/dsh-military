@@ -1,0 +1,15 @@
+flowchart TB
+  E[Agent/Tool/Session Events] --> P[Deterministic Policies]
+  E --> I[Read-only Inspector]
+  P --> D{Anomaly?}
+  I --> D
+  D -->|no| C[Continue]
+  D -->|yes| F[Freeze Controller]
+  F --> X[Cancel active turn; keep inbox]
+  F --> G[Pre-step reject]
+  F --> TG[Write-tool guards deny]
+  F --> IR[Inspection Report]
+  IR --> S[Staff correction review]
+  S -->|repair| R[Release with new order]
+  S -->|untrusted| N[Replace Agent]
+  S -->|strategic| GE[General]

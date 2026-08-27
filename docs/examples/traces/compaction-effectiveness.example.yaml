@@ -1,0 +1,33 @@
+schemaVersion: 1.0.0
+dshBaseline:
+  release: 0.1.1-rc.2
+  commit: b150a551b8d465e31e418e1b2eaf5e79bbb7d28e
+traceId: trace-compaction-effectiveness
+scenario: compaction-effectiveness
+initialState:
+  state: BELOW_THRESHOLD
+steps:
+- index: 1
+  action: cross context threshold
+  eventType: context/compaction-required
+  expectedState: REQUIRED
+- index: 2
+  action: record attempt
+  eventType: context/compaction-attempted
+  expectedState: ATTEMPTED
+- index: 3
+  action: complete safe compaction
+  eventType: context/compaction-completed
+  expectedState: COMPACTED
+- index: 4
+  action: schedule effectiveness exactly once
+  eventType: memory/effectiveness-scheduled
+  expectedState: ASSESSMENT_QUEUED
+- index: 5
+  action: publish effectiveness
+  eventType: memory/effectiveness-created
+  expectedState: ASSESSED
+finalProjectionHash: '000000000000000000000000000000000000000000000000000000000000000b'
+invariants:
+- one compaction identity schedules one effectiveness assessment
+- failed attempt is not reported as successful compaction

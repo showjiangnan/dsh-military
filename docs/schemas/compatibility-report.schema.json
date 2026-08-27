@@ -1,0 +1,282 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "compatibility-report.schema.json",
+  "title": "DSH RC.2 Compatibility Report",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "reportId",
+    "dsh",
+    "capabilities",
+    "disposition",
+    "blockers",
+    "warnings",
+    "generatedAt"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0.0"
+    },
+    "reportId": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "dsh": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "release",
+        "commit"
+      ],
+      "properties": {
+        "release": {
+          "const": "0.1.1-rc.2"
+        },
+        "commit": {
+          "const": "b150a551b8d465e31e418e1b2eaf5e79bbb7d28e"
+        }
+      }
+    },
+    "capabilities": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "agentPresets",
+        "userQuestions",
+        "compaction",
+        "subagents",
+        "commands",
+        "deepseekAdapter",
+        "sessionPersistence",
+        "sessionEvents",
+        "settingsCards",
+        "conversationNodes",
+        "webClient"
+      ],
+      "properties": {
+        "agentPresets": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "available",
+            "composeFrom",
+            "exactGenerationAccessible"
+          ],
+          "properties": {
+            "available": {
+              "type": "boolean"
+            },
+            "composeFrom": {
+              "type": "boolean"
+            },
+            "exactGenerationAccessible": {
+              "type": "boolean"
+            }
+          }
+        },
+        "userQuestions": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "available",
+            "delegatedChildAllowed"
+          ],
+          "properties": {
+            "available": {
+              "type": "boolean"
+            },
+            "delegatedChildAllowed": {
+              "type": "boolean"
+            }
+          }
+        },
+        "compaction": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "available",
+            "eventContract"
+          ],
+          "properties": {
+            "available": {
+              "type": "boolean"
+            },
+            "eventContract": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 80
+            }
+          }
+        },
+        "subagents": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "continuable",
+            "report",
+            "callerReservedChildId",
+            "reportDeliveries",
+            "selectiveDirectChildDrain"
+          ],
+          "properties": {
+            "continuable": {
+              "type": "boolean"
+            },
+            "report": {
+              "type": "boolean"
+            },
+            "callerReservedChildId": {
+              "type": "boolean"
+            },
+            "reportDeliveries": {
+              "type": "array",
+              "items": {
+                "enum": [
+                  "quiet",
+                  "next-step"
+                ]
+              },
+              "uniqueItems": true,
+              "minItems": 0,
+              "maxItems": 2
+            },
+            "selectiveDirectChildDrain": {
+              "type": "boolean"
+            }
+          }
+        },
+        "commands": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "attachmentAwareInvocation",
+            "imageAdmissionBeforeHandler"
+          ],
+          "properties": {
+            "attachmentAwareInvocation": {
+              "type": "boolean"
+            },
+            "imageAdmissionBeforeHandler": {
+              "type": "boolean"
+            }
+          }
+        },
+        "deepseekAdapter": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "reasoningPassbackAllReasonedTurns",
+            "imageInputByModelCapability"
+          ],
+          "properties": {
+            "reasoningPassbackAllReasonedTurns": {
+              "type": "boolean"
+            },
+            "imageInputByModelCapability": {
+              "type": "boolean"
+            }
+          }
+        },
+        "sessionPersistence": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "available"
+          ],
+          "properties": {
+            "available": {
+              "type": "boolean"
+            }
+          }
+        },
+        "settingsCards": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "available"
+          ],
+          "properties": {
+            "available": {
+              "type": "boolean"
+            }
+          }
+        },
+        "conversationNodes": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "available"
+          ],
+          "properties": {
+            "available": {
+              "type": "boolean"
+            }
+          }
+        },
+        "webClient": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "sharedSettingsDescribeMirror",
+            "manifestDeclaredExternals",
+            "conversationNodes"
+          ],
+          "properties": {
+            "sharedSettingsDescribeMirror": {
+              "type": "boolean"
+            },
+            "manifestDeclaredExternals": {
+              "type": "boolean"
+            },
+            "conversationNodes": {
+              "type": "boolean"
+            }
+          }
+        },
+        "sessionEvents": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "externalRequiredTypeRegistration",
+            "militaryAuthorityUsesOwnLedger"
+          ],
+          "properties": {
+            "externalRequiredTypeRegistration": {
+              "type": "boolean"
+            },
+            "militaryAuthorityUsesOwnLedger": {
+              "type": "boolean"
+            }
+          }
+        }
+      }
+    },
+    "disposition": {
+      "enum": [
+        "READY",
+        "DEGRADED_READ_ONLY",
+        "MIGRATION_REQUIRED",
+        "UNSUPPORTED"
+      ]
+    },
+    "blockers": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "warnings": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "generatedAt": {
+      "$ref": "common-defs.schema.json#/$defs/timestamp"
+    }
+  }
+}

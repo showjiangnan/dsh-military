@@ -1,0 +1,115 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "enterprise-api-grant.schema.json",
+  "title": "Enterprise API Grant",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "grantId",
+    "revision",
+    "status",
+    "gateway",
+    "methods",
+    "resourcePatterns",
+    "requestSchemaRef",
+    "responseSchemaRef",
+    "classificationCeiling",
+    "dataResidencyPolicyRef",
+    "credentialRef",
+    "redactionPolicyRef",
+    "rateLimitPerMinute",
+    "principalScopes",
+    "createdAt",
+    "expiresAt"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0.0"
+    },
+    "grantId": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "revision": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "status": {
+      "enum": [
+        "DRAFT",
+        "ACTIVE",
+        "REVOKED",
+        "EXPIRED"
+      ]
+    },
+    "gateway": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "methods": {
+      "type": "array",
+      "items": {
+        "enum": [
+          "GET",
+          "POST",
+          "PUT",
+          "PATCH",
+          "DELETE"
+        ]
+      },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "resourcePatterns": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 1000
+      },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "requestSchemaRef": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1000
+    },
+    "responseSchemaRef": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1000
+    },
+    "classificationCeiling": {
+      "$ref": "common-defs.schema.json#/$defs/classification"
+    },
+    "dataResidencyPolicyRef": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "credentialRef": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "redactionPolicyRef": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "rateLimitPerMinute": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "principalScopes": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 500
+      },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "createdAt": {
+      "$ref": "common-defs.schema.json#/$defs/timestamp"
+    },
+    "expiresAt": {
+      "$ref": "common-defs.schema.json#/$defs/timestamp"
+    }
+  }
+}

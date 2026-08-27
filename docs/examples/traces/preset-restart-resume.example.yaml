@@ -1,0 +1,22 @@
+schemaVersion: 1.0.0
+dshBaseline:
+  release: 0.1.1-rc.2
+  commit: b150a551b8d465e31e418e1b2eaf5e79bbb7d28e
+traceId: trace-preset-restart-resume
+scenario: preset-restart-resume
+initialState:
+  state: START
+steps:
+- index: 1
+  action: bind generation
+  eventType: military/session-bound
+  expectedState: ACTIVE
+- index: 2
+  action: restart and compare
+  eventType: preset/generation-resume-checked
+  expectedState: QUARANTINED
+finalProjectionHash: '0000000000000000000000000000000000000000000000000000000000000004'
+invariants:
+- archived-only root session never runs under the current generation
+- no model request before generation check
+- migration order or export is required

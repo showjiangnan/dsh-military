@@ -1,0 +1,29 @@
+schemaVersion: 1.0.0
+presetId: military
+defaultModel:
+  provider: deepseek-official
+  model: deepseek-v4-flash
+  reasoningEffort: high
+  maxOutputTokens: 16384
+modelSelection:
+  userSessionSwitchEnabled: true
+  explicitSessionSelectionWins: true
+  rejectUnsupportedReasoning: true
+  recordSelectionEvent: true
+  allowGlobalDefaultFallback: false
+minimumReasoning: high
+maximumSteps: 24
+contextPolicy:
+  contextBudgetTokens: 128000
+  compactionTriggerPercent: 78
+  retainedTailTokens: 24000
+  minimumRearmDeltaPercent: 8
+  maxCompactionAttemptsPerTurn: 1
+  onCompactionFailure: PAUSE_AND_ESCALATE
+fallback:
+  enabled: false
+  compatibleProfileIds: []
+  requireUserApprovalForRestrictedData: true
+dshBaseline:
+  release: 0.1.1-rc.2
+  commit: b150a551b8d465e31e418e1b2eaf5e79bbb7d28e

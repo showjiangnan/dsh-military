@@ -1,0 +1,29 @@
+schemaVersion: 1.0.0
+dshBaseline:
+  release: 0.1.1-rc.2
+  commit: b150a551b8d465e31e418e1b2eaf5e79bbb7d28e
+traceId: trace-evaluation
+scenario: evaluation
+initialState:
+  state: START
+steps:
+- index: 1
+  action: request evaluation
+  eventType: performance-evaluation/requested
+  expectedState: DISCOVERING
+- index: 2
+  action: freeze dataset
+  eventType: performance-evaluation/dataset-frozen
+  expectedState: EVALUATING
+- index: 3
+  action: complete template
+  eventType: performance-evaluation/template-completed
+  expectedState: SYNTHESIZING
+- index: 4
+  action: publish report
+  eventType: performance-evaluation/completed
+  expectedState: COMPLETED
+finalProjectionHash: 0000000000000000000000000000000000000000000000000000000000000008
+invariants:
+- dataset hash is immutable
+- deterministic metrics cannot be overwritten

@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "knowledge-revocation-order.schema.json",
+  "title": "Knowledge Revocation Order",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "revocationOrderId",
+    "snapshotId",
+    "reason",
+    "requestedBy",
+    "authorizedBy",
+    "authorizationReceiptRef",
+    "affectedTacticVersions",
+    "requiredActions",
+    "createdAt"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0.0"
+    },
+    "revocationOrderId": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "snapshotId": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "reason": {
+      "enum": [
+        "OWNER_REQUEST",
+        "LICENSE_CHANGE",
+        "SECURITY_INCIDENT",
+        "PROVEN_INCORRECT",
+        "RETENTION_EXPIRY"
+      ]
+    },
+    "requestedBy": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "authorizedBy": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "authorizationReceiptRef": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "affectedTacticVersions": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 240
+      },
+      "uniqueItems": true
+    },
+    "requiredActions": {
+      "type": "array",
+      "items": {
+        "enum": [
+          "QUARANTINE_TACTIC",
+          "REVERIFY_TASKS",
+          "REDACT_REPORTS",
+          "DELETE_DERIVATIVES",
+          "NOTIFY_USERS"
+        ]
+      },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "createdAt": {
+      "$ref": "common-defs.schema.json#/$defs/timestamp"
+    }
+  }
+}

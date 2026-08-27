@@ -1,0 +1,24 @@
+schemaVersion: 1.0.0
+workspaceSnapshotId: workspace-snapshot-001
+tenantId: tenant-example
+workspaceKey: workspace-example
+rootPathHash: '6666666666666666666666666666666666666666666666666666666666666666'
+git:
+  repositoryId: repo-example
+  head: 0123456789abcdef0123456789abcdef01234567
+  branch: main
+  treeHash: 89abcdef0123456789abcdef0123456789abcdef
+  dirtyStateHash: '7777777777777777777777777777777777777777777777777777777777777777'
+fileManifest:
+  artifactId: artifact-file-manifest
+  sha256: '8888888888888888888888888888888888888888888888888888888888888888'
+  mediaType: application/json
+  byteLength: 4096
+  classification: internal
+environmentArtifact:
+  artifactId: artifact-environment
+  sha256: '9999999999999999999999999999999999999999999999999999999999999999'
+  mediaType: application/json
+  byteLength: 2048
+  classification: internal
+createdAt: '2026-08-19T00:00:00Z'

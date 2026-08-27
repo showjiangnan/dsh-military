@@ -1,0 +1,17 @@
+schemaVersion: 1.0.0
+profileId: capability-react-ui-001
+semanticCapabilities: [react-architecture, accessibility-analysis]
+toolCapabilities: [filesystem-read, filesystem-write, typescript-compiler, browser-test]
+minimumReasoning: high
+minimumContextTokens: 120000
+inputModalities: [text, image]
+riskClass: medium
+requiredVerificationTier: V3
+parallelismInputs:
+  independentSubproblems: 3
+  independentEvidenceSources: 2
+  sharedContext: 4
+  writeConflict: 2
+  temporalDependency: 2
+  joinCost: 2
+  integrationRisk: 3

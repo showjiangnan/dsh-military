@@ -1,0 +1,21 @@
+schemaVersion: 1.0.0
+commandId: command-task-create-001
+idempotencyKey: task-create:task-001:1
+tenantId: tenant-example
+missionId: mission-001
+expectedRevision: 4
+actorAuthorityRef: session-authority:session-general
+actor:
+  agentId: agent-general
+  sessionId: session-general
+  role: general
+  displayName: General
+  generation: 1
+taskId: task-001
+taskVersion: 1
+activationId: session-general
+type: task.create
+payload:
+  taskOrderRef: task-order:task-001@1
+payloadSha256: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+createdAt: '2026-08-20T00:00:00Z'

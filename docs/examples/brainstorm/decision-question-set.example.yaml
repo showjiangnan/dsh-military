@@ -1,0 +1,28 @@
+schemaVersion: 1.0.0
+decisionSetId: decision-set-react-002
+producer:
+  agentId: chief-react-001
+  sessionId: session-chief-react-001
+  role: chief-of-staff
+  displayName: 参谋长
+  generation: 1
+targetRootSessionId: session-military-react-001
+contextVersion: 4
+purpose: 在生成 specs 前确认首要用户流程和权限策略。
+deliveryAuthority: general
+questions:
+  - id: decision-primary-workflow
+    header: 首要流程
+    question: MVP 最先保证哪条用户流程端到端可用？
+    options:
+      - label: 登录后查看业务总览 (Recommended)
+        description: 最快验证身份、权限、数据读取与基础布局。
+      - label: 先完成后台配置
+        description: 优先管理员体验，但普通用户价值延后。
+      - label: 由参谋部推荐
+        description: 按当前约束采用参谋部首选方案。
+    multiSelect: false
+    decisionOwner: user
+createdAt: 2026-08-18T01:50:00Z
+expiresAt: 2026-08-18T03:50:00Z
+dedupeKey: brainstorm-react-primary-workflow-v4

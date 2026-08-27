@@ -1,0 +1,27 @@
+schemaVersion: 1.0.0
+permissionProfileId: permission-worker-workspace
+revision: 1
+status: ACTIVE
+defaultDecision: DENY
+filesystem:
+  readPaths:
+  - .
+  writePaths:
+  - src/**
+  - tests/**
+  denyPaths:
+  - .git/**
+  - specs/**
+  - .env*
+  followSymlinks: false
+git:
+  allowLocalRead: true
+  allowLocalMainCommit: false
+  allowBranchCreate: false
+  allowRemoteWrite: false
+  allowDestructiveReset: false
+network:
+  allowGrantIds: []
+  denyUnlisted: true
+classificationCeiling: confidential
+createdAt: '2026-08-19T00:00:00Z'

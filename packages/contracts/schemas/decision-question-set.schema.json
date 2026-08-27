@@ -1,0 +1,114 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "decision-question-set.schema.json",
+  "title": "Decision Question Set",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "decisionSetId",
+    "producer",
+    "targetRootSessionId",
+    "contextVersion",
+    "purpose",
+    "deliveryAuthority",
+    "questions",
+    "createdAt"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0.0"
+    },
+    "decisionSetId": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "producer": {
+      "$ref": "common-defs.schema.json#/$defs/agentIdentity"
+    },
+    "targetRootSessionId": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "contextVersion": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "purpose": {
+      "type": "string",
+      "minLength": 1
+    },
+    "deliveryAuthority": {
+      "const": "general"
+    },
+    "questions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "question",
+          "options",
+          "multiSelect"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "header": {
+            "type": "string",
+            "maxLength": 80
+          },
+          "question": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          },
+          "options": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 8,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "label",
+                "description"
+              ],
+              "properties": {
+                "label": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 120
+                },
+                "description": {
+                  "type": "string",
+                  "maxLength": 1000
+                }
+              }
+            }
+          },
+          "multiSelect": {
+            "type": "boolean"
+          },
+          "decisionOwner": {
+            "enum": [
+              "user",
+              "general"
+            ]
+          }
+        }
+      },
+      "minItems": 1,
+      "maxItems": 5
+    },
+    "expiresAt": {
+      "$ref": "common-defs.schema.json#/$defs/timestamp"
+    },
+    "createdAt": {
+      "$ref": "common-defs.schema.json#/$defs/timestamp"
+    },
+    "dedupeKey": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    }
+  }
+}

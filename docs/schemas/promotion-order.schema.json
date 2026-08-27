@@ -1,0 +1,90 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "promotion-order.schema.json",
+  "title": "Git Promotion Order",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "orderId",
+    "missionId",
+    "requestedByUser",
+    "userAuthorizationRef",
+    "action",
+    "sourceCommit",
+    "issuedTo",
+    "issuedAt",
+    "expiresAt"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0.0"
+    },
+    "orderId": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "missionId": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "requestedByUser": {
+      "type": "boolean",
+      "const": true
+    },
+    "userAuthorizationRef": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "repository",
+        "targetBranch"
+      ],
+      "properties": {
+        "kind": {
+          "enum": [
+            "push",
+            "open-pull-request",
+            "commit-other-branch"
+          ]
+        },
+        "repository": {
+          "type": "string"
+        },
+        "targetBranch": {
+          "type": "string"
+        },
+        "remote": {
+          "type": "string"
+        }
+      }
+    },
+    "sourceCommit": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{7,64}$"
+    },
+    "issuedTo": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "role",
+        "agentId"
+      ],
+      "properties": {
+        "role": {
+          "const": "general"
+        },
+        "agentId": {
+          "$ref": "common-defs.schema.json#/$defs/id"
+        }
+      }
+    },
+    "issuedAt": {
+      "$ref": "common-defs.schema.json#/$defs/timestamp"
+    },
+    "expiresAt": {
+      "$ref": "common-defs.schema.json#/$defs/timestamp"
+    }
+  }
+}

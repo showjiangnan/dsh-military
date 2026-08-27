@@ -1,0 +1,100 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "inspection-report.schema.json",
+  "title": "Inspection Report",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "inspectionId",
+    "identity",
+    "targetAgent",
+    "taskId",
+    "taskVersion",
+    "trigger",
+    "findings",
+    "recommendedDisposition",
+    "evidence",
+    "createdAt"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0.0"
+    },
+    "inspectionId": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "identity": {
+      "$ref": "common-defs.schema.json#/$defs/agentIdentity"
+    },
+    "targetAgent": {
+      "$ref": "common-defs.schema.json#/$defs/agentIdentity"
+    },
+    "taskId": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "taskVersion": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "trigger": {
+      "type": "string"
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "code",
+          "severity",
+          "statement"
+        ],
+        "properties": {
+          "code": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "severity": {
+            "enum": [
+              "info",
+              "warning",
+              "high",
+              "critical"
+            ]
+          },
+          "statement": {
+            "type": "string"
+          },
+          "deterministic": {
+            "type": "boolean"
+          },
+          "affectedClaims": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "recommendedDisposition": {
+      "enum": [
+        "NO_ACTION",
+        "REWORK",
+        "REQUEST_EVIDENCE",
+        "FREEZE",
+        "REPLACE_AGENT",
+        "STRATEGIC_ESCALATION"
+      ]
+    },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "$ref": "common-defs.schema.json#/$defs/evidenceRef"
+      }
+    },
+    "createdAt": {
+      "$ref": "common-defs.schema.json#/$defs/timestamp"
+    }
+  }
+}

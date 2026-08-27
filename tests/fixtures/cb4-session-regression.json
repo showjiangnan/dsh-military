@@ -1,0 +1,46 @@
+{
+  "schemaVersion": "1.0.0",
+  "source": {
+    "kind": "anonymized-user-session-export",
+    "observedAt": "2026-08-24",
+    "archiveSha256": "5a80702c429653f941f82485632ec09f000dcb1cb2ffb916c3add1ce6b8b1d4c"
+  },
+  "route": {
+    "provider": "deepseek-official",
+    "model": "deepseek-v4-flash",
+    "department": "engineer"
+  },
+  "observed": {
+    "jsonlLines": 2915,
+    "toolResults": 31,
+    "maximumObservedStep": 27,
+    "taskModelStepBudget": 16,
+    "executionStrategyStepBudget": 8,
+    "workspaceSnapshotArtifactErrors": 1,
+    "maskedReservationErrors": 2,
+    "guessedValidationCommandErrors": 1,
+    "wrongWorkspaceRootErrors": 1
+  },
+  "defectClasses": [
+    "static-plugin-root-used-instead-of-session-workspace",
+    "workspace-snapshot-treated-as-artifact",
+    "pre-execution-denial-masked-by-post-settlement",
+    "model-guessed-deployment-validation-command",
+    "specs-write-not-transactional",
+    "step-budget-not-enforced",
+    "abort-did-not-converge-task-and-resources"
+  ],
+  "postFixContract": {
+    "workspaceRootSource": "ROOT_SESSION_BINDING_AND_IMMUTABLE_SNAPSHOT",
+    "missingRootWorkspaceDisposition": "FAIL_CLOSED",
+    "workspaceSnapshotResultKind": "workspace-snapshot",
+    "settleOnlyAdmittedCalls": true,
+    "validationCommands": [
+      "git diff --check"
+    ],
+    "specsWritesAtomic": true,
+    "effectiveEngineerMaximumSteps": 16,
+    "abortCancelsTaskAndRevokesResources": true,
+    "militaryErrorsAreMachineReadable": true
+  }
+}

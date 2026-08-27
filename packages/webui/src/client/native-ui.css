@@ -1,0 +1,415 @@
+/*
+ * Military surfaces intentionally speak DSH Web's RC.2 design language.
+ *
+ * The component geometry below mirrors @deepseek-ai/dsh-client-ui-primitives
+ * (Button, Input, Modal and Pill) and the built-in Settings sections.  Colors
+ * are exclusively DSH aliases so the host owns light/dark/high-contrast
+ * behavior; this plugin never carries a second theme.
+ */
+
+:where([data-military-settings-center='true'], [data-military-knowledge-center='true']) {
+  color: var(--dsw-alias-label-primary);
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 22px;
+  text-size-adjust: 100%;
+  overflow-wrap: anywhere;
+}
+
+:where([data-military-settings-center='true'], [data-military-knowledge-center='true']) *,
+:where([data-military-settings-center='true'], [data-military-knowledge-center='true']) *::before,
+:where([data-military-settings-center='true'], [data-military-knowledge-center='true']) *::after {
+  box-sizing: border-box;
+}
+
+/* Inputs use the exact 32px / r8 contract of the DSH Input primitive. */
+:where([data-military-settings-center='true'], [data-military-knowledge-center='true'])
+  :where(input:not([type='checkbox']):not([type='radio']), select, textarea) {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 8px;
+  outline: none;
+  background-color: var(--dsw-alias-bg-layer-1);
+  color: var(--dsw-alias-label-primary);
+  font: inherit;
+  font-size: 14px;
+  line-height: 22px;
+}
+
+:where([data-military-settings-center='true'], [data-military-knowledge-center='true'])
+  :where(input:not([type='checkbox']):not([type='radio']), select) {
+  height: 32px;
+  padding: 0 10px;
+}
+
+:where([data-military-settings-center='true'], [data-military-knowledge-center='true']) textarea {
+  display: block;
+  padding: 8px 10px;
+  resize: vertical;
+}
+
+[data-role-prompt-editor] textarea {
+  min-height: 176px;
+  font-family: inherit;
+  line-height: 1.65;
+}
+
+/* The role workbench mounts one editor at a time. Long model ids and status
+   evidence wrap inside their own column instead of widening the Host modal. */
+[data-role-workbench='true'] {
+  min-width: 0;
+}
+
+[data-role-workbench='true'] :where(pre, small, p, span) {
+  overflow-wrap: anywhere;
+}
+
+[data-role-catalog-item] {
+  width: 100%;
+  max-width: 100%;
+}
+
+[data-role-catalog-item][aria-selected='true'] {
+  color: var(--dsw-alias-label-primary);
+}
+
+[data-role-catalog-item],
+[data-dshm-nav] {
+  min-width: 0;
+}
+
+:where([data-military-settings-center='true'], [data-military-knowledge-center='true']) select {
+  appearance: none;
+  padding-right: 32px;
+  cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12' fill='none'%3E%3Cpath d='M3 4.5L6 7.5L9 4.5' stroke='%2381858C' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 12px 12px;
+}
+
+:where([data-military-settings-center='true'], [data-military-knowledge-center='true'])
+  :where(input:not([type='checkbox']):not([type='radio']), select, textarea):focus {
+  border-color: var(--dsw-alias-brand-primary);
+}
+
+:where([data-military-settings-center='true'], [data-military-knowledge-center='true'])
+  :where(input, select, textarea)::placeholder {
+  color: var(--dsw-alias-label-dimmed);
+}
+
+:where([data-military-settings-center='true'], [data-military-knowledge-center='true'])
+  :where(input, select, textarea):disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+/* Compact check controls use host semantic colors and remain native inputs. */
+:where([data-military-settings-center='true'], [data-military-knowledge-center='true'])
+  input[type='checkbox'] {
+  appearance: none;
+  flex: none;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  border: 1px solid var(--dsw-alias-border-l3);
+  border-radius: 4px;
+  background: var(--dsw-alias-bg-layer-1);
+  cursor: pointer;
+}
+
+:where([data-military-settings-center='true'], [data-military-knowledge-center='true'])
+  input[type='checkbox']:checked {
+  border-color: var(--dsw-alias-button-primary-fill);
+  background-color: var(--dsw-alias-button-primary-fill);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2.4 6.2 4.8 8.5 9.7 3.6' fill='none' stroke='white' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+:where([data-military-settings-center='true'], [data-military-knowledge-center='true'])
+  input[type='checkbox']:focus-visible {
+  outline: 2px solid var(--dsw-alias-brand-primary);
+  outline-offset: 2px;
+}
+
+/* Unclassified actions inherit the native ghost/sm button atom. */
+:where([data-military-settings-center='true'], [data-military-knowledge-center='true'])
+  :where(button:not([data-dshm-nav]):not([data-dshm-close])) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  height: 28px;
+  border: none;
+  border-radius: 14px;
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
+  padding: 0 10px;
+  font: inherit;
+  font-size: 12px;
+  line-height: 18px;
+  cursor: pointer;
+}
+
+:where([data-military-settings-center='true'], [data-military-knowledge-center='true'])
+  :where(button:not([data-dshm-nav]):not([data-dshm-close]):hover:not(:disabled)) {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+:where([data-military-settings-center='true'], [data-military-knowledge-center='true'])
+  button:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+:where([data-military-settings-center='true'], [data-military-knowledge-center='true'])
+  :where(button, summary):focus-visible {
+  outline: 2px solid var(--dsw-alias-brand-primary);
+  outline-offset: 2px;
+}
+
+:where([data-military-settings-center='true'], [data-military-knowledge-center='true']) summary {
+  border-radius: 6px;
+}
+
+/* Native primitive adapters used where RC.2 has a direct reusable atom. */
+.dshm-button-primary {
+  background: var(--dsw-alias-button-primary-fill) !important;
+  color: var(--dsw-alias-label-primary-foreground) !important;
+}
+
+.dshm-button-primary:hover:not(:disabled) {
+  background: var(--dsw-alias-button-primary-hover) !important;
+}
+
+.dshm-button-outline {
+  border: 1px solid var(--dsw-alias-border-l2) !important;
+}
+
+.dshm-button-danger {
+  color: var(--dsw-alias-state-error-primary) !important;
+}
+
+.dshm-button-danger:hover:not(:disabled) {
+  background: var(--dsw-alias-interactive-bg-hover-danger) !important;
+}
+
+.dshm-button-success {
+  color: var(--dsw-alias-state-success-primary) !important;
+}
+
+.dshm-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.dshm-native-input {
+  width: 100%;
+}
+
+.dshm-native-input > input {
+  width: 100%;
+}
+
+/* Override Modal's small confirmation-card defaults for these workbenches. */
+:where(.dshm-settings-dialog, .dshm-knowledge-dialog) {
+  width: min(1080px, calc(100vw - 48px)) !important;
+  height: min(760px, calc(100vh - 48px));
+  max-width: none !important;
+  gap: 0 !important;
+  padding: 0 !important;
+  border-color: var(--dsw-alias-border-inverted) !important;
+}
+
+:where(.dshm-settings-shell, .dshm-knowledge-shell) {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  color: var(--dsw-alias-label-primary);
+  overflow: hidden;
+}
+
+:where([data-military-settings-center='true'], [data-military-knowledge-center='true'])
+  [role='tabpanel'] {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+:where([data-military-settings-center='true'], [data-military-knowledge-center='true'])
+  :where(code, pre) {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+.dshm-close-icon {
+  display: block;
+  width: 14px;
+  height: 14px;
+}
+
+.dshm-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* The host footer list is a horizontal flex seat.  Keep both Military
+   destinations in one vertical occupant so collapsed mode never places one
+   hit target outside the 56px sidebar rail. */
+[data-military-footer-actions='true'] {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  width: 100%;
+}
+
+[data-military-footer-actions='true'][data-wide='false'] {
+  align-items: center;
+  width: auto;
+}
+
+/* Exact copy of RC.2 SettingsRoot's trigger geometry and chrome.  These two
+   actions therefore share its full-row hit target in wide mode and its
+   centered 36px circle in rail mode. */
+:where([data-military-settings-trigger='true'], [data-military-knowledge-trigger='true']) {
+  box-sizing: border-box;
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: calc(100% + 4px);
+  height: 42px;
+  margin: 4px -2px;
+  padding: 0 10px 0 8px;
+  border: none;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
+  font: inherit;
+  font-size: 14px;
+  line-height: 22px;
+  text-align: left;
+  cursor: pointer;
+  overflow: hidden;
+}
+
+:where([data-military-settings-trigger='true'], [data-military-knowledge-trigger='true']):hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+:where([data-military-settings-trigger='true'], [data-military-knowledge-trigger='true'])[data-wide='false'] {
+  width: 36px;
+  height: 36px;
+  margin: 8px 0 10px;
+  justify-content: center;
+  gap: 0;
+  padding: 0;
+  border-radius: 50%;
+}
+
+.dshm-trigger-label {
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+:where([data-military-settings-trigger='true'], [data-military-knowledge-trigger='true']) > svg {
+  flex: none;
+}
+
+@media (max-width: 760px) {
+  :where(.dshm-settings-dialog, .dshm-knowledge-dialog) {
+    width: calc(100vw - 24px) !important;
+    height: calc(100vh - 24px);
+    border-radius: 16px !important;
+  }
+
+  :where(.dshm-settings-shell, .dshm-knowledge-shell) {
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+
+  :where([data-military-settings-center='true'], [data-military-knowledge-center='true']) [data-dshm-body] {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  :where([data-military-settings-center='true'], [data-military-knowledge-center='true']) [data-dshm-sidebar] {
+    flex-direction: row !important;
+    overflow-x: auto;
+    border-right: none !important;
+    border-bottom: 1px solid var(--dsw-alias-border-l2);
+  }
+
+  :where([data-military-settings-center='true'], [data-military-knowledge-center='true']) [data-dshm-nav] {
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+
+  :where([data-military-settings-center='true'], [data-military-knowledge-center='true']) [data-dshm-policy] {
+    display: none !important;
+  }
+
+  [data-role-workbench='true'] {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  [data-role-catalog='true'] {
+    position: static !important;
+  }
+}
+
+@media (max-width: 560px) {
+  :where([data-military-settings-center='true'], [data-military-knowledge-center='true'])
+    [data-dshm-columns='2'] {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :where([data-military-settings-center='true'], [data-military-knowledge-center='true']) * {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
+
+@media (prefers-contrast: more) {
+  :where(.dshm-settings-dialog, .dshm-knowledge-dialog),
+  :where([data-military-settings-center='true'], [data-military-knowledge-center='true'])
+    :where(input, select, textarea, article, fieldset) {
+    border-color: var(--dsw-alias-label-primary) !important;
+  }
+}
+
+@media (forced-colors: active) {
+  :where(.dshm-settings-dialog, .dshm-knowledge-dialog),
+  :where([data-military-settings-center='true'], [data-military-knowledge-center='true'])
+    :where(button, input, select, textarea, article, fieldset) {
+    border: 1px solid CanvasText !important;
+    forced-color-adjust: auto;
+  }
+
+  :where([data-military-settings-center='true'], [data-military-knowledge-center='true'])
+    input[type='checkbox'] {
+    appearance: auto;
+    background-image: none;
+  }
+
+  :where([data-military-settings-center='true'], [data-military-knowledge-center='true'])
+    :where(button, summary, input, select, textarea):focus-visible {
+    outline: 3px solid Highlight !important;
+    outline-offset: 2px;
+  }
+}

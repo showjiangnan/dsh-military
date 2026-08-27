@@ -1,0 +1,25 @@
+schemaVersion: 1.0.0
+dshBaseline:
+  release: 0.1.1-rc.2
+  commit: b150a551b8d465e31e418e1b2eaf5e79bbb7d28e
+traceId: trace-rework
+scenario: rework
+initialState:
+  state: START
+steps:
+- index: 1
+  action: submit candidate
+  eventType: task/candidate-submitted
+  expectedState: VERIFYING
+- index: 2
+  action: verification fails
+  eventType: verification/completed
+  expectedState: REWORK
+- index: 3
+  action: issue new version
+  eventType: task/rework-requested
+  expectedState: READY_V2
+finalProjectionHash: '0000000000000000000000000000000000000000000000000000000000000002'
+invariants:
+- task version increases
+- old guidance is stale

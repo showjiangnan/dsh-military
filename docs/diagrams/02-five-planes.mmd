@@ -1,0 +1,33 @@
+flowchart LR
+  subgraph CP[指挥平面]
+    U[统帅] --> G[将军]
+    G --> S[参谋会商]
+  end
+  subgraph OP[作战平面]
+    D[Direction] --> Wv[Wave]
+    Wv --> T[Task Orders]
+    T --> WA[Worker Agents]
+  end
+  subgraph AP[保障平面]
+    EC[工兵部] --> Specs[Specs]
+    EC --> Git[Local main Git]
+    Art[Artifact Store]
+  end
+  subgraph SP[监督平面]
+    CI[Completion Interlock] --> VE[Verification]
+    OC[Oversight Controller]
+    IA[只读督战 Agent]
+  end
+  subgraph KP[知识平面]
+    Radio[参谋部电台]
+    Tactics[Private Tactics]
+    LR[后勤保障与研究部]
+  end
+  S --> D
+  WA --> CI
+  EC --> CI
+  WA --> Radio
+  Radio --> S
+  VE --> LR
+  LR --> Tactics
+  Tactics --> S

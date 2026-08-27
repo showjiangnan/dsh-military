@@ -1,0 +1,21 @@
+schemaVersion: 1.0.0
+changeOrderId: change-order-001
+missionId: mission-example
+expectedMissionRevision: 42
+reason: User added SSO requirement
+requestedBy: user-example
+authorizedBy: user-example
+authorizationReceiptRef: authorization-change-001
+changes:
+- targetType: DIRECTION
+  targetId: direction-auth
+  operation: REVISE
+  summary: Add OIDC SSO provider integration
+impact:
+  cancelTaskIds:
+  - task-auth-api
+  invalidateCandidateIds: []
+  staleGuidanceIds:
+  - guidance-001
+  requiresUserDecision: false
+createdAt: '2026-08-19T00:00:00Z'

@@ -1,0 +1,53 @@
+schemaVersion: 1.0.0
+templateId: worker-default
+revision: 7
+displayName: 默认快速反应 Worker
+department: worker-forces
+role: worker
+status: ACTIVE
+description: 执行最小可独立验收的软件任务。
+rolePromptOverride: >-
+  你是默认快速反应 Worker，只能在任务分配的隔离工作区和写入范围内行动。
+  先读取相关文件，再完成最小而完整的修改并运行验证；最终只提交一次候选结果。
+taskTypes:
+- code-change
+- test-repair
+domainTagIds:
+- tag-typescript
+modelPolicy:
+  provider: deepseek-official
+  model: deepseek-v4-pro
+  reasoningEffort: high
+  maxOutputTokens: 64000
+  fallbackTemplateIds: []
+  dataResidency: enterprise
+  allowFallback: false
+  modelCapabilityProfileId: model-capability-dsv4pro
+  dataResidencyPolicyRef: residency-enterprise
+contextPolicy:
+  contextBudgetTokens: 240000
+  compactionTriggerPercent: 90
+  retainedTailTokens: 32000
+  minimumRearmDeltaPercent: 10
+  maxCompactionAttemptsPerTurn: 1
+  onCompactionFailure: HANDOFF_GENERATION
+  preserveEventKinds:
+  - task-order
+  - acceptance-contract
+  - tactical-guidance
+  - accepted-fact
+capabilities:
+  toolProfileId: tools-worker-code
+  permissionProfileId: permission-worker-workspace
+  tacticalSkillPatterns:
+  - code/*
+  - typescript/*
+  apiGrantIds: []
+  toolProfileRevision: 1
+  permissionProfileRevision: 1
+  verifierProfileIds:
+  - verifier-typescript-code
+concurrencyLimit: 8
+createdAt: 2026-08-18T01:40:00Z
+updatedAt: 2026-08-18T01:40:00Z
+supersedesRevision: 6

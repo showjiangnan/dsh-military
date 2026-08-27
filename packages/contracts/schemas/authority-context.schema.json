@@ -1,0 +1,85 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "authority-context.schema.json",
+  "title": "Military Authority Context",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "authorityContextId",
+    "principalId",
+    "tenantId",
+    "roles",
+    "scopes",
+    "sessionOwnership",
+    "workspaceMemberships",
+    "dataClassificationCeiling",
+    "authorizationReceiptRefs",
+    "issuedAt",
+    "expiresAt"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0.0"
+    },
+    "authorityContextId": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "principalId": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "tenantId": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "roles": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 120
+      },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "scopes": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 500
+      },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "sessionOwnership": {
+      "type": "array",
+      "items": {
+        "$ref": "common-defs.schema.json#/$defs/id"
+      },
+      "uniqueItems": true
+    },
+    "workspaceMemberships": {
+      "type": "array",
+      "items": {
+        "$ref": "common-defs.schema.json#/$defs/id"
+      },
+      "uniqueItems": true
+    },
+    "dataClassificationCeiling": {
+      "$ref": "common-defs.schema.json#/$defs/classification"
+    },
+    "authorizationReceiptRefs": {
+      "type": "array",
+      "items": {
+        "$ref": "common-defs.schema.json#/$defs/id"
+      },
+      "uniqueItems": true
+    },
+    "issuedAt": {
+      "$ref": "common-defs.schema.json#/$defs/timestamp"
+    },
+    "expiresAt": {
+      "$ref": "common-defs.schema.json#/$defs/timestamp"
+    }
+  }
+}

@@ -1,0 +1,14 @@
+schemaVersion: 1.0.0
+operationId: bundle-operation-002
+operation: UPGRADE
+fromVersion: 0.2.0-draft
+toVersion: 0.9.0-draft
+profileRevisionBefore: profile-rev-10
+profileRevisionAfter: profile-rev-11
+presetGenerationRefs:
+- military@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+dataDisposition: RETAINED
+validationReportRef: compatibility-report-001
+status: SUCCEEDED
+startedAt: '2026-08-19T00:00:00Z'
+completedAt: '2026-08-19T00:01:00Z'

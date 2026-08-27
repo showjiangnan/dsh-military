@@ -1,0 +1,387 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "tactical-extraction-candidate.schema.json",
+  "title": "Tactical Extraction Candidate",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "candidateId",
+    "requestId",
+    "sourceSnapshotRef",
+    "sourceHash",
+    "status",
+    "candidateType",
+    "tags",
+    "extracted",
+    "diff",
+    "safety",
+    "createdAt"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0.0"
+    },
+    "candidateId": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "requestId": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "sourceSnapshotRef": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "sourceHash": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "status": {
+      "enum": [
+        "NEEDS_REVIEW",
+        "APPROVED",
+        "REJECTED",
+        "EXPIRED"
+      ]
+    },
+    "candidateType": {
+      "enum": [
+        "NEW_TACTIC",
+        "SUPPLEMENT"
+      ]
+    },
+    "targetSkill": {
+      "$ref": "common-defs.schema.json#/$defs/skillRef"
+    },
+    "tags": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "primaryTagId",
+        "additionalTagIds",
+        "proposedTags"
+      ],
+      "properties": {
+        "primaryTagId": {
+          "$ref": "common-defs.schema.json#/$defs/id"
+        },
+        "additionalTagIds": {
+          "type": "array",
+          "items": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "uniqueItems": true
+        },
+        "proposedTags": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "displayName",
+              "reason"
+            ],
+            "properties": {
+              "displayName": {
+                "type": "string"
+              },
+              "reason": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    "extracted": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "title",
+        "objective",
+        "claims",
+        "preconditions",
+        "exclusions",
+        "playbook",
+        "verification",
+        "stopConditions",
+        "rollback",
+        "failureModes"
+      ],
+      "properties": {
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "objective": {
+          "type": "string",
+          "minLength": 1
+        },
+        "claims": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "claimId",
+              "kind",
+              "text",
+              "sourceRefs"
+            ],
+            "properties": {
+              "claimId": {
+                "$ref": "common-defs.schema.json#/$defs/id"
+              },
+              "kind": {
+                "enum": [
+                  "fact",
+                  "experience",
+                  "hypothesis",
+                  "warning",
+                  "best-practice"
+                ]
+              },
+              "text": {
+                "type": "string",
+                "minLength": 1
+              },
+              "sourceRefs": {
+                "type": "array",
+                "items": {
+                  "$ref": "common-defs.schema.json#/$defs/evidenceRef"
+                },
+                "minItems": 1
+              }
+            }
+          },
+          "minItems": 1
+        },
+        "preconditions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1
+        },
+        "exclusions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "playbook": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "stepId",
+              "action",
+              "evidenceExpected"
+            ],
+            "properties": {
+              "stepId": {
+                "$ref": "common-defs.schema.json#/$defs/id"
+              },
+              "action": {
+                "type": "string",
+                "minLength": 1
+              },
+              "tool": {
+                "type": "string"
+              },
+              "when": {
+                "type": "string"
+              },
+              "evidenceExpected": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "minItems": 1
+              }
+            }
+          },
+          "minItems": 1
+        },
+        "verification": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1
+        },
+        "stopConditions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1
+        },
+        "rollback": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1
+        },
+        "failureModes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "code",
+              "symptom",
+              "response"
+            ],
+            "properties": {
+              "code": {
+                "$ref": "common-defs.schema.json#/$defs/id"
+              },
+              "symptom": {
+                "type": "string"
+              },
+              "response": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    "diff": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "summary",
+        "operations"
+      ],
+      "properties": {
+        "summary": {
+          "type": "string"
+        },
+        "operations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "op",
+              "path",
+              "reason"
+            ],
+            "properties": {
+              "op": {
+                "enum": [
+                  "add",
+                  "replace",
+                  "remove"
+                ]
+              },
+              "path": {
+                "type": "string"
+              },
+              "reason": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    "safety": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "secretScan",
+        "piiScan",
+        "promptInjectionScan",
+        "redactions"
+      ],
+      "properties": {
+        "secretScan": {
+          "enum": [
+            "PASS",
+            "FAIL",
+            "REVIEW"
+          ]
+        },
+        "piiScan": {
+          "enum": [
+            "PASS",
+            "FAIL",
+            "REVIEW"
+          ]
+        },
+        "promptInjectionScan": {
+          "enum": [
+            "PASS",
+            "FAIL",
+            "REVIEW"
+          ]
+        },
+        "redactions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "review": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "reviewedBy",
+        "decision",
+        "reviewedAt",
+        "finalHash"
+      ],
+      "properties": {
+        "reviewedBy": {
+          "$ref": "common-defs.schema.json#/$defs/id"
+        },
+        "decision": {
+          "enum": [
+            "APPROVE_AS_DRAFT",
+            "EDIT_AND_APPROVE",
+            "REEXTRACT",
+            "REJECT"
+          ]
+        },
+        "reviewedAt": {
+          "$ref": "common-defs.schema.json#/$defs/timestamp"
+        },
+        "finalHash": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "notes": {
+          "type": "string"
+        }
+      }
+    },
+    "createdAt": {
+      "$ref": "common-defs.schema.json#/$defs/timestamp"
+    },
+    "expiresAt": {
+      "$ref": "common-defs.schema.json#/$defs/timestamp"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "candidateType": {
+            "const": "SUPPLEMENT"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "targetSkill"
+        ]
+      }
+    }
+  ]
+}

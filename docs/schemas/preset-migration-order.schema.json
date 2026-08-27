@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "preset-migration-order.schema.json",
+  "title": "Preset Generation Migration Order",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "migrationOrderId",
+    "sessionId",
+    "fromGeneration",
+    "toGeneration",
+    "strategy",
+    "reason",
+    "authorizedBy",
+    "authorizationReceiptRef",
+    "expectedSessionRevision",
+    "createdAt",
+    "expiresAt"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0.0"
+    },
+    "migrationOrderId": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "sessionId": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "fromGeneration": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "toGeneration": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "strategy": {
+      "enum": [
+        "REBIND_ARCHIVE",
+        "EXPORT_IMPORT",
+        "NEW_PRESET_ID"
+      ]
+    },
+    "reason": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4000
+    },
+    "authorizedBy": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "authorizationReceiptRef": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "expectedSessionRevision": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "createdAt": {
+      "$ref": "common-defs.schema.json#/$defs/timestamp"
+    },
+    "expiresAt": {
+      "$ref": "common-defs.schema.json#/$defs/timestamp"
+    }
+  }
+}

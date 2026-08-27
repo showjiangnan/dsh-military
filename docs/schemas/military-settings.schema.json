@@ -1,0 +1,389 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "military-settings.schema.json",
+  "title": "dsh-military RC.2 Settings Namespace Document",
+  "description": "The exact Host settings namespaces exposed through the independent visual Military settings center. Omitted fields use Host defaults; safety invariants are deliberately not configurable.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "military-model-routing",
+    "military-agent-templates",
+    "military-core",
+    "military-staff",
+    "military-tags",
+    "military-tactics",
+    "military-private-skills",
+    "military-oversight",
+    "military-specs",
+    "military-memory",
+    "military-evaluation",
+    "military-presentation"
+  ],
+  "properties": {
+    "military-model-routing": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "General's live model route. Flash is the economical default; Pro is an explicit option.",
+      "properties": {
+        "provider": {
+          "const": "deepseek-official",
+          "default": "deepseek-official"
+        },
+        "model": {
+          "enum": [
+            "deepseek-v4-flash",
+            "deepseek-v4-pro"
+          ],
+          "default": "deepseek-v4-flash"
+        },
+        "reasoningEffort": {
+          "enum": [
+            "high",
+            "max"
+          ],
+          "default": "high"
+        },
+        "maxOutputTokens": {
+          "type": "integer",
+          "minimum": 1024,
+          "maximum": 256000,
+          "multipleOf": 1024,
+          "default": 16384
+        },
+        "generalPromptOverride": {
+          "type": "string",
+          "maxLength": 12000,
+          "default": "",
+          "description": "Optional user-authored Simplified Chinese General guidance. Empty selects the bundled default."
+        }
+      }
+    },
+    "military-agent-templates": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Versioned department template registry. The visual model cards manage this field; raw JSON editing is not part of the supported user flow.",
+      "properties": {
+        "profilesJson": {
+          "type": "string",
+          "contentMediaType": "application/json",
+          "description": "Host-owned JSON serialization of AgentTemplateProfile revisions."
+        }
+      }
+    },
+    "military-core": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "maxRadioAttempts": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 32,
+          "default": 5
+        },
+        "radioLeaseSeconds": {
+          "type": "integer",
+          "minimum": 10,
+          "maximum": 3600,
+          "default": 120
+        }
+      }
+    },
+    "military-staff": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "chiefOfStaffFallbackEnabled": {
+          "type": "boolean",
+          "default": true
+        }
+      }
+    },
+    "military-tags": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Versioned tactical tag registry managed by the visual tag editor.",
+      "properties": {
+        "tagsJson": {
+          "type": "string",
+          "contentMediaType": "application/json",
+          "description": "Host-owned JSON serialization of TacticalTag revisions."
+        }
+      }
+    },
+    "military-tactics": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "candidateRecallMinimum": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 10,
+          "default": 3
+        },
+        "candidateRecallMaximum": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 20,
+          "default": 5
+        },
+        "allowCanaryDelivery": {
+          "type": "boolean",
+          "default": true
+        }
+      }
+    },
+    "military-private-skills": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "extractionProvider": {
+          "const": "deepseek-official",
+          "default": "deepseek-official"
+        },
+        "extractionModel": {
+          "enum": [
+            "deepseek-v4-flash",
+            "deepseek-v4-pro"
+          ],
+          "default": "deepseek-v4-flash"
+        },
+        "maxOutputTokens": {
+          "type": "integer",
+          "minimum": 1024,
+          "maximum": 256000,
+          "default": 8192
+        },
+        "allowDeterministicFallback": {
+          "type": "boolean",
+          "default": true
+        },
+        "defaultVisibility": {
+          "enum": [
+            "user-private",
+            "workspace-private",
+            "organization-private"
+          ],
+          "default": "user-private"
+        },
+        "defaultRetentionDays": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 3650,
+          "default": 365
+        }
+      }
+    },
+    "military-oversight": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "completionInterlockEnabled": {
+          "type": "boolean",
+          "default": true
+        },
+        "freezeOnSecondMissingSubmission": {
+          "type": "boolean",
+          "default": true
+        },
+        "requireObservedToolEvidence": {
+          "type": "boolean",
+          "default": true
+        },
+        "maximumNoProgressTurns": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 32,
+          "default": 3
+        }
+      }
+    },
+    "military-specs": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Only a safe local commit label is configurable. Workspace routing, transactionality and remote-write denial are fixed invariants.",
+      "properties": {
+        "commitMessagePrefix": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80,
+          "pattern": "^[^\\r\\n\\u0000]+$",
+          "default": "docs(specs):"
+        }
+      }
+    },
+    "military-memory": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "trajectoryAfterWave": {
+          "type": "boolean",
+          "default": true
+        },
+        "effectivenessAfterGeneralCompaction": {
+          "type": "boolean",
+          "default": true
+        }
+      }
+    },
+    "military-evaluation": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Visual evaluation request form plus read-only result projection.",
+      "properties": {
+        "minimumSampleSize": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 20
+        },
+        "includeIncompleteByDefault": {
+          "type": "boolean",
+          "default": false
+        },
+        "periodFrom": {
+          "type": "string",
+          "default": ""
+        },
+        "periodTo": {
+          "type": "string",
+          "default": ""
+        },
+        "templateIdsJson": {
+          "type": "string",
+          "contentMediaType": "application/json",
+          "default": "[]"
+        },
+        "departmentsJson": {
+          "type": "string",
+          "contentMediaType": "application/json",
+          "default": "[]"
+        },
+        "workspaceKeysJson": {
+          "type": "string",
+          "contentMediaType": "application/json",
+          "default": "[]"
+        },
+        "missionIdsJson": {
+          "type": "string",
+          "contentMediaType": "application/json",
+          "default": "[]"
+        },
+        "splitByRevision": {
+          "type": "boolean",
+          "default": true
+        },
+        "comparisonBaseline": {
+          "enum": [
+            "same-role-same-difficulty",
+            "previous-period",
+            "previous-revision",
+            "organization-baseline",
+            "none"
+          ],
+          "default": "same-role-same-difficulty"
+        },
+        "confidenceLevel": {
+          "enum": [0.9, 0.95, 0.99],
+          "default": 0.95
+        },
+        "nonInferiorityMargin": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 0.5,
+          "default": 0.05
+        },
+        "timeoutSeconds": {
+          "type": "integer",
+          "minimum": 30,
+          "maximum": 86400,
+          "default": 1800
+        },
+        "narrativeMode": {
+          "enum": ["DETERMINISTIC", "COMMITTEE_MODEL"],
+          "default": "DETERMINISTIC"
+        },
+        "reportClassification": {
+          "enum": [
+            "public",
+            "internal",
+            "confidential",
+            "restricted"
+          ],
+          "default": "confidential"
+        },
+        "examinerTemplateId": {
+          "type": "string",
+          "minLength": 1,
+          "default": "evaluation-examiner"
+        },
+        "chairTemplateId": {
+          "type": "string",
+          "minLength": 1,
+          "default": "evaluation-chair"
+        },
+        "runNonce": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 0
+        },
+        "lastRunState": {
+          "enum": [
+            "IDLE",
+            "RUNNING",
+            "COMPLETED",
+            "FAILED"
+          ],
+          "default": "IDLE",
+          "readOnly": true
+        },
+        "lastEvaluationRequestId": {
+          "type": "string",
+          "default": "",
+          "readOnly": true
+        },
+        "lastDatasetHash": {
+          "type": "string",
+          "default": "",
+          "readOnly": true
+        },
+        "lastReportId": {
+          "type": "string",
+          "default": "",
+          "readOnly": true
+        },
+        "lastReportJson": {
+          "type": "string",
+          "default": "",
+          "contentMediaType": "application/json",
+          "deprecated": true,
+          "readOnly": true
+        },
+        "lastError": {
+          "type": "string",
+          "default": "",
+          "readOnly": true
+        }
+      }
+    },
+    "military-presentation": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "terminology": {
+          "enum": [
+            "military",
+            "neutral"
+          ],
+          "default": "military"
+        },
+        "showAdvancedAudit": {
+          "type": "boolean",
+          "default": false
+        },
+        "compactEventCards": {
+          "type": "boolean",
+          "default": true
+        }
+      }
+    }
+  }
+}

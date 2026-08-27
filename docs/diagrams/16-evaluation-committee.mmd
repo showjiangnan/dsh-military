@@ -1,0 +1,13 @@
+flowchart TD
+  User[User selects time range] --> Job[Evaluation Run]
+  Job --> Discover[Discover actual military sessions]
+  Discover --> Dataset[Deterministic Dataset Artifact]
+  Dataset --> Enumerate[Enumerate template revisions]
+  Enumerate --> Examiner[Individual Examiner one template at a time]
+  Examiner --> Individual[Validated Individual Reports]
+  Individual --> Chair[Committee Chair]
+  Chair --> Overall[Overall Performance]
+  Individual --> Report[Two-part Report]
+  Overall --> Report
+  Report --> UI[Settings Performance Dashboard]
+  UI --> Canary[User creates Canary improvements]

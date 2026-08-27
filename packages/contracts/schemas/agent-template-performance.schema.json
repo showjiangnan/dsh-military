@@ -1,0 +1,460 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "agent-template-performance.schema.json",
+  "title": "Exact Configuration Performance",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "performanceId",
+    "evaluationRequestId",
+    "template",
+    "period",
+    "sample",
+    "participation",
+    "accuracy",
+    "completion",
+    "capability",
+    "reliability",
+    "efficiency",
+    "dataQuality",
+    "failureAttribution",
+    "analyses",
+    "recommendations",
+    "limitations",
+    "confidence",
+    "status",
+    "evidenceRefs",
+    "createdAt"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "performanceId": { "$ref": "common-defs.schema.json#/$defs/id" },
+    "evaluationRequestId": { "$ref": "common-defs.schema.json#/$defs/id" },
+    "template": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "configurationKey",
+        "templateId",
+        "revision",
+        "role",
+        "department",
+        "promptRevision",
+        "configurationHash",
+        "provider",
+        "model",
+        "aliasStatus",
+        "reasoningEffort",
+        "toolProfile",
+        "permissionProfile",
+        "presetGeneration",
+        "bundleVersion",
+        "dshRelease",
+        "dshCommit"
+      ],
+      "properties": {
+        "configurationKey": { "type": "string", "minLength": 1, "maxLength": 3000 },
+        "templateId": { "$ref": "common-defs.schema.json#/$defs/id" },
+        "revision": { "type": "integer", "minimum": 1 },
+        "role": {
+          "enum": [
+            "advisor",
+            "worker",
+            "engineer",
+            "inspector",
+            "trajectory",
+            "effectiveness",
+            "museum",
+            "chief-of-staff",
+            "evaluation-examiner",
+            "evaluation-chair"
+          ]
+        },
+        "department": {
+          "enum": [
+            "staff",
+            "worker-forces",
+            "engineer-corps",
+            "oversight",
+            "logistics-research",
+            "evaluation-committee"
+          ]
+        },
+        "promptRevision": { "type": "integer", "minimum": 1 },
+        "configurationHash": { "$ref": "common-defs.schema.json#/$defs/sha256" },
+        "provider": { "type": "string", "minLength": 1, "maxLength": 240 },
+        "model": { "type": "string", "minLength": 1, "maxLength": 240 },
+        "aliasStatus": {
+          "enum": [
+            "EXACT_ROUTE_OBSERVED",
+            "FALLBACK_CHAIN_OBSERVED",
+            "ALIAS_UNPROVEN"
+          ]
+        },
+        "reasoningEffort": { "$ref": "common-defs.schema.json#/$defs/reasoningEffort" },
+        "toolProfile": { "$ref": "#/$defs/profileRef" },
+        "permissionProfile": { "$ref": "#/$defs/profileRef" },
+        "presetGeneration": { "type": "string", "minLength": 1, "maxLength": 240 },
+        "bundleVersion": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "dshRelease": { "const": "0.1.1-rc.2" },
+        "dshCommit": { "const": "b150a551b8d465e31e418e1b2eaf5e79bbb7d28e" }
+      }
+    },
+    "period": { "$ref": "performance-evaluation-request.schema.json#/properties/period" },
+    "sample": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "missions",
+        "eligibleTasks",
+        "assignedAttempts",
+        "completedAttempts",
+        "acceptedContributions",
+        "sessions"
+      ],
+      "properties": {
+        "missions": { "type": "integer", "minimum": 0 },
+        "eligibleTasks": { "type": "integer", "minimum": 0 },
+        "assignedAttempts": { "type": "integer", "minimum": 0 },
+        "completedAttempts": { "type": "integer", "minimum": 0 },
+        "acceptedContributions": { "type": "integer", "minimum": 0 },
+        "consultations": { "type": "integer", "minimum": 0 },
+        "sessions": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "participation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["rate", "coverageByTaskType"],
+      "properties": {
+        "rate": { "$ref": "#/$defs/rate" },
+        "coverageByTaskType": {
+          "type": "object",
+          "additionalProperties": { "type": "integer", "minimum": 0 }
+        }
+      }
+    },
+    "accuracy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "firstPassAcceptanceRate",
+        "finalAcceptanceRate",
+        "claimEvidenceSupportRate",
+        "toolClaimAccuracy",
+        "falseCompletionRate",
+        "regressionEscapeRate",
+        "intervals"
+      ],
+      "properties": {
+        "firstPassAcceptanceRate": { "$ref": "#/$defs/rate" },
+        "finalAcceptanceRate": { "$ref": "#/$defs/rate" },
+        "claimEvidenceSupportRate": { "$ref": "#/$defs/rate" },
+        "toolClaimAccuracy": { "$ref": "#/$defs/rate" },
+        "falseCompletionRate": { "$ref": "#/$defs/rate" },
+        "regressionEscapeRate": { "$ref": "#/$defs/rate" },
+        "intervals": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "firstPassAcceptance",
+            "finalAcceptance",
+            "falseCompletion"
+          ],
+          "properties": {
+            "firstPassAcceptance": { "$ref": "#/$defs/rateInterval" },
+            "finalAcceptance": { "$ref": "#/$defs/rateInterval" },
+            "falseCompletion": { "$ref": "#/$defs/rateInterval" }
+          }
+        }
+      }
+    },
+    "completion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "completionRate",
+        "meanReworkCount",
+        "blockerResolutionRate",
+        "handoffCompletenessRate",
+        "parentWakeupRate"
+      ],
+      "properties": {
+        "completionRate": { "$ref": "#/$defs/rate" },
+        "meanReworkCount": { "type": "number", "minimum": 0 },
+        "blockerResolutionRate": { "$ref": "#/$defs/rate" },
+        "handoffCompletenessRate": { "$ref": "#/$defs/rate" },
+        "parentWakeupRate": { "$ref": "#/$defs/rate" }
+      }
+    },
+    "capability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "index",
+        "rubricVersion",
+        "difficultyAdjustment",
+        "confidenceInterval"
+      ],
+      "properties": {
+        "index": { "type": "number", "minimum": 0, "maximum": 100 },
+        "rubricVersion": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "difficultyAdjustment": { "type": "string", "minLength": 1, "maxLength": 1000 },
+        "confidenceInterval": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["low", "high"],
+          "properties": {
+            "low": { "type": "number", "minimum": 0, "maximum": 100 },
+            "high": { "type": "number", "minimum": 0, "maximum": 100 }
+          }
+        }
+      }
+    },
+    "reliability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "freezeIncidentRate",
+        "permissionViolationRate",
+        "staleSubmissionRate",
+        "recoverySuccessRate",
+        "terminalDuplicateRate",
+        "recoveryDriftRate"
+      ],
+      "properties": {
+        "freezeIncidentRate": { "$ref": "#/$defs/rate" },
+        "permissionViolationRate": { "$ref": "#/$defs/rate" },
+        "staleSubmissionRate": { "$ref": "#/$defs/rate" },
+        "recoverySuccessRate": { "$ref": "#/$defs/rate" },
+        "terminalDuplicateRate": { "$ref": "#/$defs/rate" },
+        "recoveryDriftRate": { "$ref": "#/$defs/rate" }
+      }
+    },
+    "efficiency": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "acceptedOutcomeCount",
+        "meanTokensPerAcceptedOutcome",
+        "meanLatencySeconds",
+        "p50LatencySeconds",
+        "p95LatencySeconds",
+        "meanModelSteps",
+        "meanCorrections",
+        "compactionAttemptCount",
+        "compactionSuccessRate",
+        "costStatus",
+        "intervals"
+      ],
+      "properties": {
+        "acceptedOutcomeCount": { "type": "integer", "minimum": 0 },
+        "meanTokensPerAcceptedOutcome": { "type": "number", "minimum": 0 },
+        "meanLatencySeconds": { "type": "number", "minimum": 0 },
+        "p50LatencySeconds": { "type": "number", "minimum": 0 },
+        "p95LatencySeconds": { "type": "number", "minimum": 0 },
+        "meanModelSteps": { "type": "number", "minimum": 0 },
+        "meanCorrections": { "type": "number", "minimum": 0 },
+        "compactionAttemptCount": { "type": "integer", "minimum": 0 },
+        "compactionSuccessRate": { "$ref": "#/$defs/rate" },
+        "costStatus": {
+          "enum": [
+            "OBSERVED",
+            "ESTIMATED",
+            "PROVIDER_PRICING_UNAVAILABLE"
+          ]
+        },
+        "meanCostPerAcceptedOutcomeUsd": { "type": "number", "minimum": 0 },
+        "pricingVersion": { "type": "string", "minLength": 1, "maxLength": 160 },
+        "intervals": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "tokensPerAcceptedOutcome",
+            "latencyPerAcceptedOutcomeSeconds"
+          ],
+          "properties": {
+            "tokensPerAcceptedOutcome": {
+              "$ref": "#/$defs/numericInterval"
+            },
+            "latencyPerAcceptedOutcomeSeconds": {
+              "$ref": "#/$defs/numericInterval"
+            },
+            "costPerAcceptedOutcomeUsd": {
+              "$ref": "#/$defs/numericInterval"
+            }
+          }
+        }
+      }
+    },
+    "dataQuality": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "missingEventRate",
+        "verifierCoverageRate",
+        "sampleSufficient",
+        "uniqueAttemptCount",
+        "uniqueMissionCount",
+        "effectiveIndependentMissionCount",
+        "primaryIntervalWidth",
+        "sufficiencyCriteria",
+        "selectionBiasNotes"
+      ],
+      "properties": {
+        "missingEventRate": { "$ref": "#/$defs/rate" },
+        "verifierCoverageRate": { "$ref": "#/$defs/rate" },
+        "sampleSufficient": { "type": "boolean" },
+        "uniqueAttemptCount": { "type": "integer", "minimum": 0 },
+        "uniqueMissionCount": { "type": "integer", "minimum": 0 },
+        "effectiveIndependentMissionCount": { "type": "integer", "minimum": 0 },
+        "primaryIntervalWidth": { "type": "number", "minimum": 0, "maximum": 1 },
+        "sufficiencyCriteria": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["criterion", "passed", "observed", "required"],
+            "properties": {
+              "criterion": { "type": "string", "minLength": 1, "maxLength": 500 },
+              "passed": { "type": "boolean" },
+              "observed": { "type": "number" },
+              "required": { "type": "number" }
+            }
+          }
+        },
+        "selectionBiasNotes": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1, "maxLength": 2000 }
+        }
+      }
+    },
+    "failureAttribution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "byStage",
+        "byMissingReason",
+        "modelCausedRate",
+        "hostOrInfrastructureRate",
+        "externalOrCancelledRate",
+        "unknownRate"
+      ],
+      "properties": {
+        "byStage": {
+          "type": "object",
+          "additionalProperties": { "type": "integer", "minimum": 0 }
+        },
+        "byMissingReason": {
+          "type": "object",
+          "additionalProperties": { "type": "integer", "minimum": 0 }
+        },
+        "modelCausedRate": { "$ref": "#/$defs/rate" },
+        "hostOrInfrastructureRate": { "$ref": "#/$defs/rate" },
+        "externalOrCancelledRate": { "$ref": "#/$defs/rate" },
+        "unknownRate": { "$ref": "#/$defs/rate" }
+      }
+    },
+    "analyses": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1, "maxLength": 4000 },
+      "minItems": 1
+    },
+    "recommendations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["area", "action", "priority"],
+        "properties": {
+          "area": {
+            "enum": [
+              "task-design",
+              "prompt",
+              "permissions",
+              "tactics",
+              "model",
+              "reasoning",
+              "context-budget",
+              "compaction",
+              "verification"
+            ]
+          },
+          "action": { "type": "string", "minLength": 1, "maxLength": 4000 },
+          "priority": { "enum": ["low", "medium", "high", "critical"] }
+        }
+      },
+      "minItems": 1
+    },
+    "limitations": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1, "maxLength": 4000 }
+    },
+    "confidence": { "$ref": "#/$defs/rate" },
+    "status": { "enum": ["VALID", "INSUFFICIENT_DATA", "INVALID"] },
+    "evidenceRefs": {
+      "type": "array",
+      "items": { "$ref": "common-defs.schema.json#/$defs/evidenceRef" }
+    },
+    "createdAt": { "$ref": "common-defs.schema.json#/$defs/timestamp" }
+  },
+  "$defs": {
+    "rate": { "type": "number", "minimum": 0, "maximum": 1 },
+    "profileRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "revision"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 240 },
+        "revision": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "rateInterval": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "estimate",
+        "low",
+        "high",
+        "confidenceLevel",
+        "numerator",
+        "denominator"
+      ],
+      "properties": {
+        "estimate": { "$ref": "#/$defs/rate" },
+        "low": { "$ref": "#/$defs/rate" },
+        "high": { "$ref": "#/$defs/rate" },
+        "confidenceLevel": { "enum": [0.9, 0.95, 0.99] },
+        "numerator": { "type": "number", "minimum": 0 },
+        "denominator": { "type": "number", "minimum": 0 }
+      }
+    },
+    "numericInterval": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "estimate",
+        "confidenceLevel",
+        "clusterCount",
+        "method",
+        "status"
+      ],
+      "properties": {
+        "estimate": { "type": "number", "minimum": 0 },
+        "confidenceLevel": { "enum": [0.9, 0.95, 0.99] },
+        "clusterCount": { "type": "integer", "minimum": 0 },
+        "method": { "const": "MISSION_CLUSTER_BOOTSTRAP" },
+        "status": {
+          "enum": [
+            "AVAILABLE",
+            "INSUFFICIENT_CLUSTERS",
+            "NO_DATA"
+          ]
+        },
+        "low": { "type": "number", "minimum": 0 },
+        "high": { "type": "number", "minimum": 0 }
+      }
+    }
+  }
+}

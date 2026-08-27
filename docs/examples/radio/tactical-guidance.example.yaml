@@ -1,0 +1,54 @@
+schemaVersion: 1.0.0
+guidanceId: guidance-auth-stack-1
+requestId: radio-request-task-recon-auth-1
+expectedTaskVersion: 1
+advisorIdentity:
+  agentId: agent-advisor-backend-1
+  sessionId: session-advisor-backend-1
+  role: advisor
+  displayName: Web 后端参谋
+  advisorId: advisor-web-backend
+  generation: 3
+candidateSkills:
+  - skillId: tactic-codebase-auth-recon
+    version: 1.2.0
+  - skillId: tactic-api-policy-migration-detection
+    version: 0.8.0
+  - skillId: tactic-test-fixture-authority
+    version: 1.0.1
+selectedSkills:
+  - skillId: tactic-api-policy-migration-detection
+    version: 0.8.0
+    guidanceId: guidance-auth-stack-1
+    usageStage: assigned
+  - skillId: tactic-test-fixture-authority
+    version: 1.0.1
+    guidanceId: guidance-auth-stack-1
+    usageStage: assigned
+diagnosis: policyGuard 更可能是当前架构，但必须以路由注册时间、默认拒绝策略和新测试夹具三类证据确认，不能仅按命中数量选择。
+directive:
+  - stepId: guidance-step-1
+    action: 比较两个中间件的调用方、注释和最近迁移痕迹，记录可验证事实。
+    tool: fs_search
+    expectedOutput: 两个鉴权栈的调用方集合与迁移证据表。
+  - stepId: guidance-step-2
+    action: 比较默认拒绝、角色映射和错误响应，确认哪个符合当前公共 API 约定。
+    tool: fs_read
+    expectedOutput: 行为差异矩阵。
+  - stepId: guidance-step-3
+    action: 运行或只读检查最新受保护端点的测试夹具，确定参照实现。
+    tool: bash
+    expectedOutput: 测试命令、结果和夹具路径。
+expectedObservations:
+  - policyGuard 应在较新的路由或共享注册器中出现
+  - 新测试夹具应使用与新 API 一致的错误响应
+requiredEvidence:
+  - 调用方集合 Artifact
+  - 行为差异矩阵 Artifact
+  - 测试工具结果
+stopConditions:
+  - 两个栈在当前代码中仍无明确权威差异
+  - 需要产品角色定义才能选择
+fallback: 提交 STRATEGIC blocker，由将军要求用户或项目负责人确认迁移方向。
+issuedAt: "2026-08-18T02:35:00Z"
+expiresAt: "2026-08-18T04:30:00Z"

@@ -1,0 +1,190 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "chief-of-staff-advice.schema.json",
+  "title": "Chief of Staff Generated Reference Advice",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "adviceId",
+    "generatedBy",
+    "contextPacketRef",
+    "status",
+    "tacticalSufficiency",
+    "problem",
+    "facts",
+    "assumptions",
+    "options",
+    "recommendedOptionId",
+    "recommendationRationale",
+    "nextStep",
+    "verifierRequirements",
+    "needsUserDecision",
+    "confidence",
+    "createdAt"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0.0"
+    },
+    "adviceId": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "generatedBy": {
+      "$ref": "common-defs.schema.json#/$defs/agentIdentity"
+    },
+    "contextPacketRef": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "status": {
+      "const": "GENERATED_REFERENCE"
+    },
+    "tacticalSufficiency": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "disposition",
+        "coverageScore",
+        "reasons"
+      ],
+      "properties": {
+        "disposition": {
+          "enum": [
+            "PARTIAL",
+            "INSUFFICIENT",
+            "CONFLICTED",
+            "UNKNOWN"
+          ]
+        },
+        "coverageScore": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "reasons": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1
+        }
+      }
+    },
+    "problem": {
+      "type": "string",
+      "minLength": 1
+    },
+    "facts": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "assumptions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "options": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "optionId",
+          "title",
+          "approach",
+          "benefits",
+          "risks"
+        ],
+        "properties": {
+          "optionId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "title": {
+            "type": "string"
+          },
+          "approach": {
+            "type": "string"
+          },
+          "benefits": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "risks": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "evidenceRefs": {
+            "type": "array",
+            "items": {
+              "$ref": "common-defs.schema.json#/$defs/evidenceRef"
+            }
+          }
+        }
+      },
+      "minItems": 2,
+      "maxItems": 4
+    },
+    "recommendedOptionId": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "recommendationRationale": {
+      "type": "string"
+    },
+    "risks": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "nextStep": {
+      "type": "string"
+    },
+    "verifierRequirements": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1
+    },
+    "needsUserDecision": {
+      "type": "boolean"
+    },
+    "decisionQuestionSet": {
+      "$ref": "decision-question-set.schema.json"
+    },
+    "confidence": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "createdAt": {
+      "$ref": "common-defs.schema.json#/$defs/timestamp"
+    },
+    "expiresAt": {
+      "$ref": "common-defs.schema.json#/$defs/timestamp"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "needsUserDecision": {
+            "const": true
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "decisionQuestionSet"
+        ]
+      }
+    }
+  ]
+}

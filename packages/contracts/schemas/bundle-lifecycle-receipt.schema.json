@@ -1,0 +1,93 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "bundle-lifecycle-receipt.schema.json",
+  "title": "Bundle Lifecycle Operation Receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "operationId",
+    "operation",
+    "fromVersion",
+    "toVersion",
+    "profileRevisionBefore",
+    "profileRevisionAfter",
+    "presetGenerationRefs",
+    "dataDisposition",
+    "validationReportRef",
+    "status",
+    "startedAt",
+    "completedAt"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0.0"
+    },
+    "operationId": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "operation": {
+      "enum": [
+        "INSTALL",
+        "UPGRADE",
+        "ROLLBACK",
+        "DISABLE",
+        "UNINSTALL",
+        "REINSTALL"
+      ]
+    },
+    "fromVersion": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 80
+    },
+    "toVersion": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 80
+    },
+    "profileRevisionBefore": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 160
+    },
+    "profileRevisionAfter": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 160
+    },
+    "presetGenerationRefs": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 200
+      },
+      "uniqueItems": true
+    },
+    "dataDisposition": {
+      "enum": [
+        "RETAINED",
+        "EXPORTED_AND_REMOVED",
+        "REMOVED",
+        "NOT_APPLICABLE"
+      ]
+    },
+    "validationReportRef": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "status": {
+      "enum": [
+        "SUCCEEDED",
+        "ROLLED_BACK",
+        "FAILED"
+      ]
+    },
+    "startedAt": {
+      "$ref": "common-defs.schema.json#/$defs/timestamp"
+    },
+    "completedAt": {
+      "$ref": "common-defs.schema.json#/$defs/timestamp"
+    }
+  }
+}

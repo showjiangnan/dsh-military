@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "frozen-evaluation-dataset.schema.json",
+  "title": "Frozen Military Evaluation Dataset",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "requestHash",
+    "datasetHash",
+    "request",
+    "attempts",
+    "includedSessions",
+    "excludedSessions",
+    "excludedAttempts",
+    "strata",
+    "missingness",
+    "sourceArtifactRefs"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "requestHash": { "$ref": "common-defs.schema.json#/$defs/sha256" },
+    "datasetHash": { "$ref": "common-defs.schema.json#/$defs/sha256" },
+    "request": { "$ref": "performance-evaluation-request.schema.json" },
+    "attempts": {
+      "type": "array",
+      "items": { "$ref": "evaluation-attempt-record.schema.json" }
+    },
+    "includedSessions": {
+      "$ref": "evaluation-dataset-manifest.schema.json#/properties/includedSessions"
+    },
+    "excludedSessions": {
+      "$ref": "evaluation-dataset-manifest.schema.json#/properties/excludedSessions"
+    },
+    "excludedAttempts": {
+      "$ref": "evaluation-dataset-manifest.schema.json#/properties/excludedAttempts"
+    },
+    "strata": {
+      "$ref": "evaluation-dataset-manifest.schema.json#/properties/strata"
+    },
+    "missingness": {
+      "$ref": "evaluation-dataset-manifest.schema.json#/properties/missingness"
+    },
+    "sourceArtifactRefs": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1, "maxLength": 2000 },
+      "uniqueItems": true
+    }
+  }
+}

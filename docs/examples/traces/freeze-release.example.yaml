@@ -1,0 +1,25 @@
+schemaVersion: 1.0.0
+dshBaseline:
+  release: 0.1.1-rc.2
+  commit: b150a551b8d465e31e418e1b2eaf5e79bbb7d28e
+traceId: trace-freeze-release
+scenario: freeze-release
+initialState:
+  state: START
+steps:
+- index: 1
+  action: lease task
+  eventType: task/leased
+  expectedState: EXECUTING
+- index: 2
+  action: detect anomaly
+  eventType: oversight/frozen
+  expectedState: FROZEN
+- index: 3
+  action: release with correction
+  eventType: oversight/released
+  expectedState: READY
+finalProjectionHash: '0000000000000000000000000000000000000000000000000000000000000003'
+invariants:
+- frozen agent cannot write
+- release requires correction order

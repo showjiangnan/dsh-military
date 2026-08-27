@@ -1,0 +1,14 @@
+flowchart TD
+  A[Read Session Binding] --> B[Verify exact RC.2 baseline]
+  B --> C{Generation asset exists?}
+  C -- no --> Q[QUARANTINED]
+  C -- yes --> D[Verify manifest and capability fingerprint]
+  D --> E{Current generation?}
+  E -- yes --> M[MATCHED]
+  E -- no --> F{Old standing scope live or supported resolver?}
+  F -- yes --> AR[ARCHIVE_REBOUND]
+  F -- no --> MR[QUARANTINED / MIGRATION_REQUIRED]
+  M --> P[Publish Agent]
+  AR --> P
+  Q --> X[Migration or export only]
+  MR --> X

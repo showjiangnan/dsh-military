@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "context-manifest.schema.json",
+  "title": "Context Manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "manifestId", "missionId", "missionRevision", "taskId", "taskVersion", "sections", "omittedEvidenceRefs", "tokenAllocation", "contentSha256", "createdAt"],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "manifestId": { "$ref": "common-defs.schema.json#/$defs/id" },
+    "missionId": { "$ref": "common-defs.schema.json#/$defs/id" },
+    "missionRevision": { "type": "integer", "minimum": 0 },
+    "taskId": { "$ref": "common-defs.schema.json#/$defs/id" },
+    "taskVersion": { "type": "integer", "minimum": 1 },
+    "sections": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["kind", "contentRef", "sha256", "tokenEstimate"],
+        "properties": {
+          "kind": { "enum": ["CONSTITUTION", "STATE", "EVIDENCE", "WORKING"] },
+          "contentRef": { "type": "string", "minLength": 1 },
+          "sha256": { "$ref": "common-defs.schema.json#/$defs/sha256" },
+          "tokenEstimate": { "type": "integer", "minimum": 0 },
+          "sourceEventIds": { "type": "array", "items": { "$ref": "common-defs.schema.json#/$defs/id" }, "uniqueItems": true },
+          "summaryCoverageRefs": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true }
+        }
+      }
+    },
+    "omittedEvidenceRefs": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true },
+    "tokenAllocation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["constitution", "state", "evidence", "working", "reasoningPassbackReserve", "imageReserve"],
+      "properties": {
+        "constitution": { "type": "integer", "minimum": 0 },
+        "state": { "type": "integer", "minimum": 0 },
+        "evidence": { "type": "integer", "minimum": 0 },
+        "working": { "type": "integer", "minimum": 0 },
+        "reasoningPassbackReserve": { "type": "integer", "minimum": 0 },
+        "imageReserve": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "contentSha256": { "$ref": "common-defs.schema.json#/$defs/sha256" },
+    "createdAt": { "$ref": "common-defs.schema.json#/$defs/timestamp" }
+  }
+}

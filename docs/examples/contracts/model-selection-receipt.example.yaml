@@ -1,0 +1,13 @@
+schemaVersion: 1.0.0
+receiptId: model-selection-001
+sessionId: session-general
+provider: deepseek-official
+model: deepseek-v4-pro
+reasoningEffort: high
+source: SESSION_MODEL_SELECTOR
+previousProvider: deepseek-official
+previousModel: deepseek-v4-flash
+previousReasoningEffort: high
+capabilityProfileId: model-capability-dsv4pro
+selectedBy: user-example
+selectedAt: '2026-08-19T00:00:00Z'

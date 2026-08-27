@@ -1,0 +1,53 @@
+schemaVersion: 1.0.0
+requestId: radio-request-task-recon-auth-1
+identity:
+  agentId: agent-worker-auth-1
+  sessionId: session-worker-auth-1
+  role: worker
+  displayName: 快速反应部队-鉴权侦察
+  generation: 1
+location:
+  missionId: mission-demo-webapi
+  directionId: direction-audit-read-api
+  waveId: wave-1-recon-and-contract
+  taskId: task-recon-auth
+  taskVersion: 1
+  attemptId: attempt-task-recon-auth-1
+environmentSnapshotRef: env-snapshot-20260818-001
+currentSkills:
+  - skillId: tactic-codebase-auth-recon
+    version: 1.2.0
+    usageStage: attempted
+blocker:
+  type: ambiguous-auth-stack
+  statement: 路由层同时出现 legacyAuth 和 policyGuard，两者都被测试引用，无法确定新接口应复用哪一个。
+  reproducible: true
+  minimalReproduction: 搜索 src/routes 与 test/auth，读取两个中间件注册位置即可稳定复现。
+attempts:
+  - action: 从三个现有受保护 GET 端点反向追踪中间件。
+    observation: 两个端点使用 policyGuard，一个旧端点使用 legacyAuth。
+    reasonRejected: 无法仅凭数量判断目标架构。
+    toolCallIds:
+      - call-search-protected-routes
+      - call-read-policy-guard
+  - action: 搜索架构文档和弃用标记。
+    observation: 没有明确弃用说明。
+    toolCallIds:
+      - call-search-deprecation
+evidence:
+  - kind: artifact
+    ref: artifact-auth-callgraph
+    claim: 三个受保护端点到两个鉴权栈的调用链。
+  - kind: tool-call
+    ref: call-search-deprecation
+    claim: 全库未找到明确弃用标记。
+requestedDecision: 为新增只读审计 API 选择鉴权栈，并给出需要补充的验证步骤。
+budget:
+  modelSteps: 3
+  toolCalls: 8
+  guidanceRequests: 1
+  wallClockSeconds: 600
+  maxOutputTokens: 8000
+idempotencyKey: blocker-task-recon-auth-v1-auth-stack
+createdAt: "2026-08-18T02:30:00Z"
+expiresAt: "2026-08-18T04:30:00Z"

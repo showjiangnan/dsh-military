@@ -1,0 +1,2315 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "mission-event.schema.json",
+  "title": "Mission Ledger Event Envelope",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "eventId",
+    "seq",
+    "aggregateRevision",
+    "type",
+    "timestamp",
+    "payload",
+    "missionId",
+    "actor"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "2.0.0"
+    },
+    "eventId": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "seq": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "aggregateRevision": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "type": {
+      "type": "string"
+    },
+    "timestamp": {
+      "$ref": "common-defs.schema.json#/$defs/timestamp"
+    },
+    "causationId": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "correlationId": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "idempotencyKey": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "payload": {
+      "type": "object"
+    },
+    "missionId": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "actor": {
+      "$ref": "common-defs.schema.json#/$defs/agentIdentity"
+    }
+  },
+  "oneOf": [
+    {
+      "title": "Military session bound",
+      "properties": {
+        "type": {
+          "const": "military/session-bound"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "bindingRef",
+            "presetId",
+            "presetGeneration",
+            "capabilityFingerprint",
+            "rootSessionId"
+          ],
+          "properties": {
+            "bindingRef": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "presetId": {
+              "const": "military"
+            },
+            "presetGeneration": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 4000
+            },
+            "capabilityFingerprint": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "rootSessionId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            }
+          }
+        }
+      }
+    },
+    {
+      "title": "Military session quarantined",
+      "properties": {
+        "type": {
+          "const": "military/session-quarantined"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "sessionId",
+            "reasonCode",
+            "expectedGeneration",
+            "actualGeneration"
+          ],
+          "properties": {
+            "sessionId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "reasonCode": {
+              "enum": [
+                "GENERATION_MISSING",
+                "GENERATION_INCOMPATIBLE",
+                "CAPABILITY_MISMATCH",
+                "MIGRATION_REQUIRED"
+              ]
+            },
+            "expectedGeneration": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 4000
+            },
+            "actualGeneration": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 4000
+            },
+            "migrationOrderId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            }
+          }
+        }
+      }
+    },
+    {
+      "title": "Preset generation resume checked",
+      "properties": {
+        "type": {
+          "const": "preset/generation-resume-checked"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "sessionId",
+            "requestedGeneration",
+            "activeGeneration",
+            "disposition"
+          ],
+          "properties": {
+            "sessionId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "requestedGeneration": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 4000
+            },
+            "activeGeneration": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 4000
+            },
+            "disposition": {
+              "enum": [
+                "MATCHED",
+                "ARCHIVE_REBOUND",
+                "QUARANTINED"
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "title": "Preset migration completed",
+      "properties": {
+        "type": {
+          "const": "preset/migration-completed"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "migrationOrderId",
+            "sessionId",
+            "fromGeneration",
+            "toGeneration",
+            "disposition"
+          ],
+          "properties": {
+            "migrationOrderId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "sessionId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "fromGeneration": {
+              "type": "string",
+              "minLength": 1
+            },
+            "toGeneration": {
+              "type": "string",
+              "minLength": 1
+            },
+            "disposition": {
+              "enum": [
+                "REBIND_ARCHIVE",
+                "EXPORT_IMPORT",
+                "NEW_PRESET_ID"
+              ]
+            },
+            "newSessionId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            }
+          }
+        }
+      }
+    },
+    {
+      "title": "Mission started",
+      "properties": {
+        "type": {
+          "const": "mission/started"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "title",
+            "rootSessionId",
+            "authorityContextRef"
+          ],
+          "properties": {
+            "title": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 240
+            },
+            "rootSessionId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "authorityContextRef": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            }
+          }
+        }
+      }
+    },
+    {
+      "title": "Mission command accepted",
+      "properties": {
+        "type": {
+          "const": "mission/command-accepted"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "commandId",
+            "idempotencyKey",
+            "commandType",
+            "payloadSha256",
+            "actorAuthorityRef"
+          ],
+          "properties": {
+            "commandId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "idempotencyKey": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 4000
+            },
+            "commandType": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 4000
+            },
+            "payloadSha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "actorAuthorityRef": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 4000
+            },
+            "taskId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "taskVersion": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        }
+      }
+    },
+    {
+      "title": "Mission intent ratified",
+      "properties": {
+        "type": {
+          "const": "mission/intent-ratified"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "missionIntentRef",
+            "approvedBy",
+            "decisionReceiptRef"
+          ],
+          "properties": {
+            "missionIntentRef": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "approvedBy": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "decisionReceiptRef": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            }
+          }
+        }
+      }
+    },
+    {
+      "title": "Direction ratified",
+      "properties": {
+        "type": {
+          "const": "direction/ratified"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "directionId",
+            "directionPlanRef",
+            "staffCouncilRef"
+          ],
+          "properties": {
+            "directionId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "directionPlanRef": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "staffCouncilRef": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            }
+          }
+        }
+      }
+    },
+    {
+      "title": "Wave opened",
+      "properties": {
+        "type": {
+          "const": "wave/opened"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "directionId",
+            "waveId",
+            "wavePlanRef"
+          ],
+          "properties": {
+            "directionId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "waveId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "wavePlanRef": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            }
+          }
+        }
+      }
+    },
+    {
+      "title": "Wave barrier satisfied",
+      "properties": {
+        "type": {
+          "const": "wave/barrier-satisfied"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "waveId",
+            "acceptedTaskIds",
+            "integrationReceiptRefs",
+            "specsCommitRef"
+          ],
+          "properties": {
+            "waveId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "acceptedTaskIds": {
+              "type": "array",
+              "items": {
+                "$ref": "common-defs.schema.json#/$defs/id"
+              },
+              "minItems": 1,
+              "uniqueItems": true
+            },
+            "integrationReceiptRefs": {
+              "type": "array",
+              "items": {
+                "$ref": "common-defs.schema.json#/$defs/id"
+              },
+              "uniqueItems": true
+            },
+            "specsCommitRef": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            }
+          }
+        }
+      }
+    },
+    {
+      "title": "Task created",
+      "properties": {
+        "type": {
+          "const": "task/created"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "taskId",
+            "taskVersion",
+            "taskOrderRef"
+          ],
+          "properties": {
+            "taskId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "taskVersion": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "taskOrderRef": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            }
+          }
+        }
+      }
+    },
+    {
+      "title": "Task leased",
+      "properties": {
+        "type": {
+          "const": "task/leased"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "taskId",
+            "taskVersion",
+            "agent",
+            "workspaceLeaseId",
+            "leaseExpiresAt"
+          ],
+          "properties": {
+            "taskId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "taskVersion": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "agent": {
+              "$ref": "common-defs.schema.json#/$defs/agentIdentity"
+            },
+            "workspaceLeaseId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "leaseExpiresAt": {
+              "$ref": "common-defs.schema.json#/$defs/timestamp"
+            }
+          }
+        }
+      }
+    },
+    {
+      "title": "Task candidate submitted",
+      "properties": {
+        "type": {
+          "const": "task/candidate-submitted"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "taskId",
+            "taskVersion",
+            "candidateId",
+            "candidateRef"
+          ],
+          "properties": {
+            "taskId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "taskVersion": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "candidateId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "candidateRef": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            }
+          }
+        }
+      }
+    },
+    {
+      "title": "Task blocker submitted",
+      "properties": {
+        "type": {
+          "const": "task/blocker-submitted"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "taskId",
+            "taskVersion",
+            "blockerId",
+            "evidenceRefs"
+          ],
+          "properties": {
+            "taskId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "taskVersion": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "blockerId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "requestId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "evidenceRefs": {
+              "type": "array",
+              "items": {
+                "$ref": "common-defs.schema.json#/$defs/id"
+              },
+              "minItems": 1,
+              "uniqueItems": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "title": "Verification completed",
+      "properties": {
+        "type": {
+          "const": "verification/completed"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "taskId",
+            "taskVersion",
+            "candidateId",
+            "verificationReceiptRef",
+            "disposition"
+          ],
+          "properties": {
+            "taskId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "taskVersion": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "candidateId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "verificationReceiptRef": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "disposition": {
+              "enum": [
+                "ACCEPTED",
+                "REWORK",
+                "BLOCKED",
+                "FROZEN",
+                "STRATEGIC",
+                "HUMAN_REVIEW_REQUIRED"
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "title": "Task accepted",
+      "properties": {
+        "type": {
+          "const": "task/accepted"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "taskId",
+            "taskVersion",
+            "candidateId",
+            "verificationReceiptRef",
+            "integrationRequired"
+          ],
+          "properties": {
+            "taskId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "taskVersion": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "candidateId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "verificationReceiptRef": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "integrationRequired": {
+              "type": "boolean"
+            }
+          }
+        }
+      }
+    },
+    {
+      "title": "Task cancelled",
+      "properties": {
+        "type": {
+          "const": "task/cancelled"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "taskId",
+            "taskVersion",
+            "reasonCode",
+            "cancelledAgentId"
+          ],
+          "properties": {
+            "taskId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "taskVersion": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "reasonCode": {
+              "enum": [
+                "USER_CANCELLED",
+                "PARENT_CANCELLED",
+                "STEP_BUDGET_EXHAUSTED",
+                "NO_PROGRESS_LIMIT",
+                "AGENT_ABORTED"
+              ]
+            },
+            "cancelledAgentId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            }
+          }
+        }
+      }
+    },
+    {
+      "title": "Task rework requested",
+      "properties": {
+        "type": {
+          "const": "task/rework-requested"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "taskId",
+            "previousVersion",
+            "newVersion",
+            "reasonCodes"
+          ],
+          "properties": {
+            "taskId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "previousVersion": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "newVersion": {
+              "type": "integer",
+              "minimum": 2
+            },
+            "reasonCodes": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 120
+              },
+              "minItems": 1,
+              "uniqueItems": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "title": "Task integration queued",
+      "properties": {
+        "type": {
+          "const": "task/integration-queued"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "taskId",
+            "candidatePatchId",
+            "integrationOrderId"
+          ],
+          "properties": {
+            "taskId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "candidatePatchId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "integrationOrderId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            }
+          }
+        }
+      }
+    },
+    {
+      "title": "Task integrated",
+      "properties": {
+        "type": {
+          "const": "task/integrated"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "taskId",
+            "integrationReceiptId",
+            "commit",
+            "treeHash"
+          ],
+          "properties": {
+            "taskId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "integrationReceiptId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "commit": {
+              "type": "string",
+              "minLength": 7,
+              "maxLength": 64
+            },
+            "treeHash": {
+              "type": "string",
+              "minLength": 7,
+              "maxLength": 64
+            }
+          }
+        }
+      }
+    },
+    {
+      "title": "Workspace lease acquired",
+      "properties": {
+        "type": {
+          "const": "workspace/lease-acquired"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "workspaceLeaseId",
+            "taskId",
+            "agentId",
+            "workspaceSnapshotId",
+            "expiresAt"
+          ],
+          "properties": {
+            "workspaceLeaseId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "taskId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "agentId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "workspaceSnapshotId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "expiresAt": {
+              "$ref": "common-defs.schema.json#/$defs/timestamp"
+            }
+          }
+        }
+      }
+    },
+    {
+      "title": "Workspace snapshot created",
+      "properties": {
+        "type": {
+          "const": "workspace/snapshot-created"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "workspaceSnapshotId",
+            "taskId",
+            "gitHead",
+            "treeHash",
+            "dirtyStateHash"
+          ],
+          "properties": {
+            "workspaceSnapshotId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "taskId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "gitHead": {
+              "type": "string",
+              "minLength": 7,
+              "maxLength": 64
+            },
+            "treeHash": {
+              "type": "string",
+              "minLength": 7,
+              "maxLength": 64
+            },
+            "dirtyStateHash": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            }
+          }
+        }
+      }
+    },
+    {
+      "title": "Workspace lease released",
+      "properties": {
+        "type": {
+          "const": "workspace/lease-released"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "workspaceLeaseId",
+            "taskId",
+            "state"
+          ],
+          "properties": {
+            "workspaceLeaseId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "taskId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "state": {
+              "enum": [
+                "RELEASED",
+                "EXPIRED",
+                "REVOKED"
+              ]
+            },
+            "cleanupReceiptRef": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            }
+          }
+        }
+      }
+    },
+    {
+      "title": "Workspace drift detected",
+      "properties": {
+        "type": {
+          "const": "workspace/drift-detected"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "workspaceSnapshotId",
+            "expectedHead",
+            "actualHead",
+            "changedPaths"
+          ],
+          "properties": {
+            "workspaceSnapshotId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "expectedHead": {
+              "type": "string",
+              "minLength": 1
+            },
+            "actualHead": {
+              "type": "string",
+              "minLength": 1
+            },
+            "changedPaths": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "uniqueItems": true
+            },
+            "sourceSessionId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            }
+          }
+        }
+      }
+    },
+    {
+      "title": "Integration conflict detected",
+      "properties": {
+        "type": {
+          "const": "integration/conflict-detected"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "integrationOrderId",
+            "conflictReportRef",
+            "affectedPaths"
+          ],
+          "properties": {
+            "integrationOrderId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "conflictReportRef": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "affectedPaths": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 1024
+              },
+              "minItems": 1,
+              "uniqueItems": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "title": "Integration regression failed",
+      "properties": {
+        "type": {
+          "const": "integration/regression-failed"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "integrationOrderId",
+            "checkReceiptRefs",
+            "failureArtifact"
+          ],
+          "properties": {
+            "integrationOrderId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "checkReceiptRefs": {
+              "type": "array",
+              "items": {
+                "$ref": "common-defs.schema.json#/$defs/id"
+              },
+              "minItems": 1,
+              "uniqueItems": true
+            },
+            "failureArtifact": {
+              "$ref": "common-defs.schema.json#/$defs/artifactRef"
+            }
+          }
+        }
+      }
+    },
+    {
+      "title": "Radio request admitted",
+      "properties": {
+        "type": {
+          "const": "radio/requested"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "requestId",
+            "taskId",
+            "taskVersion",
+            "requestRef"
+          ],
+          "properties": {
+            "requestId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "taskId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "taskVersion": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "requestRef": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            }
+          }
+        }
+      }
+    },
+    {
+      "title": "Radio guidance issued",
+      "properties": {
+        "type": {
+          "const": "radio/guidance-issued"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "guidanceId",
+            "requestId",
+            "advisorId",
+            "skillRefs"
+          ],
+          "properties": {
+            "guidanceId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "requestId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "advisorId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "skillRefs": {
+              "type": "array",
+              "items": {
+                "$ref": "common-defs.schema.json#/$defs/skillRef"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "title": "Radio guidance delivered",
+      "properties": {
+        "type": {
+          "const": "radio/guidance-delivered"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "guidanceId",
+            "taskId",
+            "taskVersion",
+            "deliveryReceiptRef"
+          ],
+          "properties": {
+            "guidanceId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "taskId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "taskVersion": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "deliveryReceiptRef": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            }
+          }
+        }
+      }
+    },
+    {
+      "title": "Decision question set created",
+      "properties": {
+        "type": {
+          "const": "decision/question-set-created"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "decisionSetId",
+            "originAgentId",
+            "questionSetRef"
+          ],
+          "properties": {
+            "decisionSetId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "originAgentId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "questionSetRef": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "taskVersion": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        }
+      }
+    },
+    {
+      "title": "Decision question presented",
+      "properties": {
+        "type": {
+          "const": "decision/question-presented"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "decisionSetId",
+            "presentationId",
+            "rootSessionId"
+          ],
+          "properties": {
+            "decisionSetId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "presentationId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "rootSessionId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            }
+          }
+        }
+      }
+    },
+    {
+      "title": "Decision answered",
+      "properties": {
+        "type": {
+          "const": "decision/answered"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "decisionSetId",
+            "answerReceiptRef",
+            "answeredBy"
+          ],
+          "properties": {
+            "decisionSetId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "answerReceiptRef": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "answeredBy": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            }
+          }
+        }
+      }
+    },
+    {
+      "title": "Decision question became stale",
+      "properties": {
+        "type": {
+          "const": "decision/stale"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "decisionSetId",
+            "reasonCode"
+          ],
+          "properties": {
+            "decisionSetId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "reasonCode": {
+              "enum": [
+                "TASK_VERSION_CHANGED",
+                "MISSION_CHANGED",
+                "SOURCE_REVOKED",
+                "SUPERSEDED"
+              ]
+            },
+            "taskVersion": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        }
+      }
+    },
+    {
+      "title": "Decision expired",
+      "properties": {
+        "type": {
+          "const": "decision/expired"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "decisionSetId",
+            "reason"
+          ],
+          "properties": {
+            "decisionSetId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "reason": {
+              "enum": [
+                "TTL",
+                "TASK_VERSION_CHANGED",
+                "MISSION_CANCELLED",
+                "SUPERSEDED",
+                "ORIGIN_AGENT_GONE"
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "title": "Agent frozen",
+      "properties": {
+        "type": {
+          "const": "oversight/frozen"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "targetAgentId",
+            "taskId",
+            "inspectionReportRef",
+            "reasonCodes"
+          ],
+          "properties": {
+            "targetAgentId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "taskId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "inspectionReportRef": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "reasonCodes": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 120
+              },
+              "minItems": 1,
+              "uniqueItems": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "title": "Agent released",
+      "properties": {
+        "type": {
+          "const": "oversight/released"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "targetAgentId",
+            "correctionOrderRef",
+            "releasedBy"
+          ],
+          "properties": {
+            "targetAgentId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "correctionOrderRef": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "releasedBy": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            }
+          }
+        }
+      }
+    },
+    {
+      "title": "Specs commit recorded",
+      "properties": {
+        "type": {
+          "const": "specs/commit-recorded"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "taskId",
+            "commit",
+            "treeHash",
+            "changedPaths"
+          ],
+          "properties": {
+            "taskId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "commit": {
+              "type": "string",
+              "minLength": 7,
+              "maxLength": 64
+            },
+            "treeHash": {
+              "type": "string",
+              "minLength": 7,
+              "maxLength": 64
+            },
+            "changedPaths": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 1024
+              },
+              "minItems": 1,
+              "uniqueItems": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "title": "Compaction required",
+      "properties": {
+        "type": {
+          "const": "context/compaction-required"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "agentId",
+            "compactionAttemptId",
+            "meterTokens",
+            "thresholdTokens"
+          ],
+          "properties": {
+            "agentId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "compactionAttemptId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "meterTokens": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "thresholdTokens": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        }
+      }
+    },
+    {
+      "title": "Compaction attempted",
+      "properties": {
+        "type": {
+          "const": "context/compaction-attempted"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "attemptId",
+            "agentId",
+            "trigger",
+            "provider",
+            "model"
+          ],
+          "properties": {
+            "attemptId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "agentId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "trigger": {
+              "enum": [
+                "PRESSURE",
+                "CONTEXT_OVERFLOW",
+                "MANUAL",
+                "HANDOFF"
+              ]
+            },
+            "provider": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160
+            },
+            "model": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160
+            }
+          }
+        }
+      }
+    },
+    {
+      "title": "Compaction completed",
+      "properties": {
+        "type": {
+          "const": "context/compaction-completed"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "attemptId",
+            "outcome"
+          ],
+          "properties": {
+            "attemptId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "outcome": {
+              "enum": [
+                "SUCCEEDED",
+                "NO_SAFE_RANGE",
+                "FAILED",
+                "CANCELLED"
+              ]
+            },
+            "summaryEventSeq": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "errorCode": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160
+            }
+          }
+        }
+      }
+    },
+    {
+      "title": "General model selection changed",
+      "properties": {
+        "type": {
+          "const": "model/selection-changed"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "sessionId",
+            "provider",
+            "model",
+            "source"
+          ],
+          "properties": {
+            "sessionId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "provider": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160
+            },
+            "model": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160
+            },
+            "source": {
+              "enum": [
+                "PRESET_DEFAULT",
+                "NEW_SESSION_SELECTION",
+                "SESSION_MODEL_SELECTOR",
+                "RESUME"
+              ]
+            },
+            "previousProvider": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160
+            },
+            "previousModel": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160
+            }
+          }
+        }
+      }
+    },
+    {
+      "title": "General model selection rejected",
+      "properties": {
+        "type": {
+          "const": "model/selection-rejected"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "provider",
+            "model",
+            "reasonCode",
+            "previousReceiptRef"
+          ],
+          "properties": {
+            "provider": {
+              "type": "string",
+              "minLength": 1
+            },
+            "model": {
+              "type": "string",
+              "minLength": 1
+            },
+            "reasonCode": {
+              "enum": [
+                "UNSUPPORTED_REASONING",
+                "CONTEXT_TOO_SMALL",
+                "DATA_RESIDENCY",
+                "TOOL_CALLING",
+                "BUDGET",
+                "UNSUPPORTED_PROVIDER"
+              ]
+            },
+            "previousReceiptRef": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            }
+          }
+        }
+      }
+    },
+    {
+      "title": "Model fallback applied",
+      "properties": {
+        "type": {
+          "const": "model/fallback"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "agentId",
+            "fromProvider",
+            "fromModel",
+            "toProvider",
+            "toModel",
+            "reason"
+          ],
+          "properties": {
+            "agentId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "fromProvider": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160
+            },
+            "fromModel": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160
+            },
+            "toProvider": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160
+            },
+            "toModel": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160
+            },
+            "reason": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 1000
+            }
+          }
+        }
+      }
+    },
+    {
+      "title": "Resource budget reserved",
+      "properties": {
+        "type": {
+          "const": "budget/reserved"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "reservationId",
+            "policyId",
+            "scope",
+            "reserved"
+          ],
+          "properties": {
+            "reservationId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "policyId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "scope": {
+              "enum": [
+                "MISSION",
+                "DIRECTION",
+                "WAVE",
+                "TASK",
+                "OPERATION"
+              ]
+            },
+            "reserved": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [],
+              "properties": {
+                "modelRequests": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "reasoningTokens": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "toolCalls": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "apiCalls": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "wallClockSeconds": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "storageBytes": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              }
+            },
+            "leaseUntil": {
+              "$ref": "common-defs.schema.json#/$defs/timestamp"
+            }
+          }
+        }
+      }
+    },
+    {
+      "title": "Resource budget settled",
+      "properties": {
+        "type": {
+          "const": "budget/settled"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "reservationId",
+            "usageReceiptId",
+            "actual"
+          ],
+          "properties": {
+            "reservationId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "usageReceiptId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "actual": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [],
+              "properties": {
+                "modelRequests": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "reasoningTokens": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "toolCalls": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "apiCalls": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "wallClockSeconds": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "storageBytes": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              }
+            },
+            "released": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [],
+              "properties": {
+                "modelRequests": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "reasoningTokens": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "toolCalls": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "apiCalls": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "wallClockSeconds": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "storageBytes": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "title": "Resource budget threshold reached",
+      "properties": {
+        "type": {
+          "const": "budget/threshold-reached"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "budgetScope",
+            "budgetKind",
+            "used",
+            "limit",
+            "disposition"
+          ],
+          "properties": {
+            "budgetScope": {
+              "enum": [
+                "DEPLOYMENT",
+                "TENANT",
+                "MISSION",
+                "WAVE",
+                "TASK"
+              ]
+            },
+            "budgetKind": {
+              "enum": [
+                "MODEL_REQUESTS",
+                "REASONING_TOKENS",
+                "WALL_CLOCK",
+                "TOOL_CALLS",
+                "API_CALLS",
+                "CONCURRENT_AGENTS",
+                "RADIO_ROUNDS",
+                "REWORK_ATTEMPTS",
+                "STORAGE_BYTES"
+              ]
+            },
+            "used": {
+              "type": "number",
+              "minimum": 0
+            },
+            "limit": {
+              "type": "number",
+              "minimum": 0
+            },
+            "disposition": {
+              "enum": [
+                "PAUSE_AND_REPORT",
+                "REQUIRE_USER_AUTHORIZATION",
+                "DEGRADE_NONCRITICAL_RESEARCH",
+                "CANCEL_SPECULATIVE_TASKS"
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "title": "Resource budget exhausted",
+      "properties": {
+        "type": {
+          "const": "budget/exhausted"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "policyId",
+            "scope",
+            "disposition",
+            "usedPercent"
+          ],
+          "properties": {
+            "policyId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "scope": {
+              "enum": [
+                "DEPLOYMENT",
+                "TENANT",
+                "MISSION",
+                "DIRECTION",
+                "WAVE",
+                "TASK"
+              ]
+            },
+            "disposition": {
+              "enum": [
+                "PAUSE_AND_REPORT",
+                "REQUIRE_USER_AUTHORIZATION",
+                "DEGRADE_NONCRITICAL_RESEARCH",
+                "CANCEL_SPECULATIVE_TASKS",
+                "TERMINATE_TASK",
+                "TERMINATE_MISSION"
+              ]
+            },
+            "usedPercent": {
+              "type": "number",
+              "minimum": 100
+            }
+          }
+        }
+      }
+    },
+    {
+      "title": "Trajectory memory created",
+      "properties": {
+        "type": {
+          "const": "memory/trajectory-created"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "waveId",
+            "memoryRef",
+            "sourceEventCount"
+          ],
+          "properties": {
+            "waveId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "memoryRef": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "sourceEventCount": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        }
+      }
+    },
+    {
+      "title": "Effectiveness assessment scheduled",
+      "properties": {
+        "type": {
+          "const": "memory/effectiveness-scheduled"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "compactionId",
+            "evaluationJobId"
+          ],
+          "properties": {
+            "compactionId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "evaluationJobId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            }
+          }
+        }
+      }
+    },
+    {
+      "title": "Effectiveness assessment created",
+      "properties": {
+        "type": {
+          "const": "memory/effectiveness-created"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "compactionId",
+            "assessmentRef",
+            "causalStrength"
+          ],
+          "properties": {
+            "compactionId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "assessmentRef": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "causalStrength": {
+              "enum": [
+                "none",
+                "correlated",
+                "incremental",
+                "causal-supported"
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "title": "Tactic version published",
+      "properties": {
+        "type": {
+          "const": "tactic/version-published"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "skillId",
+            "version",
+            "lifecycle"
+          ],
+          "properties": {
+            "skillId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "version": {
+              "$ref": "common-defs.schema.json#/$defs/semver"
+            },
+            "lifecycle": {
+              "enum": [
+                "DRAFT",
+                "SIMULATION",
+                "CANARY",
+                "TESTING",
+                "STABLE",
+                "QUARANTINED",
+                "DEPRECATED",
+                "RETIRED"
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "title": "Agent template instantiated",
+      "properties": {
+        "type": {
+          "const": "agent-template/instantiated"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "templateId",
+            "revision",
+            "agentId",
+            "provider",
+            "model",
+            "reasoningEffort"
+          ],
+          "properties": {
+            "templateId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "revision": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "agentId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "provider": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160
+            },
+            "model": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160
+            },
+            "reasoningEffort": {
+              "$ref": "common-defs.schema.json#/$defs/reasoningEffort"
+            }
+          }
+        }
+      }
+    },
+    {
+      "title": "Agent execution binding created",
+      "properties": {
+        "type": {
+          "const": "agent/execution-bound"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "bindingId",
+            "agentId",
+            "agentGeneration",
+            "templateId",
+            "templateRevision",
+            "provider",
+            "model",
+            "reasoningEffort",
+            "presetGeneration"
+          ],
+          "properties": {
+            "bindingId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "agentId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "agentGeneration": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "templateId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "templateRevision": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "provider": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160
+            },
+            "model": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160
+            },
+            "reasoningEffort": {
+              "enum": [
+                "low",
+                "high",
+                "max"
+              ]
+            },
+            "presetGeneration": {
+              "type": "string",
+              "pattern": "^military@sha256:[a-f0-9]{64}$"
+            }
+          }
+        }
+      }
+    },
+    {
+      "title": "Brainstorm started",
+      "properties": {
+        "type": {
+          "const": "brainstorm/started"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "orderId",
+            "rootSessionId",
+            "projectStage"
+          ],
+          "properties": {
+            "orderId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "rootSessionId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "projectStage": {
+              "enum": [
+                "IDEATION",
+                "SPECS_ONLY",
+                "ACTIVE",
+                "LEGACY"
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "title": "Brainstorm decision recorded",
+      "properties": {
+        "type": {
+          "const": "brainstorm/decision-recorded"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "orderId",
+            "decisionId",
+            "answerReceiptRef"
+          ],
+          "properties": {
+            "orderId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "decisionId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "answerReceiptRef": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            }
+          }
+        }
+      }
+    },
+    {
+      "title": "Brainstorm completed",
+      "properties": {
+        "type": {
+          "const": "brainstorm/completed"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "orderId",
+            "missionIntentRef"
+          ],
+          "properties": {
+            "orderId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "missionIntentRef": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "specsMaintenanceOrderRef": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            }
+          }
+        }
+      }
+    },
+    {
+      "title": "Chief of Staff advice issued",
+      "properties": {
+        "type": {
+          "const": "staff/chief-advice-issued"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "adviceId",
+            "decisionId",
+            "adviceRef",
+            "confidence"
+          ],
+          "properties": {
+            "adviceId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "decisionId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "adviceRef": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "confidence": {
+              "type": "number",
+              "minimum": 0
+            }
+          }
+        }
+      }
+    },
+    {
+      "title": "Mission completed",
+      "properties": {
+        "type": {
+          "const": "mission/completed"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "completionReportRef",
+            "acceptedTaskCount",
+            "integratedTaskCount"
+          ],
+          "properties": {
+            "completionReportRef": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "acceptedTaskCount": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "integratedTaskCount": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        }
+      }
+    },
+    {
+      "title": "Mission cancelled",
+      "properties": {
+        "type": {
+          "const": "mission/cancelled"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "reason",
+            "authorizedBy",
+            "cancellationReceiptRef"
+          ],
+          "properties": {
+            "reason": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 4000
+            },
+            "authorizedBy": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "cancellationReceiptRef": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            }
+          }
+        }
+      }
+    }
+  ]
+}

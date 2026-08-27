@@ -1,0 +1,51 @@
+{
+  "name": "@your-org/dsh-military",
+  "version": "0.3.0",
+  "description": "Verification-driven multi-agent command, planning, oversight, specs, tactical-ingestion and performance-evaluation bundle for DeepSeek Harness",
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./install": {
+      "types": "./lib/types/install.d.ts",
+      "default": "./lib/install.js"
+    },
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib/index.js",
+    "lib/install.js",
+    "lib/types/**/*.d.ts",
+    "cordis.patch.yml"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "^4.0.0"
+  },
+  "dependencies": {
+    "@your-org/dsh-military-runtime": "workspace:^",
+    "@your-org/dsh-military-ledger-sqlite": "workspace:^",
+    "@your-org/dsh-military-administrative-ledger-sqlite": "workspace:^",
+    "@your-org/dsh-military-radio-sqlite": "workspace:^",
+    "@your-org/dsh-military-artifacts-local": "workspace:^",
+    "@your-org/dsh-military-agent-templates": "workspace:^",
+    "@your-org/dsh-military-tags": "workspace:^",
+    "@your-org/dsh-military-ingestion": "workspace:^",
+    "@your-org/dsh-military-evaluation": "workspace:^",
+    "@your-org/dsh-military-git-local-main": "workspace:^",
+    "@your-org/dsh-military-dsh-adapters": "workspace:^",
+    "@your-org/dsh-military-preset": "workspace:^",
+    "@your-org/dsh-military-web-host": "workspace:^",
+    "@your-org/dsh-military-web-client": "workspace:^"
+  },
+  "license": "UNLICENSED"
+}

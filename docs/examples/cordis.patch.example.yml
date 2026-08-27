@@ -1,0 +1,83 @@
+# 示例，不保证可直接运行；包名应替换为实际发布名。
+# Host Plane 可以常驻，但这些行不得向普通会话注册 Military prompt/tool。
+- insert:
+    - id: military-contracts
+      name: '@your-org/dsh-military-contracts'
+
+    - id: military-administrative-ledger
+      name: '@your-org/dsh-military-administrative-ledger-sqlite'
+      config:
+        path: !!js dshHomePath('military/administrative-ledger.sqlite')
+
+    - id: military-ledger
+      name: '@your-org/dsh-military-ledger-sqlite'
+      config:
+        path: !!js dshHomePath('military/mission-ledger.sqlite')
+
+    - id: military-artifacts-local
+      name: '@your-org/dsh-military-artifacts-local'
+      config:
+        root: !!js dshHomePath('military/artifacts')
+
+    - id: military-radio-sqlite
+      name: '@your-org/dsh-military-radio-sqlite'
+      config:
+        path: !!js dshHomePath('military/radio.sqlite')
+
+    - id: military-agent-templates
+      name: '@your-org/dsh-military-agent-templates'
+
+    - id: military-tags
+      name: '@your-org/dsh-military-tags'
+
+    - id: military-tactics
+      name: '@your-org/dsh-military-tactics'
+
+    - id: military-ingestion
+      name: '@your-org/dsh-military-ingestion'
+
+    - id: military-runtime
+      name: '@your-org/dsh-military-runtime'
+
+    - id: military-planning
+      name: '@your-org/dsh-military-planning'
+
+    - id: military-staff
+      name: '@your-org/dsh-military-staff'
+
+    - id: military-chief-of-staff
+      name: '@your-org/dsh-military-chief-of-staff'
+
+    - id: military-verification
+      name: '@your-org/dsh-military-verification'
+
+    - id: military-oversight
+      name: '@your-org/dsh-military-oversight'
+
+    - id: military-context-policy
+      name: '@your-org/dsh-military-context-policy'
+
+    - id: military-specs
+      name: '@your-org/dsh-military-specs'
+
+    - id: military-git-local-main
+      name: '@your-org/dsh-military-git-local-main'
+
+    - id: military-memory
+      name: '@your-org/dsh-military-memory'
+
+    - id: military-evaluation
+      name: '@your-org/dsh-military-evaluation'
+
+    - id: military-dsh-adapters
+      name: '@your-org/dsh-military-dsh-adapters'
+
+    - id: military-web-host
+      name: '@your-org/dsh-military-web-host'
+
+    - id: military-web-client
+      name: '@your-org/dsh-military-web-client'
+
+# The fixed Military preset root is installed by a profile installer/overlay,
+# not by inserting another AgentPresets service at runtime. See:
+# examples/preset/agent-presets-profile-overlay.example.yml

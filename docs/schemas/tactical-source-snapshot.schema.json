@@ -1,0 +1,164 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "tactical-source-snapshot.schema.json",
+  "title": "Tactical Knowledge Source Snapshot",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "snapshotId",
+    "requestId",
+    "sourceKind",
+    "sourceOwnerId",
+    "sourceLicense",
+    "allowedUse",
+    "allowedAudience",
+    "derivativeWorkAllowed",
+    "externalModelProcessingAllowed",
+    "retentionPolicyRef",
+    "revocationPolicyRef",
+    "sourceArtifact",
+    "sourceHash",
+    "classification",
+    "redactionReceipt",
+    "promptInjectionScan",
+    "temporalValidity",
+    "sourcePresetId",
+    "createdAt"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0.0"
+    },
+    "snapshotId": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "requestId": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "sourceKind": {
+      "enum": [
+        "SESSION_RANGE",
+        "DIRECT_TEXT",
+        "ARTIFACT"
+      ]
+    },
+    "sourceOwnerId": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "sourceLicense": {
+      "enum": [
+        "USER_OWNED",
+        "ENTERPRISE_INTERNAL",
+        "LICENSED",
+        "UNKNOWN"
+      ]
+    },
+    "allowedUse": {
+      "type": "array",
+      "items": {
+        "enum": [
+          "PRIVATE_TACTIC",
+          "WORKSPACE_TACTIC",
+          "ORGANIZATION_TACTIC",
+          "EVALUATION"
+        ]
+      },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "allowedAudience": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 240
+      },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "derivativeWorkAllowed": {
+      "type": "boolean"
+    },
+    "externalModelProcessingAllowed": {
+      "type": "boolean"
+    },
+    "retentionPolicyRef": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "revocationPolicyRef": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "sourceArtifact": {
+      "$ref": "common-defs.schema.json#/$defs/artifactRef"
+    },
+    "sourceHash": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "classification": {
+      "$ref": "common-defs.schema.json#/$defs/classification"
+    },
+    "redactionReceipt": {
+      "$ref": "common-defs.schema.json#/$defs/artifactRef"
+    },
+    "promptInjectionScan": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "enum": [
+            "PASS",
+            "WARN",
+            "FAIL"
+          ]
+        },
+        "findings": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          }
+        }
+      },
+      "required": [
+        "status",
+        "findings"
+      ]
+    },
+    "temporalValidity": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "validFrom": {
+          "$ref": "common-defs.schema.json#/$defs/timestamp"
+        },
+        "validUntil": {
+          "$ref": "common-defs.schema.json#/$defs/timestamp"
+        },
+        "dependencyVersions": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 240
+          }
+        }
+      },
+      "required": [
+        "validFrom",
+        "validUntil",
+        "dependencyVersions"
+      ]
+    },
+    "sourcePresetId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 160
+    },
+    "createdAt": {
+      "$ref": "common-defs.schema.json#/$defs/timestamp"
+    }
+  }
+}

@@ -1,0 +1,20 @@
+sequenceDiagram
+  participant U as User
+  participant G as General
+  participant S as Staff Advisors
+  participant C as Chief of Staff
+  participant Q as ask_user_question
+  participant E as Engineer
+  U->>G: /brainstorm
+  G->>S: independent decision proposals
+  S-->>G: recommendations + tactic coverage
+  alt private tactics insufficient
+    G->>C: frozen context packet
+    C-->>G: advice + DecisionQuestionSet
+  end
+  G->>Q: questions owned by root General
+  Q-->>U: Web popup
+  U-->>Q: selections / custom answer
+  Q-->>G: structured answers
+  G->>E: SpecsMaintenanceOrder
+  E-->>G: local-main commit receipt

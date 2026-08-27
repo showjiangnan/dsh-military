@@ -1,0 +1,19 @@
+schemaVersion: 1.0.0
+policyId: budget-mission-default
+revision: 1
+status: ACTIVE
+scope: MISSION
+limits:
+  modelRequests: 500
+  reasoningTokens: 2000000
+  wallClockSeconds: 86400
+  toolCalls: 2000
+  apiCalls: 200
+  concurrentAgents: 12
+  radioRounds: 20
+  reworkAttempts: 30
+  storageBytes: 1073741824
+warningPercent: 80
+hardStopPercent: 100
+disposition: REQUIRE_USER_AUTHORIZATION
+createdAt: '2026-08-19T00:00:00Z'

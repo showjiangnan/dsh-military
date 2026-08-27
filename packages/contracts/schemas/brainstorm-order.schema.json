@@ -1,0 +1,179 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "brainstorm-order.schema.json",
+  "title": "Military Brainstorm Order",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "orderId",
+    "sessionId",
+    "missionId",
+    "canonicalCommand",
+    "displayName",
+    "revision",
+    "status",
+    "projectStage",
+    "questionPolicy",
+    "phases",
+    "knownFacts",
+    "constraints",
+    "unknowns",
+    "answeredQuestionIds",
+    "pendingDecisionSetRefs",
+    "specsHandoff",
+    "createdAt",
+    "updatedAt"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0.0"
+    },
+    "orderId": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "sessionId": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "missionId": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "canonicalCommand": {
+      "const": "brainstorm"
+    },
+    "displayName": {
+      "const": "头脑风暴"
+    },
+    "revision": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "status": {
+      "enum": [
+        "CREATED",
+        "RECONNAISSANCE",
+        "QUESTIONING",
+        "STAFF_SYNTHESIS",
+        "USER_RATIFICATION",
+        "SPECS_HANDOFF",
+        "COMPLETED",
+        "PAUSED",
+        "CANCELLED",
+        "REWORK"
+      ]
+    },
+    "projectStage": {
+      "enum": [
+        "IDEATION",
+        "SPECS_ONLY",
+        "ACTIVE",
+        "LEGACY"
+      ]
+    },
+    "questionPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "askUserTool",
+        "maxRounds",
+        "maxQuestionsPerRound",
+        "maxTotalQuestions"
+      ],
+      "properties": {
+        "askUserTool": {
+          "const": "ask_user_question"
+        },
+        "maxRounds": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 12
+        },
+        "maxQuestionsPerRound": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 5
+        },
+        "maxTotalQuestions": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 30
+        }
+      }
+    },
+    "phases": {
+      "type": "array",
+      "items": {
+        "enum": [
+          "GOAL",
+          "CONSTRAINTS",
+          "EXPERIENCE",
+          "TECHNICAL",
+          "CONVERGENCE"
+        ]
+      },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "knownFacts": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "constraints": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "unknowns": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "answeredQuestionIds": {
+      "type": "array",
+      "items": {
+        "$ref": "common-defs.schema.json#/$defs/id"
+      },
+      "uniqueItems": true
+    },
+    "pendingDecisionSetRefs": {
+      "type": "array",
+      "items": {
+        "$ref": "common-defs.schema.json#/$defs/id"
+      },
+      "uniqueItems": true
+    },
+    "specsHandoff": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "required",
+        "engineerOnly",
+        "localMainCommitRequired"
+      ],
+      "properties": {
+        "required": {
+          "type": "boolean"
+        },
+        "engineerOnly": {
+          "const": true
+        },
+        "localMainCommitRequired": {
+          "const": true
+        },
+        "maintenanceOrderId": {
+          "$ref": "common-defs.schema.json#/$defs/id"
+        }
+      }
+    },
+    "createdAt": {
+      "$ref": "common-defs.schema.json#/$defs/timestamp"
+    },
+    "updatedAt": {
+      "$ref": "common-defs.schema.json#/$defs/timestamp"
+    }
+  }
+}

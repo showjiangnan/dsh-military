@@ -1,0 +1,42 @@
+{
+  "source": {
+    "archiveSha256": "bfa0fac26170470edb38e36a97097a60c67f2ef78e917a29c3dafec69207e2c1",
+    "jsonlFiles": 1,
+    "lineCount": 2482,
+    "allJsonlValid": true,
+    "pathsSafe": true
+  },
+  "observed": {
+    "agentPreset": "military",
+    "provider": "deepseek-official",
+    "model": "deepseek-v4-flash",
+    "turns": 4,
+    "maxTokenTurns": 4,
+    "toolCalls": 1,
+    "missionStartCalls": 1,
+    "taskCreateCalls": 0,
+    "departmentSpawnCalls": 0,
+    "assistantImplementationTextCharacters": 37362,
+    "assistantHtmlCodeFences": 2
+  },
+  "rootCauses": [
+    "The completion interlock applied only to Worker and Engineer, so General could close a project-execution turn with prose.",
+    "The General prompt described orchestration, but the Host did not compile the current user request into a per-turn workflow obligation.",
+    "After military_mission_start succeeded, no Host gate required Task creation and department dispatch before implementation text.",
+    "Every model step reached max-tokens, making a short stage-specific Host instruction necessary for the lightweight model."
+  ],
+  "postFixContract": {
+    "projectExecutionSequence": [
+      "military_mission_start",
+      "military_task_create",
+      "military_status",
+      "military_spawn_department_agent",
+      "department candidate and evidence",
+      "verification and integration",
+      "General summary"
+    ],
+    "assistantImplementationBeforeVerifiedDepartmentResult": "DENY_AND_STEER",
+    "generalNoProgressLimit": 3,
+    "plainExplanationWithoutProjectMutation": "ALLOW"
+  }
+}

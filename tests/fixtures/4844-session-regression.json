@@ -1,0 +1,63 @@
+{
+  "source": {
+    "archive": "dsh-session-session-4844eb48-4ed9-4edc-a4de-1d5ecb14c6d3.zip",
+    "archiveSha256": "267d6b80bb9bb20417f0405443744e141ccfc584042a7c8a1483ecbd9b7ebc7a",
+    "jsonlFiles": 6,
+    "allJsonlValid": true,
+    "pathsSafe": true,
+    "lineCounts": {
+      "root": 4832,
+      "children": [736, 1788, 246, 1693, 2998]
+    }
+  },
+  "observed": {
+    "provider": "deepseek-official",
+    "models": ["deepseek-v4-pro"],
+    "reasoningEfforts": ["high"],
+    "totalToolCalls": 73,
+    "totalToolErrors": 10,
+    "invalidJsonToolArguments": 0,
+    "engineerRequestToolSchemas": 20,
+    "hiddenToolGuidanceInFirstChildPrompt": [
+      "write",
+      "edit",
+      "bash",
+      "jobs"
+    ],
+    "deniedBashCalls": 1,
+    "outsideWorkspaceSearchCalls": 3,
+    "specsDirectoryReadErrors": 1,
+    "successfulAtomicSpecsCommits": 1,
+    "successfulSpecsCommit": "73ad572d",
+    "falseFixedSkeletonMissingFiles": 11,
+    "metadataBlockedSpecsTransactions": 2,
+    "metadataBlockedWorkerSpawns": 2,
+    "engineerBindingsForOneSpecsTask": 3,
+    "parentAutoWakeAndSettlementWorked": true
+  },
+  "rootCauses": [
+    "RC.2 applied the child toolFilter synchronously but the Military prompt transform only after asynchronous binding reconciliation.",
+    "The first Engineer request therefore advertised no write/edit/bash/jobs schemas while its system prose explicitly instructed those calls.",
+    "Engineer exposed overlapping apply, validate, and commit actions even though specs_apply_order already wrote, validated, committed, recorded, and reported atomically.",
+    "military_specs_read attempted readFile on a directory path instead of recursively enumerating it.",
+    "The standalone validator imposed an unrelated eleven-file product skeleton on a Task that authorized one document.",
+    "Untracked .DS_Store metadata was treated as a material source change by both Specs admission and Worker isolation.",
+    "Department workspace prose did not give role-specific relative-versus-absolute path rules.",
+    "The successful Specs receipt was obscured by redundant post-success calls and three unnecessary Engineer attempts."
+  ],
+  "postFixContract": {
+    "continuablePromptInstalledBeforePublication": true,
+    "promptGuidanceDerivedFromFirstRequestSchemas": true,
+    "maximumEngineerRequestToolSchemas": 9,
+    "engineerMutationTool": "military_specs_apply_order",
+    "standaloneValidateOrCommitToolsVisible": false,
+    "directorySpecsReadIsRecursive": true,
+    "missingSpecsDirectoryIsEmptyState": true,
+    "fixedSpecsSkeletonRequired": false,
+    "untrackedDesktopMetadataPreservedAndIgnored": true,
+    "materialWorkspaceChangesStillBlockWorkerIsolation": true,
+    "workerFilePathsUseAbsoluteExecutionWorktree": true,
+    "engineerSpecsPathsUseTaskRelativeDocuments": true,
+    "liveFlashProviderValidationStillRequired": true
+  }
+}

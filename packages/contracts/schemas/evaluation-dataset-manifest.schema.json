@@ -1,0 +1,329 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "evaluation-dataset-manifest.schema.json",
+  "title": "Performance Evaluation Dataset Manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "evaluationRequestId",
+    "requestHash",
+    "datasetHash",
+    "datasetArtifact",
+    "generatorVersion",
+    "rubricVersion",
+    "timeRange",
+    "filters",
+    "includedSessions",
+    "excludedSessions",
+    "excludedAttempts",
+    "strata",
+    "missingness",
+    "difficultyModelVersion",
+    "deidentificationPolicyRef",
+    "sampleWeightPolicy",
+    "sourceArtifactRefs",
+    "attemptCount",
+    "missionCount",
+    "configurationCount",
+    "frozenAt"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0.0"
+    },
+    "evaluationRequestId": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "requestHash": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "datasetHash": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "datasetArtifact": {
+      "$ref": "common-defs.schema.json#/$defs/artifactRef"
+    },
+    "generatorVersion": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 80
+    },
+    "rubricVersion": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 80
+    },
+    "timeRange": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "from": {
+          "$ref": "common-defs.schema.json#/$defs/timestamp"
+        },
+        "to": {
+          "$ref": "common-defs.schema.json#/$defs/timestamp"
+        }
+      },
+      "required": [
+        "from",
+        "to"
+      ]
+    },
+    "filters": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "tenantId": {
+          "$ref": "common-defs.schema.json#/$defs/id"
+        },
+        "templateIds": {
+          "type": "array",
+          "items": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "uniqueItems": true
+        },
+        "departments": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "staff",
+              "worker-forces",
+              "engineer-corps",
+              "oversight",
+              "logistics-research",
+              "evaluation-committee"
+            ]
+          },
+          "uniqueItems": true
+        },
+        "workspaceIds": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          },
+          "uniqueItems": true
+        },
+        "missionIds": {
+          "type": "array",
+          "items": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "uniqueItems": true
+        },
+        "includeIncomplete": {
+          "type": "boolean"
+        },
+        "excludedAttemptIds": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          },
+          "uniqueItems": true
+        },
+        "actualPreset": {
+          "const": "military"
+        }
+      },
+      "required": [
+        "tenantId",
+        "templateIds",
+        "departments",
+        "workspaceIds",
+        "missionIds",
+        "includeIncomplete",
+        "excludedAttemptIds",
+        "actualPreset"
+      ]
+    },
+    "includedSessions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "sessionId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "rootSessionId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "templateIds": {
+            "type": "array",
+            "items": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "uniqueItems": true
+          },
+          "inclusionReason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          }
+        },
+        "required": [
+          "sessionId",
+          "rootSessionId",
+          "templateIds",
+          "inclusionReason"
+        ]
+      },
+      "minItems": 0
+    },
+    "excludedSessions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "sessionId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "reasonCode": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          },
+          "details": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          }
+        },
+        "required": [
+          "sessionId",
+          "reasonCode",
+          "details"
+        ]
+      }
+    },
+    "excludedAttempts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "attemptId",
+          "reasonCode",
+          "details"
+        ],
+        "properties": {
+          "attemptId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          },
+          "reasonCode": {
+            "const": "APPEAL_USER_CHALLENGE"
+          },
+          "details": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          }
+        }
+      }
+    },
+    "strata": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "key": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 7000
+          },
+          "sampleCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "weight": {
+            "type": "number",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "key",
+          "sampleCount",
+          "weight"
+        ]
+      }
+    },
+    "missingness": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "field": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 240
+          },
+          "count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "mechanism": {
+            "enum": [
+              "MCAR",
+              "MAR",
+              "MNAR",
+              "UNKNOWN"
+            ]
+          }
+        },
+        "required": [
+          "field",
+          "count",
+          "mechanism"
+        ]
+      }
+    },
+    "difficultyModelVersion": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 80
+    },
+    "deidentificationPolicyRef": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "sampleWeightPolicy": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1000
+    },
+    "sourceArtifactRefs": {
+      "type": "array",
+      "items": {
+        "$ref": "common-defs.schema.json#/$defs/id"
+      },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "attemptCount": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "missionCount": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "configurationCount": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "frozenAt": {
+      "$ref": "common-defs.schema.json#/$defs/timestamp"
+    }
+  }
+}

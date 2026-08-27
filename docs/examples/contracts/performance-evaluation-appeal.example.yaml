@@ -1,0 +1,19 @@
+schemaVersion: 1.0.0
+appealId: evaluation-appeal-001
+reportId: performance-report-2026-q3
+reportRevision: 1
+tenantId: tenant-example
+submittedBy: user-example
+grounds: ATTRIBUTION_ERROR
+statement: Two tasks attributed to worker-react@3 were executed by a superseded revision
+  and should be reclassified.
+challengedFindings:
+- path: /individualReports/worker-react@3/accuracy
+  reason: The source agent execution bindings point to revision 2 for two samples.
+  evidenceRefs:
+  - agent-binding-worker-react-old-001
+  - agent-binding-worker-react-old-002
+requestedRemedy: RECOMPUTE_DATASET
+authorizationReceiptRef: authorization-evaluation-appeal-001
+state: SUBMITTED
+submittedAt: '2026-08-19T01:20:00Z'

@@ -1,0 +1,111 @@
+{
+  "name": "@dsh-military/bundle",
+  "version": "0.9.0-alpha.24",
+  "description": "Self-contained RC.2 Cordis bundle, Military preset installer, and Web client.",
+  "type": "module",
+  "license": "Apache-2.0",
+  "main": "./lib/index.js",
+  "types": "./lib/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./invariant": {
+      "types": "./lib/invariant.d.ts",
+      "default": "./lib/invariant.js"
+    },
+    "./tools": {
+      "types": "./lib/tools.d.ts",
+      "default": "./lib/tools.js"
+    },
+    "./agent-plane": {
+      "types": "./lib/agent-plane.d.ts",
+      "default": "./lib/agent-plane.js"
+    },
+    "./general-model-default": {
+      "types": "./lib/general-model-default.d.ts",
+      "default": "./lib/general-model-default.js"
+    },
+    "./command-brainstorm": {
+      "types": "./lib/command-brainstorm.d.ts",
+      "default": "./lib/command-brainstorm.js"
+    },
+    "./client": {
+      "types": "./lib/client.d.ts",
+      "default": "./lib/client.cjs"
+    },
+    "./package.json": "./package.json",
+    "./cordis.patch.yml": "./cordis.patch.yml"
+  },
+  "files": [
+    "lib/**/*.js",
+    "lib/**/*.d.ts",
+    "lib/client.cjs",
+    "README.md",
+    "cordis.patch.yml"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@dsh-military/command-brainstorm": "0.9.0-alpha.24",
+    "@dsh-military/contracts": "0.9.0-alpha.24",
+    "@dsh-military/core": "0.9.0-alpha.24",
+    "@dsh-military/infrastructure": "0.9.0-alpha.24",
+    "@dsh-military/installer": "0.9.0-alpha.24",
+    "@dsh-military/plugin-host": "0.9.0-alpha.24",
+    "@dsh-military/preset": "0.9.0-alpha.24",
+    "@dsh-military/runtime": "0.9.0-alpha.24",
+    "@dsh-military/storage-sqlite": "0.9.0-alpha.24",
+    "@dsh-military/tools": "0.9.0-alpha.24",
+    "@dsh-military/webui": "0.9.0-alpha.24"
+  },
+  "bundledDependencies": [
+    "@dsh-military/command-brainstorm",
+    "@dsh-military/contracts",
+    "@dsh-military/core",
+    "@dsh-military/infrastructure",
+    "@dsh-military/installer",
+    "@dsh-military/plugin-host",
+    "@dsh-military/preset",
+    "@dsh-military/runtime",
+    "@dsh-military/storage-sqlite",
+    "@dsh-military/tools",
+    "@dsh-military/webui"
+  ],
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "^4.0.1",
+    "@deepseek-ai/dsh-agent": "0.1.1-rc.2",
+    "@deepseek-ai/dsh-invariants": "0.1.1-rc.2"
+  },
+  "peerDependenciesMeta": {
+    "@deepseek-ai/cordis": {
+      "optional": true
+    },
+    "@deepseek-ai/dsh-agent": {
+      "optional": true
+    },
+    "@deepseek-ai/dsh-invariants": {
+      "optional": true
+    }
+  },
+  "bin": {
+    "dsh-military-install": "./lib/cli.js"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "inject": [
+        "@deepseek-ai/dsh-client-runtime",
+        "@deepseek-ai/dsh-client-ui-primitives",
+        "@deepseek-ai/dsh-client-ui-settings",
+        "@deepseek-ai/dsh-client-ui-settings-plugins"
+      ],
+      "external": []
+    }
+  }
+}

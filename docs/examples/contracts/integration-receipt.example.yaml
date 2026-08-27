@@ -1,0 +1,12 @@
+schemaVersion: 1.0.0
+integrationReceiptId: integration-receipt-001
+integrationOrderId: integration-order-001
+disposition: APPLIED
+beforeHead: 0123456789abcdef0123456789abcdef01234567
+afterHead: abcdef0123456789abcdef0123456789abcdef01
+commit: abcdef0123456789abcdef0123456789abcdef01
+treeHash: fedcba9876543210fedcba9876543210fedcba98
+checkReceiptRefs:
+- verification-receipt-global-regression
+startedAt: '2026-08-19T00:00:00Z'
+completedAt: '2026-08-19T00:05:00Z'

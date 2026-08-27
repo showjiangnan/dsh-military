@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "tactical-tag.schema.json",
+  "title": "User-managed Tactical Tag",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "tagId",
+    "revision",
+    "displayName",
+    "status",
+    "aliases",
+    "matchTerms",
+    "createdAt",
+    "updatedAt"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0.0"
+    },
+    "tagId": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "revision": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "displayName": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 120
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 4000
+    },
+    "status": {
+      "enum": [
+        "ACTIVE",
+        "PAUSED",
+        "DELETED"
+      ]
+    },
+    "aliases": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 120
+      },
+      "uniqueItems": true
+    },
+    "matchTerms": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 160
+      },
+      "uniqueItems": true
+    },
+    "parentTagIds": {
+      "type": "array",
+      "items": {
+        "$ref": "common-defs.schema.json#/$defs/id"
+      },
+      "uniqueItems": true
+    },
+    "createdAt": {
+      "$ref": "common-defs.schema.json#/$defs/timestamp"
+    },
+    "updatedAt": {
+      "$ref": "common-defs.schema.json#/$defs/timestamp"
+    },
+    "deletedAt": {
+      "$ref": "common-defs.schema.json#/$defs/timestamp"
+    },
+    "createdBy": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "renamedFrom": {
+      "type": "string",
+      "maxLength": 120
+    }
+  }
+}

@@ -1,0 +1,15 @@
+schemaVersion: 1.0.0
+conflictReportId: conflict-report-001
+integrationOrderId: integration-order-001
+baseHead: 0123456789abcdef0123456789abcdef01234567
+currentHead: abcdef0123456789abcdef0123456789abcdef01
+paths:
+- src/auth.ts
+conflictArtifact:
+  artifactId: artifact-conflict
+  sha256: bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+  mediaType: text/plain
+  byteLength: 2048
+  classification: internal
+recommendedDisposition: REWORK
+createdAt: '2026-08-19T00:00:00Z'

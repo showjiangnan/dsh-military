@@ -1,0 +1,29 @@
+schemaVersion: 1.0.0
+dshBaseline:
+  release: 0.1.1-rc.2
+  commit: b150a551b8d465e31e418e1b2eaf5e79bbb7d28e
+traceId: trace-tactical-revocation
+scenario: tactical-revocation
+initialState:
+  state: START
+steps:
+- index: 1
+  action: snapshot source
+  eventType: tactical-ingestion/source-snapshotted
+  expectedState: SNAPSHOTTED
+- index: 2
+  action: publish candidate
+  eventType: tactical-ingestion/candidate-created
+  expectedState: PENDING_REVIEW
+- index: 3
+  action: revoke source
+  eventType: tactical-source/revoked
+  expectedState: QUARANTINED
+- index: 4
+  action: assess impact
+  eventType: tactical-source/impact-assessed
+  expectedState: IMPACT_ASSESSED
+finalProjectionHash: '0000000000000000000000000000000000000000000000000000000000000007'
+invariants:
+- revoked source cannot guide new tasks
+- derived history remains auditable

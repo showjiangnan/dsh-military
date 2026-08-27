@@ -1,0 +1,95 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "preset-resume-receipt.schema.json",
+  "title": "Preset Generation Resume Receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "receiptId",
+    "sessionId",
+    "requestedGeneration",
+    "disposition",
+    "compatibilityReportId",
+    "dshBaseline",
+    "reason",
+    "evidenceRefs",
+    "startedAt",
+    "completedAt"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0.0"
+    },
+    "receiptId": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "sessionId": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "requestedGeneration": {
+      "type": "string",
+      "pattern": "^military@sha256:[a-f0-9]{64}$"
+    },
+    "resolvedGeneration": {
+      "type": "string",
+      "pattern": "^military@sha256:[a-f0-9]{64}$"
+    },
+    "disposition": {
+      "enum": [
+        "MATCHED",
+        "ARCHIVE_REBOUND",
+        "QUARANTINED",
+        "MIGRATION_REQUIRED"
+      ]
+    },
+    "archiveAssetHash": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "compatibilityReportId": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "migrationOrderId": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "modelSelectionReceiptId": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "dshBaseline": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "release",
+        "commit"
+      ],
+      "properties": {
+        "release": {
+          "const": "0.1.1-rc.2"
+        },
+        "commit": {
+          "const": "b150a551b8d465e31e418e1b2eaf5e79bbb7d28e"
+        }
+      }
+    },
+    "reason": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4000
+    },
+    "evidenceRefs": {
+      "type": "array",
+      "items": {
+        "$ref": "common-defs.schema.json#/$defs/id"
+      },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "startedAt": {
+      "$ref": "common-defs.schema.json#/$defs/timestamp"
+    },
+    "completedAt": {
+      "$ref": "common-defs.schema.json#/$defs/timestamp"
+    }
+  }
+}

@@ -1,0 +1,34 @@
+schemaVersion: 1.0.0
+missionId: mission-demo-webapi
+directionId: direction-audit-read-api
+version: 1
+title: 审计事件只读 API 能力
+outcome: 形成安全、可分页、可验证的审计事件查询接口及其文档契约。
+scope:
+  included:
+    - 路由、鉴权、查询层、分页和错误处理
+    - 单元测试、集成测试和 specs
+  excluded:
+    - 审计事件写入逻辑
+    - 生产部署与远端发布
+interfaces:
+  - name: AuditEventQueryService
+    contract: 接收时间范围和 cursor，返回稳定排序的事件页及 nextCursor。
+  - name: GET /api/audit-events
+    contract: 只读、鉴权、参数校验、统一错误响应。
+dependencies: []
+risks:
+  - id: risk-cursor-stability
+    statement: 不稳定排序可能造成重复或漏读。
+    severity: high
+    mitigation: 使用 created_at + id 复合 cursor，并加入并发插入测试。
+assumptions:
+  - 数据库存在稳定唯一 id。
+completionCriteria:
+  - 所有必要波次通过退出屏障
+  - API、测试、specs 和回归验证均已接受
+waveIds:
+  - wave-1-recon-and-contract
+  - wave-2-implementation
+priority: 90
+status: RATIFIED

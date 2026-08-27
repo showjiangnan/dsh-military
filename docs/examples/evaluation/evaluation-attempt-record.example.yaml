@@ -1,0 +1,98 @@
+schemaVersion: 1.0.0
+attemptId: attempt-worker-task-17-v3-g2-l41
+identity:
+  rootSessionId: session-root-alpha
+  sessionId: session-worker-alpha
+  missionId: mission-product-alpha
+  workspaceKey: workspace-product-alpha
+  taskId: task-17
+  taskVersion: 3
+  agentId: worker-alpha
+  agentGeneration: 2
+  leaseSeq: 41
+configuration:
+  templateId: worker-default
+  templateRevision: 8
+  role: worker
+  department: worker-forces
+  promptRevision: 12
+  configurationHash: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+  provider: deepseek-official
+  model: deepseek-v4-flash-ga
+  aliasStatus: EXACT_ROUTE_OBSERVED
+  reasoningEffort: high
+  toolProfile:
+    id: worker-tools
+    revision: 3
+  permissionProfile:
+    id: worker-permissions
+    revision: 4
+  presetGeneration: military-generation-example
+  bundleVersion: 0.9.0-alpha.24
+  dshRelease: 0.1.1-rc.2
+  dshCommit: b150a551b8d465e31e418e1b2eaf5e79bbb7d28e
+task:
+  taskType: code-change
+  preExecutionDifficulty: 6
+  difficultyModelVersion: difficulty-v2
+  complexity:
+    semanticDecisions: 2
+    unknownDependencies: 1
+    writeDomains: 1
+    toolFamilies: 2
+    acceptanceAmbiguity: 1
+    integrationFanOut: 1
+    contextFootprint: medium
+  riskClass: MEDIUM
+  acceptanceClauseCount: 4
+  dependencyCount: 1
+  allowedToolCount: 8
+  verifierStrength: 1.0
+  workspaceDrift: false
+  tacticalCoverage: true
+outcome:
+  firstPassAccepted: true
+  finalAccepted: true
+  completed: true
+  missionCompleted: false
+  declaredCompleteWithoutEvidence: false
+  terminalDuplicate: false
+  frozen: false
+  permissionViolation: false
+  staleSubmission: false
+  regressionEscape: false
+  handoffComplete: true
+  parentWakeup: true
+  recoveryAttempted: false
+  recoverySucceeded: false
+  recoveryDrift: false
+  verifierObserved: true
+  reworkCount: 0
+  blockerCount: 0
+  radioCount: 0
+  userInterventionCount: 0
+usage:
+  inputTokens: 15400
+  outputTokens: 2800
+  reasoningTokens: 6100
+  modelSteps: 4
+  toolCalls: 7
+  correctionCount: 0
+  queueLatencyMs: 1200
+  modelLatencyMs: 128000
+  toolLatencyMs: 42000
+  verificationLatencyMs: 21000
+  totalLatencyMs: 192200
+  fallbackCount: 0
+  retryCount: 0
+  compactionAttempts: 0
+  compactionSuccesses: 0
+  costStatus: PROVIDER_PRICING_UNAVAILABLE
+failure:
+  stage: NONE
+evidenceRefs:
+  - kind: artifact
+    ref: artifact:candidate-task-17
+    claim: Host 观察到的 Candidate、Verifier 与写入 receipt。
+startedAt: 2026-08-15T03:00:00Z
+completedAt: 2026-08-15T03:03:12.200Z

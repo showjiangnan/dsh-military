@@ -1,0 +1,128 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "candidate-submission.schema.json",
+  "title": "Candidate Submission",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "candidateId",
+    "identity",
+    "location",
+    "summary",
+    "outputs",
+    "evidence",
+    "declaredToolCallIds",
+    "acceptanceMapping",
+    "skillUsage",
+    "environmentSnapshotRef",
+    "changedPaths",
+    "knownLimitations",
+    "submittedAt",
+    "idempotencyKey"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0.0"
+    },
+    "candidateId": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "identity": {
+      "$ref": "common-defs.schema.json#/$defs/agentIdentity"
+    },
+    "location": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "missionId",
+        "directionId",
+        "waveId",
+        "taskId",
+        "taskVersion",
+        "attemptId"
+      ],
+      "properties": {
+        "missionId": {
+          "$ref": "common-defs.schema.json#/$defs/id"
+        },
+        "directionId": {
+          "$ref": "common-defs.schema.json#/$defs/id"
+        },
+        "waveId": {
+          "$ref": "common-defs.schema.json#/$defs/id"
+        },
+        "taskId": {
+          "$ref": "common-defs.schema.json#/$defs/id"
+        },
+        "taskVersion": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "attemptId": {
+          "$ref": "common-defs.schema.json#/$defs/id"
+        }
+      }
+    },
+    "summary": {
+      "type": "string",
+      "minLength": 1
+    },
+    "outputs": {
+      "type": "array",
+      "items": {
+        "$ref": "common-defs.schema.json#/$defs/artifactRef"
+      }
+    },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "$ref": "common-defs.schema.json#/$defs/evidenceRef"
+      }
+    },
+    "declaredToolCallIds": {
+      "type": "array",
+      "items": {
+        "$ref": "common-defs.schema.json#/$defs/id"
+      },
+      "uniqueItems": true
+    },
+    "acceptanceMapping": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "$ref": "common-defs.schema.json#/$defs/evidenceRef"
+        }
+      }
+    },
+    "skillUsage": {
+      "type": "array",
+      "items": {
+        "$ref": "common-defs.schema.json#/$defs/skillRef"
+      }
+    },
+    "environmentSnapshotRef": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "changedPaths": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "uniqueItems": true
+    },
+    "knownLimitations": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "submittedAt": {
+      "$ref": "common-defs.schema.json#/$defs/timestamp"
+    },
+    "idempotencyKey": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    }
+  }
+}

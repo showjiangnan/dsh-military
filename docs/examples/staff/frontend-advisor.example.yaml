@@ -1,0 +1,44 @@
+schemaVersion: 1.0.0
+advisorId: advisor-web-frontend
+revision: 1
+displayName: Web 前端参谋
+status: ACTIVE
+responsibilities:
+  - Web UI 架构和交互状态
+  - 可访问性与前端测试
+nonResponsibilities:
+  - 服务端数据库迁移
+  - 网络安全最终批准
+domains:
+  - web-frontend
+  - accessibility
+scenarioTags:
+  - react
+  - webui
+modelPolicy:
+  provider: deepseek-official
+  model: deepseek-v4-flash
+  reasoningEffort: high
+  maxTokens: 48000
+permissions:
+  tools:
+    - military_staff_read_mission
+    - military_staff_retrieve_tactics
+    - military_staff_issue_guidance
+  tacticalSkillPatterns:
+    - tactic-web-frontend-*
+  apiGrants: []
+  dataClassificationCeiling: internal
+  secretCredentialRefs: []
+budgets:
+  maxConcurrentConsultations: 2
+  maxRequestsPerMission: 20
+  maxGuidancePerTask: 3
+routing:
+  priority: 60
+  costWeight: 0.3
+  latencyWeight: 0.3
+  qualityWeight: 0.4
+lifecycle:
+  createdAt: "2026-08-18T02:11:00Z"
+  createdBy: user-admin

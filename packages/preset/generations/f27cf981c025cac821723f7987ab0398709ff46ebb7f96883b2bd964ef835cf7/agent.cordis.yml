@@ -1,0 +1,113 @@
+# dsh-military fixed RC.2 system preset.
+#
+# This is an AGENT-PLANE composition mounted once by dsh-agent-presets.  Only
+# sessions explicitly selecting preset id `military` join this standing scope.
+# Host persistence, credentials, model adapters, sandbox policy, the Military
+# ledger and WebUI remain in the @dsh-military/bundle host plane.
+
+- id: military-persona
+  name: '@deepseek-ai/dsh-persona'
+  config:
+    text: >-
+      You are the General Agent of dsh-military operating in {{cwd}}. The
+      provider/model fields in the current request header are authoritative;
+      never infer the active route from stale transcript prose.
+      The user is the commander. Convert intent into a verified Mission; plan
+      Direction → Wave → minimum independently verifiable Task Orders; delegate
+      through immutable department templates; and never accept a model's prose
+      claim as proof of completion. Harness verification, oversight, controlled
+      integration and local-main Git receipts are authoritative. Use
+      ask_user_question for choices only the user can own.
+
+- id: military-agent-instructions
+  name: '@deepseek-ai/dsh-agent-instructions'
+  config:
+    maxBytes: 65536
+
+# Ordinary DSH capabilities available to the General. Department Agents inherit
+# this exact preset generation, then an unpublished child setup intersects these
+# inherited tools with its immutable ToolProfile before publication.
+- id: military-tool-bash
+  name: '@deepseek-ai/dsh-tool-bash'
+  disabled: !!js process.platform === 'win32'
+
+- id: military-tool-pwsh
+  name: '@deepseek-ai/dsh-tool-pwsh'
+  disabled: !!js process.platform !== 'win32'
+
+- id: military-tool-fs
+  name: '@deepseek-ai/dsh-tool-fs'
+
+- id: military-tool-fs-search
+  name: '@deepseek-ai/dsh-tool-fs-search'
+  config:
+    sampleOverCapGlobResults: false
+
+- id: military-tool-jobs
+  name: '@deepseek-ai/dsh-tool-jobs'
+
+- id: military-tool-web
+  name: '@deepseek-ai/dsh-tool-web'
+  config:
+    fetch: false
+    searchTimeoutMs: 60000
+
+- id: military-tool-ask-user
+  name: '@deepseek-ai/dsh-tool-ask-user'
+
+- id: military-skill-filesystem
+  name: '@deepseek-ai/dsh-skill-filesystem'
+
+- id: military-tool-skill
+  name: '@deepseek-ai/dsh-tool-skill'
+
+# Per-preset compaction provider. The Military agent-plane adds versioned
+# per-role budgets, threshold receipts and fail-closed dispositions around it.
+- id: military-compaction
+  name: cordis:group
+  group: true
+  isolate:
+    compaction: true
+    toolResultPruner: true
+  config:
+    - id: military-compaction-basic
+      name: '@deepseek-ai/dsh-compaction-basic'
+    - id: military-command-compact
+      name: '@deepseek-ai/dsh-command-compact'
+    - id: military-tool-result-pruner
+      name: '@deepseek-ai/dsh-compaction-tool-result-pruner'
+      config:
+        thresholdChars: 8192
+        headChars: 4096
+        tailChars: 1024
+
+    # This consumer must share the compaction realm. It still resolves
+    # militaryHost, tools, agentPresets and the process-wide tokenMeter from
+    # the host/preset parent because only compaction/toolResultPruner are
+    # isolated by this group.
+    - id: military-agent-plane
+      name: '@dsh-military/bundle/agent-plane'
+
+# Register the stable union of Military tool schemas once. Runtime role checks,
+# scoped tool restrictions and immutable ToolProfiles provide authority.
+- id: military-tools
+  name: '@dsh-military/bundle/tools'
+
+# Initial General route belongs to this fixed preset. A user selection made in
+# the DSH session model picker wins; the agent-plane then validates and records
+# that effective route before the request reaches the adapter.
+- id: military-general-model-default
+  name: '@dsh-military/bundle/general-model-default'
+  config:
+    requiredPresetId: military
+    provider: deepseek-official
+    model: deepseek-v4-flash
+    reasoningEffort: high
+    maxTokens: 16384
+
+- id: military-command-brainstorm
+  name: '@dsh-military/bundle/command-brainstorm'
+  config:
+    command: brainstorm
+    displayName: 头脑风暴
+    allowImages: true

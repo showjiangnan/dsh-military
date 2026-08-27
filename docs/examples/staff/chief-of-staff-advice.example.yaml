@@ -1,0 +1,78 @@
+schemaVersion: 1.0.0
+adviceId: chief-advice-react-state-001
+generatedBy:
+  agentId: chief-staff-001
+  sessionId: session-chief-staff-001
+  role: chief-of-staff
+  displayName: 参谋长
+  generation: 1
+contextPacketRef: artifact:chief-context-react-state-v4
+status: GENERATED_REFERENCE
+tacticalSufficiency:
+  disposition: PARTIAL
+  coverageScore: 0.42
+  reasons:
+    - 现有 React 战术覆盖性能诊断，但没有覆盖跨标签页离线同步。
+problem: 为管理台选择首个可维护的跨页面状态和缓存边界。
+facts:
+  - 项目使用 React 和 TypeScript。
+  - MVP 必须支持本地部署。
+assumptions:
+  - 初期并发用户少于 100。
+options:
+  - optionId: option-query-cache
+    title: 服务端状态使用 Query Cache，局部 UI 状态留在组件
+    approach: 明确区分服务端缓存和本地交互状态。
+    benefits:
+      - 降低全局 Store 复杂度
+      - 便于失效和重试
+    risks:
+      - 需要约定 Query Key 和失效策略
+    evidenceRefs: []
+  - optionId: option-global-store
+    title: 所有页面状态进入全局 Store
+    approach: 统一动作和状态容器。
+    benefits:
+      - 集中观察
+    risks:
+      - 容易把服务端缓存和瞬态 UI 状态混在一起
+    evidenceRefs: []
+recommendedOptionId: option-query-cache
+recommendationRationale: 在当前规模下职责分离更清晰，后续可按真实跨页面需求增加共享状态。
+risks:
+  - 未确认是否需要离线编辑冲突合并。
+nextStep: 由 General 向用户确认离线编辑是否属于 MVP，然后生成可验证的状态边界 ADR。
+verifierRequirements:
+  - ADR 明确 server state、local state 和 shared client state 的边界。
+needsUserDecision: true
+decisionQuestionSet:
+  schemaVersion: 1.0.0
+  decisionSetId: decision-set-offline-edit-001
+  producer:
+    agentId: chief-staff-001
+    sessionId: session-chief-staff-001
+    role: chief-of-staff
+    displayName: 参谋长
+    generation: 1
+  targetRootSessionId: session-military-react-001
+  contextVersion: 4
+  purpose: 确认离线编辑是否影响状态架构。
+  deliveryAuthority: general
+  questions:
+    - id: decision-offline-edit
+      header: 离线编辑
+      question: MVP 是否必须允许断网后继续编辑并在恢复后合并？
+      options:
+        - label: 不需要 (Recommended)
+          description: MVP 只处理在线状态，降低冲突合并复杂度。
+        - label: 需要离线草稿
+          description: 需要本地持久化和恢复策略，但暂不做多人冲突合并。
+        - label: 需要完整离线合并
+          description: 需要冲突模型、版本和用户解决界面。
+      multiSelect: false
+      decisionOwner: user
+  createdAt: 2026-08-18T01:55:00Z
+  dedupeKey: offline-edit-v4
+confidence: 0.68
+createdAt: 2026-08-18T01:55:00Z
+expiresAt: 2026-08-18T03:55:00Z

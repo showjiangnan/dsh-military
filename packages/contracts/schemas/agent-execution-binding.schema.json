@@ -1,0 +1,301 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "agent-execution-binding.schema.json",
+  "title": "Immutable Agent Execution Binding",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "bindingId",
+    "tenantId",
+    "rootSessionId",
+    "missionId",
+    "agent",
+    "departmentId",
+    "templateId",
+    "templateRevision",
+    "presetGeneration",
+    "capabilityGrantId",
+    "concurrencyReservationId",
+    "executionStrategy",
+    "provider",
+    "model",
+    "reasoningEffort",
+    "modelCapabilityProfileId",
+    "toolProfile",
+    "permissionProfile",
+    "apiGrants",
+    "dataResidencyPolicy",
+    "redactionPolicy",
+    "verifierProfiles",
+    "contextPolicy",
+    "resourceBudgetPolicy",
+    "createdAt"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0.0"
+    },
+    "bindingId": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "tenantId": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "rootSessionId": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "missionId": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "agent": {
+      "$ref": "common-defs.schema.json#/$defs/agentIdentity"
+    },
+    "departmentId": {
+      "enum": [
+        "staff",
+        "worker-forces",
+        "engineer-corps",
+        "oversight",
+        "logistics-research",
+        "evaluation-committee"
+      ]
+    },
+    "templateId": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "templateRevision": {
+      "$ref": "common-defs.schema.json#/$defs/revision"
+    },
+    "presetGeneration": {
+      "type": "string",
+      "pattern": "^military@sha256:[a-f0-9]{64}$"
+    },
+    "provider": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 160
+    },
+    "model": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 160
+    },
+    "reasoningEffort": {
+      "enum": [
+        "low",
+        "high",
+        "max"
+      ]
+    },
+    "modelCapabilityProfileId": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "toolProfile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "revision"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "common-defs.schema.json#/$defs/id"
+        },
+        "revision": {
+          "$ref": "common-defs.schema.json#/$defs/revision"
+        }
+      }
+    },
+    "permissionProfile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "revision"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "common-defs.schema.json#/$defs/id"
+        },
+        "revision": {
+          "$ref": "common-defs.schema.json#/$defs/revision"
+        }
+      }
+    },
+    "apiGrants": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "revision"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "revision": {
+            "$ref": "common-defs.schema.json#/$defs/revision"
+          }
+        }
+      },
+      "uniqueItems": true
+    },
+    "dataResidencyPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "revision"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "common-defs.schema.json#/$defs/id"
+        },
+        "revision": {
+          "$ref": "common-defs.schema.json#/$defs/revision"
+        }
+      }
+    },
+    "redactionPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "revision"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "common-defs.schema.json#/$defs/id"
+        },
+        "revision": {
+          "$ref": "common-defs.schema.json#/$defs/revision"
+        }
+      }
+    },
+    "verifierProfiles": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "revision"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "revision": {
+            "$ref": "common-defs.schema.json#/$defs/revision"
+          }
+        }
+      },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "workspace": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "leaseId",
+        "snapshotId",
+        "taskId",
+        "taskVersion",
+        "executionRootHash"
+      ],
+      "properties": {
+        "leaseId": {
+          "$ref": "common-defs.schema.json#/$defs/id"
+        },
+        "snapshotId": {
+          "$ref": "common-defs.schema.json#/$defs/id"
+        },
+        "taskId": {
+          "$ref": "common-defs.schema.json#/$defs/id"
+        },
+        "taskVersion": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "executionRootHash": {
+          "$ref": "common-defs.schema.json#/$defs/sha256"
+        }
+      }
+    },
+    "contextPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "contextBudgetTokens",
+        "compactionTriggerPercent",
+        "retainedTailTokens",
+        "minimumRearmDeltaPercent",
+        "maxCompactionAttemptsPerTurn",
+        "onCompactionFailure"
+      ],
+      "properties": {
+        "contextBudgetTokens": {
+          "type": "integer",
+          "minimum": 4096
+        },
+        "compactionTriggerPercent": {
+          "type": "integer",
+          "minimum": 50,
+          "maximum": 99
+        },
+        "retainedTailTokens": {
+          "type": "integer",
+          "minimum": 1024
+        },
+        "minimumRearmDeltaPercent": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 50
+        },
+        "maxCompactionAttemptsPerTurn": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 8
+        },
+        "onCompactionFailure": {
+          "enum": [
+            "PAUSE_AND_ESCALATE",
+            "HANDOFF_GENERATION",
+            "FAIL_TASK"
+          ]
+        }
+      }
+    },
+    "resourceBudgetPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "revision"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "common-defs.schema.json#/$defs/id"
+        },
+        "revision": {
+          "$ref": "common-defs.schema.json#/$defs/revision"
+        }
+      }
+    },
+    "createdAt": {
+      "$ref": "common-defs.schema.json#/$defs/timestamp"
+    },
+    "capabilityGrantId": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "concurrencyReservationId": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "executionStrategy": {
+      "$ref": "execution-strategy.schema.json"
+    }
+  }
+}

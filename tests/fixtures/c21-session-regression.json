@@ -1,0 +1,56 @@
+{
+  "schemaVersion": "1.0.0",
+  "source": {
+    "archiveSha256": "f9695113696be49d0345f0f4df9a912594add69e22697a8bd2bd8f990032a617",
+    "rootSessionId": "session-c21a6c55-3bab-4cab-bbb1-1af5394e7ff2",
+    "jsonlFiles": 5,
+    "allJsonlValid": true,
+    "pathsSafe": true
+  },
+  "observed": {
+    "rootToolCalls": 32,
+    "childToolCalls": 39,
+    "totalToolErrors": 14,
+    "reportCallsRejectedByToolProfile": 2,
+    "identityRefsMisusedAsArtifacts": 3,
+    "relativeOrOmittedTaskPathRejections": 1,
+    "modelSuppliedTaskRefsRejectedBySchema": 2,
+    "collapsedUntrackedDirectoryScopeRejections": 1,
+    "stepBudgetFalseCancellations": 1,
+    "successfulSpecsCommitBeforeCancellation": true,
+    "successfulSpecsCommit": "6caf5b0",
+    "ordinaryReportDelivery": "quiet",
+    "engineerStrategyMaximumSteps": 8,
+    "engineerTaskModelSteps": 16,
+    "userAbortSettlementStartedParentTurn": true
+  },
+  "rootCauses": [
+    "REPORT_VISIBLE_BUT_TOOL_PROFILE_DENIED",
+    "ORDINARY_REPORT_DID_NOT_WAKE_IDLE_PARENT",
+    "SPAWN_RESULT_INVITED_IDENTITY_POLLING",
+    "OPTIONAL_RC2_GLOB_PATH_REJECTED_WHEN_SESSION_CWD_WAS_SAFE",
+    "MODEL_OWNED_HOST_AUTHORITY_FIELDS",
+    "GIT_COLLAPSED_UNTRACKED_DIRECTORY",
+    "EXECUTION_STRATEGY_TRUNCATED_TASK_BUDGET",
+    "NO_TERMINAL_FINALIZATION_GRACE",
+    "SUCCESSFUL_SPECS_COMMIT_NOT_REPORTED_BEFORE_POLICY_CANCEL",
+    "USER_CANCEL_SETTLEMENT_COULD_SPEND_PARENT_MODEL_REQUEST",
+    "PERSONA_MODEL_LABEL_COULD_PRECEDE_AUTHORITATIVE_REQUEST_ROUTE"
+  ],
+  "postFixContract": {
+    "reportAllowedInEveryDepartmentProfile": true,
+    "ordinaryReportDelivery": "next-step",
+    "spawnNextAction": "END_CURRENT_TURN_AND_WAIT_FOR_CHILD_REPORT",
+    "identityRefsAreArtifacts": false,
+    "localMainOmittedPathAllowed": true,
+    "isolatedWorktreeRelativePathDenied": true,
+    "specsInputShape": "SHALLOW_UPDATES_ONLY",
+    "specsAuthorityOwner": "HOST",
+    "gitUntrackedMode": "all",
+    "strategyMirrorsTaskModelSteps": true,
+    "terminalOnlyGraceSteps": 1,
+    "successfulSpecsReceiptAutoReported": true,
+    "userCancelledSettlementOnlyWake": "REJECT_WITHOUT_MODEL_REQUEST",
+    "requestHeaderRouteIsAuthoritative": true
+  }
+}

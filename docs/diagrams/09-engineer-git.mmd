@@ -1,0 +1,17 @@
+sequenceDiagram
+  participant H as Harness Specs Engine
+  participant E as Engineer Agent
+  participant G as Restricted Git Provider
+  participant L as Mission Ledger
+  H->>E: Specs Maintenance Order
+  E->>E: update allowed specs paths
+  E->>H: candidate + source event mapping
+  H->>H: links/schema/traceability validation
+  H->>G: commit approved change-set
+  alt no git
+    G->>G: git init -b main
+  end
+  G->>G: verify local main; no network; no history rewrite
+  G->>G: add allowlisted paths; commit
+  G-->>H: commit/tree/diff receipt
+  H->>L: specs/commit-recorded

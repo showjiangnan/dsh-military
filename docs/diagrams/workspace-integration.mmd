@@ -1,0 +1,12 @@
+flowchart LR
+  T[Task Order] --> S[Workspace Snapshot]
+  S --> W[Isolated Worker Worktree]
+  W --> C[Candidate + Patch]
+  C --> V[External Verification]
+  V -- reject --> R[Rework]
+  V -- accept --> O[Integration Order]
+  O --> I[Controlled Integration Executor]
+  I -- conflict --> CR[Conflict Report]
+  I -- regression pass --> M[Local main commit]
+  M --> IR[Integration Receipt]
+  IR --> E[Engineer specs maintenance]

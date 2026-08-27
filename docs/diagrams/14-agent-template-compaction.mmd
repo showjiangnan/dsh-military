@@ -1,0 +1,12 @@
+flowchart TD
+  Settings[Template Settings] --> Revision[Immutable Template Revision]
+  Revision --> Agent[Create Child Agent]
+  Agent --> Meter[Token Meter]
+  Meter --> Threshold{usage >= budget x trigger?}
+  Threshold -->|no| Request[Next Model Request]
+  Threshold -->|yes| Safe{Safe Boundary?}
+  Safe -->|wait| Checkpoint[Persist Pending Pressure]
+  Safe -->|yes| Attempt[Compaction Attempt]
+  Attempt -->|success| Rearm[Hysteresis / Rearm]
+  Attempt -->|null or fail| Policy[Pause / Handoff / Fail Task]
+  Rearm --> Request

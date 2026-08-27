@@ -1,0 +1,178 @@
+schemaVersion: 1.0.0
+performanceId: performance-worker-default-r8-flash
+evaluationRequestId: evaluation-2026-07-01-to-08-18
+template:
+  configurationKey: worker-default-r8-flash-exact-tools3-permissions4
+  templateId: worker-default
+  revision: 8
+  role: worker
+  department: worker-forces
+  promptRevision: 12
+  configurationHash: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+  provider: deepseek-official
+  model: deepseek-v4-flash-ga
+  aliasStatus: EXACT_ROUTE_OBSERVED
+  reasoningEffort: high
+  toolProfile:
+    id: worker-tools
+    revision: 3
+  permissionProfile:
+    id: worker-permissions
+    revision: 4
+  presetGeneration: military-generation-example
+  bundleVersion: 0.9.0-alpha.24
+  dshRelease: 0.1.1-rc.2
+  dshCommit: b150a551b8d465e31e418e1b2eaf5e79bbb7d28e
+period:
+  from: 2026-07-01T00:00:00Z
+  to: 2026-08-18T23:59:59Z
+sample:
+  missions: 12
+  eligibleTasks: 24
+  assignedAttempts: 24
+  completedAttempts: 24
+  acceptedContributions: 23
+  consultations: 0
+  sessions: 24
+participation:
+  rate: 1.0
+  coverageByTaskType:
+    code-change: 12
+    test-repair: 12
+accuracy:
+  firstPassAcceptanceRate: 0.833333
+  finalAcceptanceRate: 0.958333
+  claimEvidenceSupportRate: 1.0
+  toolClaimAccuracy: 0.958333
+  falseCompletionRate: 0.0
+  regressionEscapeRate: 0.0
+  intervals:
+    firstPassAcceptance:
+      estimate: 0.833333
+      low: 0.641526
+      high: 0.933185
+      confidenceLevel: 0.95
+      numerator: 20
+      denominator: 24
+    finalAcceptance:
+      estimate: 0.958333
+      low: 0.797579
+      high: 0.992645
+      confidenceLevel: 0.95
+      numerator: 23
+      denominator: 24
+    falseCompletion:
+      estimate: 0.0
+      low: 0.0
+      high: 0.13798
+      confidenceLevel: 0.95
+      numerator: 0
+      denominator: 24
+completion:
+  completionRate: 1.0
+  meanReworkCount: 0.166667
+  blockerResolutionRate: 1.0
+  handoffCompletenessRate: 1.0
+  parentWakeupRate: 1.0
+capability:
+  index: 95.2
+  rubricVersion: capability-rubric-2.0.0
+  difficultyAdjustment: 预执行 difficulty-v2 加权；结果期 rework、blocker 和 Radio 不进入难度。
+  confidenceInterval:
+    low: 79.1
+    high: 99.1
+reliability:
+  freezeIncidentRate: 0.0
+  permissionViolationRate: 0.0
+  staleSubmissionRate: 0.0
+  recoverySuccessRate: 1.0
+  terminalDuplicateRate: 0.0
+  recoveryDriftRate: 0.0
+efficiency:
+  acceptedOutcomeCount: 12
+  meanTokensPerAcceptedOutcome: 28300
+  meanLatencySeconds: 214.5
+  p50LatencySeconds: 201
+  p95LatencySeconds: 302
+  meanModelSteps: 4.25
+  meanCorrections: 0.166667
+  compactionAttemptCount: 4
+  compactionSuccessRate: 1.0
+  costStatus: PROVIDER_PRICING_UNAVAILABLE
+  intervals:
+    tokensPerAcceptedOutcome:
+      estimate: 28300
+      low: 25120
+      high: 31980
+      confidenceLevel: 0.95
+      clusterCount: 12
+      method: MISSION_CLUSTER_BOOTSTRAP
+      status: AVAILABLE
+    latencyPerAcceptedOutcomeSeconds:
+      estimate: 214.5
+      low: 187.2
+      high: 246.8
+      confidenceLevel: 0.95
+      clusterCount: 12
+      method: MISSION_CLUSTER_BOOTSTRAP
+      status: AVAILABLE
+dataQuality:
+  missingEventRate: 0.0
+  verifierCoverageRate: 1.0
+  sampleSufficient: true
+  uniqueAttemptCount: 24
+  uniqueMissionCount: 12
+  effectiveIndependentMissionCount: 12
+  primaryIntervalWidth: 0.195066
+  sufficiencyCriteria:
+    - criterion: 唯一 Attempt 数
+      passed: true
+      observed: 24
+      required: 20
+    - criterion: 独立 Mission 数
+      passed: true
+      observed: 12
+      required: 5
+    - criterion: 主质量区间宽度
+      passed: true
+      observed: 0.195066
+      required: 0.3
+    - criterion: 缺失事件率
+      passed: true
+      observed: 0.0
+      required: 0.1
+    - criterion: Verifier 覆盖率
+      passed: true
+      observed: 1.0
+      required: 0.95
+    - criterion: exact-route 覆盖率
+      passed: true
+      observed: 1.0
+      required: 1.0
+  selectionBiasNotes:
+    - 历史数据仍是观察性样本，不能声明随机因果。
+failureAttribution:
+  byStage:
+    NONE: 23
+    MODEL_ARGUMENT_SCHEMA: 1
+  byMissingReason: {}
+  modelCausedRate: 1.0
+  hostOrInfrastructureRate: 0.0
+  externalOrCancelledRate: 0.0
+  unknownRate: 0.0
+analyses:
+  - Flash exact-route 最终验收率为 95.8%，独立 Mission 数为 12。
+  - 一次首轮参数 Schema 错误在纠正后验收，失败 Evidence 仍保留。
+recommendations:
+  - area: prompt
+    action: 保留首工具参数模板，并继续观察同类多文件任务。
+    priority: medium
+limitations:
+  - 成本目录不可用，因此不能进行美元成本 Pareto 比较。
+confidence: 0.84
+status: VALID
+evidenceRefs:
+  - kind: artifact
+    ref: artifact:evaluation-dataset-20260701-20260818
+    claim: canonical Frozen Evaluation Dataset。
+createdAt: 2026-08-18T02:20:00Z

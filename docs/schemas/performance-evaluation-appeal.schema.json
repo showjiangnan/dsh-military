@@ -1,0 +1,125 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "performance-evaluation-appeal.schema.json",
+  "title": "Performance Evaluation Appeal",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "appealId",
+    "reportId",
+    "reportRevision",
+    "tenantId",
+    "submittedBy",
+    "grounds",
+    "statement",
+    "challengedFindings",
+    "requestedRemedy",
+    "authorizationReceiptRef",
+    "state",
+    "submittedAt"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0.0"
+    },
+    "appealId": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "reportId": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "reportRevision": {
+      "$ref": "common-defs.schema.json#/$defs/revision"
+    },
+    "tenantId": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "submittedBy": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "grounds": {
+      "enum": [
+        "DATASET_ERROR",
+        "RUBRIC_ERROR",
+        "ATTRIBUTION_ERROR",
+        "MISSING_CONTEXT",
+        "OTHER"
+      ]
+    },
+    "statement": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 12000
+    },
+    "challengedFindings": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "path",
+          "reason",
+          "evidenceRefs"
+        ],
+        "properties": {
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4000
+          },
+          "evidenceRefs": {
+            "type": "array",
+            "items": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "minItems": 1,
+            "uniqueItems": true
+          }
+        }
+      }
+    },
+    "requestedRemedy": {
+      "enum": [
+        "RECOMPUTE_DATASET",
+        "RE_EVALUATE_TEMPLATE",
+        "RE_SYNTHESIZE_REPORT",
+        "ANNOTATE_REPORT",
+        "NO_CHANGE_REVIEW"
+      ]
+    },
+    "authorizationReceiptRef": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "state": {
+      "enum": [
+        "SUBMITTED",
+        "UNDER_REVIEW",
+        "UPHELD",
+        "PARTIALLY_UPHELD",
+        "DENIED",
+        "WITHDRAWN"
+      ]
+    },
+    "submittedAt": {
+      "$ref": "common-defs.schema.json#/$defs/timestamp"
+    },
+    "resolvedAt": {
+      "$ref": "common-defs.schema.json#/$defs/timestamp"
+    },
+    "resolutionSummary": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 8000
+    },
+    "supersedingReportId": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    }
+  }
+}

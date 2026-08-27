@@ -1,0 +1,64 @@
+schemaVersion: 1.0.0
+candidateId: candidate-task-recon-auth-1
+identity:
+  agentId: agent-worker-auth-1
+  sessionId: session-worker-auth-1
+  role: worker
+  displayName: 快速反应部队-鉴权侦察
+  generation: 1
+location:
+  missionId: mission-demo-webapi
+  directionId: direction-audit-read-api
+  waveId: wave-1-recon-and-contract
+  taskId: task-recon-auth
+  taskVersion: 1
+  attemptId: attempt-task-recon-auth-1
+summary: 已确认 policyGuard 是新端点的当前鉴权路径；legacyAuth 仅保留在兼容路由。已定位角色模型和可复用测试夹具。
+outputs:
+  - artifactId: artifact-auth-recon-report
+    sha256: "1111111111111111111111111111111111111111111111111111111111111111"
+    mediaType: application/markdown
+    byteLength: 4832
+    classification: internal
+    description: 鉴权调用链、行为差异和测试夹具证据报告。
+evidence:
+  - kind: artifact
+    ref: artifact-auth-recon-report
+    claim: 包含鉴权中间件、角色定义和测试路径。
+    clauseIds:
+      - ac-auth-files
+      - ac-auth-tests
+  - kind: tool-call
+    ref: call-run-auth-tests
+    claim: 现有 policyGuard 测试通过。
+    clauseIds:
+      - ac-auth-tests
+declaredToolCallIds:
+  - call-search-protected-routes
+  - call-run-auth-tests
+acceptanceMapping:
+  ac-auth-files:
+    - kind: artifact
+      ref: artifact-auth-recon-report
+      claim: 报告中列出路由、中间件和角色定义的真实路径。
+  ac-auth-tests:
+    - kind: artifact
+      ref: artifact-auth-recon-report
+      claim: 报告定位了 policyGuard 的现有测试夹具。
+    - kind: tool-call
+      ref: call-run-auth-tests
+      claim: 现有 policyGuard 测试通过。
+skillUsage:
+  - skillId: tactic-codebase-auth-recon
+    version: 1.2.0
+    usageStage: completed
+  - skillId: tactic-api-policy-migration-detection
+    version: 0.8.0
+    guidanceId: guidance-auth-stack-1
+    usageStage: completed
+environmentSnapshotRef: env-snapshot-20260818-001
+changedPaths: []
+knownLimitations:
+  - 未访问生产身份系统；结论仅适用于当前仓库版本。
+submittedAt: "2026-08-18T02:45:00Z"
+idempotencyKey: candidate-task-recon-auth-v1-attempt1

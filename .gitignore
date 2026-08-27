@@ -1,0 +1,54 @@
+# Dependencies and package-manager state
+node_modules/
+.pnpm-store/
+
+# Build, test, and release outputs
+.build/
+lib/
+dist/
+dist-validation/
+coverage/
+release/
+*.tsbuildinfo
+*.tgz
+*.zip
+
+# Generated local gate reports
+/BUILD-MANIFEST.json
+/CODE-REVIEW-REPORT.json
+/CODE-REVIEW-REPORT.md
+/FINAL-GATE-REPORT.json
+/PACK-REPORT.json
+/PACK-REPORT.md
+/RC2-COMPATIBILITY-REPORT.json
+/RC2-COMPATIBILITY-REPORT.md
+/RC2-CONTRACT-REPORT.json
+/RC2-CONTRACT-REPORT.md
+/RELEASE-REPORT.json
+/RELEASE-REPORT.md
+/SEMANTIC-RELEASE-AUDIT.json
+/TEST-REPORT.json
+/TEST-REPORT.md
+/docs/FINAL-GATE-REPORT.json
+/docs/RELEASE-REPORT.md
+/docs/VALIDATION-REPORT.md
+
+# Local caches, logs, editor, and OS state
+.cache/
+*.log
+.DS_Store
+.idea/
+.vscode/
+
+# Runtime data and local databases
+.military/
+*.sqlite
+*.sqlite-*
+
+# Local credentials and environment overrides
+.env
+.env.*
+!.env.example
+.npmrc
+*.pem
+*.key

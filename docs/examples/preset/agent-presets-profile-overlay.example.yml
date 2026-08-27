@@ -1,0 +1,15 @@
+# 由 dsh-military 安装器或 profile 生成器在安装时产生的示例。
+# 路径必须先解析为本机绝对路径；这里的 /resolved/* 只是占位符。
+#
+# 重要：DSH patch 对一个已有 row 的 config 是“整对象替换”，不是深合并。
+# 因此不得只写 Military root；必须把部署现有 default、全部 system roots
+# 和 includeUserRoot 一起重述，否则会让 standard/code/minimal/cordis 消失。
+- id: agent-presets
+  config:
+    default: standard
+    roots:
+      - path: /resolved/deepseek-harness/apps/cli/config/agent-presets
+        trust: system
+      - path: /resolved/@your-org/dsh-military-preset/agent-presets
+        trust: system
+    includeUserRoot: true

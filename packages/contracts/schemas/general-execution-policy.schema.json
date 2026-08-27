@@ -1,0 +1,182 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "general-execution-policy.schema.json",
+  "title": "General Execution and Model Policy",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "presetId",
+    "defaultModel",
+    "modelSelection",
+    "minimumReasoning",
+    "maximumSteps",
+    "contextPolicy",
+    "fallback",
+    "dshBaseline"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0.0"
+    },
+    "presetId": {
+      "const": "military"
+    },
+    "defaultModel": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "provider": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 160
+        },
+        "model": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 160
+        },
+        "reasoningEffort": {
+          "enum": [
+            "high",
+            "max"
+          ]
+        },
+        "maxOutputTokens": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "required": [
+        "provider",
+        "model",
+        "reasoningEffort",
+        "maxOutputTokens"
+      ]
+    },
+    "modelSelection": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "userSessionSwitchEnabled": {
+          "const": true
+        },
+        "explicitSessionSelectionWins": {
+          "const": true
+        },
+        "rejectUnsupportedReasoning": {
+          "const": true
+        },
+        "recordSelectionEvent": {
+          "const": true
+        },
+        "allowGlobalDefaultFallback": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "userSessionSwitchEnabled",
+        "explicitSessionSelectionWins",
+        "rejectUnsupportedReasoning",
+        "recordSelectionEvent",
+        "allowGlobalDefaultFallback"
+      ]
+    },
+    "minimumReasoning": {
+      "enum": [
+        "high",
+        "max"
+      ]
+    },
+    "maximumSteps": {
+      "description": "Maximum number of RC.2 model steps admitted for one General turn.",
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 128
+    },
+    "contextPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "contextBudgetTokens": {
+          "type": "integer",
+          "minimum": 8192
+        },
+        "compactionTriggerPercent": {
+          "type": "integer",
+          "minimum": 50,
+          "maximum": 99
+        },
+        "retainedTailTokens": {
+          "type": "integer",
+          "minimum": 1024
+        },
+        "minimumRearmDeltaPercent": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 50
+        },
+        "maxCompactionAttemptsPerTurn": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 5
+        },
+        "onCompactionFailure": {
+          "enum": [
+            "PAUSE_AND_ESCALATE",
+            "HANDOFF_GENERATION",
+            "FAIL_TASK"
+          ]
+        }
+      },
+      "required": [
+        "contextBudgetTokens",
+        "compactionTriggerPercent",
+        "retainedTailTokens",
+        "minimumRearmDeltaPercent",
+        "maxCompactionAttemptsPerTurn",
+        "onCompactionFailure"
+      ]
+    },
+    "fallback": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "compatibleProfileIds": {
+          "type": "array",
+          "items": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "uniqueItems": true
+        },
+        "requireUserApprovalForRestrictedData": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "enabled",
+        "compatibleProfileIds",
+        "requireUserApprovalForRestrictedData"
+      ]
+    },
+    "dshBaseline": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "release": {
+          "const": "0.1.1-rc.2"
+        },
+        "commit": {
+          "const": "b150a551b8d465e31e418e1b2eaf5e79bbb7d28e"
+        }
+      },
+      "required": [
+        "release",
+        "commit"
+      ]
+    }
+  }
+}

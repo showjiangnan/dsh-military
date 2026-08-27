@@ -1,0 +1,15 @@
+flowchart TB
+  M[Mission Intent] --> D1[Direction A]
+  M --> D2[Direction B]
+  D1 --> W1[Wave A1]
+  D1 --> W2[Wave A2]
+  W1 --> T1[Task 1]
+  W1 --> T2[Task 2]
+  W1 --> T3[Task 3]
+  T1 --> J[Integration Task]
+  T2 --> J
+  T3 --> J
+  J --> B{Wave Barrier}
+  B -->|pass| W2
+  B -->|rework| RT[Rework Attempt]
+  RT --> B

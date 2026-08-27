@@ -1,0 +1,325 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "evaluation-attempt-record.schema.json",
+  "title": "Military Evaluation Attempt Record",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "attemptId",
+    "identity",
+    "configuration",
+    "task",
+    "outcome",
+    "usage",
+    "failure",
+    "evidenceRefs",
+    "startedAt"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "attemptId": { "type": "string", "minLength": 1, "maxLength": 1000 },
+    "identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "rootSessionId",
+        "sessionId",
+        "missionId",
+        "workspaceKey",
+        "taskId",
+        "taskVersion",
+        "agentId",
+        "agentGeneration",
+        "leaseSeq"
+      ],
+      "properties": {
+        "rootSessionId": { "type": "string", "minLength": 1, "maxLength": 500 },
+        "sessionId": { "type": "string", "minLength": 1, "maxLength": 500 },
+        "missionId": { "type": "string", "minLength": 1, "maxLength": 500 },
+        "workspaceKey": { "type": "string", "minLength": 1, "maxLength": 2000 },
+        "taskId": { "type": "string", "minLength": 1, "maxLength": 500 },
+        "taskVersion": { "type": "integer", "minimum": 1 },
+        "agentId": { "type": "string", "minLength": 1, "maxLength": 500 },
+        "agentGeneration": { "type": "integer", "minimum": 1 },
+        "leaseSeq": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "configuration": { "$ref": "#/$defs/configuration" },
+    "task": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "taskType",
+        "preExecutionDifficulty",
+        "difficultyModelVersion",
+        "riskClass",
+        "acceptanceClauseCount",
+        "dependencyCount",
+        "allowedToolCount",
+        "verifierStrength",
+        "workspaceDrift",
+        "tacticalCoverage"
+      ],
+      "properties": {
+        "taskType": { "type": "string", "minLength": 1, "maxLength": 240 },
+        "preExecutionDifficulty": { "type": "number", "minimum": 1, "maximum": 10 },
+        "difficultyModelVersion": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "complexity": { "$ref": "#/$defs/complexity" },
+        "riskClass": { "enum": ["LOW", "MEDIUM", "HIGH", "CRITICAL", "UNKNOWN"] },
+        "acceptanceClauseCount": { "type": "integer", "minimum": 0 },
+        "dependencyCount": { "type": "integer", "minimum": 0 },
+        "allowedToolCount": { "type": "integer", "minimum": 0 },
+        "verifierStrength": { "type": "number", "minimum": 0 },
+        "workspaceDrift": { "type": "boolean" },
+        "tacticalCoverage": { "type": "boolean" }
+      }
+    },
+    "outcome": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "firstPassAccepted",
+        "finalAccepted",
+        "completed",
+        "missionCompleted",
+        "declaredCompleteWithoutEvidence",
+        "frozen",
+        "permissionViolation",
+        "staleSubmission",
+        "regressionEscape",
+        "handoffComplete",
+        "parentWakeup",
+        "recoveryAttempted",
+        "recoverySucceeded",
+        "verifierObserved",
+        "reworkCount",
+        "blockerCount",
+        "radioCount",
+        "userInterventionCount"
+      ],
+      "properties": {
+        "firstPassAccepted": { "type": "boolean" },
+        "finalAccepted": { "type": "boolean" },
+        "completed": { "type": "boolean" },
+        "missionCompleted": { "type": "boolean" },
+        "declaredCompleteWithoutEvidence": { "type": "boolean" },
+        "terminalDuplicate": { "type": "boolean" },
+        "frozen": { "type": "boolean" },
+        "permissionViolation": { "type": "boolean" },
+        "staleSubmission": { "type": "boolean" },
+        "regressionEscape": { "type": "boolean" },
+        "handoffComplete": { "type": "boolean" },
+        "parentWakeup": { "type": "boolean" },
+        "recoveryAttempted": { "type": "boolean" },
+        "recoverySucceeded": { "type": "boolean" },
+        "recoveryDrift": { "type": "boolean" },
+        "verifierObserved": { "type": "boolean" },
+        "reworkCount": { "type": "integer", "minimum": 0 },
+        "blockerCount": { "type": "integer", "minimum": 0 },
+        "radioCount": { "type": "integer", "minimum": 0 },
+        "userInterventionCount": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "usage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "inputTokens",
+        "outputTokens",
+        "reasoningTokens",
+        "modelSteps",
+        "toolCalls",
+        "correctionCount",
+        "queueLatencyMs",
+        "modelLatencyMs",
+        "toolLatencyMs",
+        "verificationLatencyMs",
+        "totalLatencyMs",
+        "fallbackCount",
+        "retryCount",
+        "compactionAttempts",
+        "compactionSuccesses",
+        "costStatus"
+      ],
+      "properties": {
+        "inputTokens": { "type": "integer", "minimum": 0 },
+        "outputTokens": { "type": "integer", "minimum": 0 },
+        "reasoningTokens": { "type": "integer", "minimum": 0 },
+        "modelSteps": { "type": "integer", "minimum": 0 },
+        "toolCalls": { "type": "integer", "minimum": 0 },
+        "correctionCount": { "type": "integer", "minimum": 0 },
+        "queueLatencyMs": { "type": "number", "minimum": 0 },
+        "modelLatencyMs": { "type": "number", "minimum": 0 },
+        "toolLatencyMs": { "type": "number", "minimum": 0 },
+        "verificationLatencyMs": { "type": "number", "minimum": 0 },
+        "totalLatencyMs": { "type": "number", "minimum": 0 },
+        "fallbackCount": { "type": "integer", "minimum": 0 },
+        "retryCount": { "type": "integer", "minimum": 0 },
+        "compactionAttempts": { "type": "integer", "minimum": 0 },
+        "compactionSuccesses": { "type": "integer", "minimum": 0 },
+        "costStatus": {
+          "enum": [
+            "OBSERVED",
+            "ESTIMATED",
+            "PROVIDER_PRICING_UNAVAILABLE"
+          ]
+        },
+        "pricingVersion": { "type": "string", "minLength": 1, "maxLength": 160 },
+        "estimatedCostUsd": { "type": "number", "minimum": 0 }
+      }
+    },
+    "failure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["stage"],
+      "properties": {
+        "stage": { "$ref": "#/$defs/failureStage" },
+        "code": { "type": "string", "minLength": 1, "maxLength": 500 },
+        "missingReason": { "$ref": "#/$defs/missingReason" }
+      }
+    },
+    "evidenceRefs": {
+      "type": "array",
+      "items": { "$ref": "common-defs.schema.json#/$defs/evidenceRef" }
+    },
+    "startedAt": { "$ref": "common-defs.schema.json#/$defs/timestamp" },
+    "completedAt": { "$ref": "common-defs.schema.json#/$defs/timestamp" }
+  },
+  "$defs": {
+    "configuration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "templateId",
+        "templateRevision",
+        "role",
+        "department",
+        "promptRevision",
+        "configurationHash",
+        "provider",
+        "model",
+        "aliasStatus",
+        "reasoningEffort",
+        "toolProfile",
+        "permissionProfile",
+        "presetGeneration",
+        "bundleVersion",
+        "dshRelease",
+        "dshCommit"
+      ],
+      "properties": {
+        "templateId": { "$ref": "common-defs.schema.json#/$defs/id" },
+        "templateRevision": { "type": "integer", "minimum": 1 },
+        "role": {
+          "enum": [
+            "advisor",
+            "worker",
+            "engineer",
+            "inspector",
+            "trajectory",
+            "effectiveness",
+            "museum",
+            "chief-of-staff",
+            "evaluation-examiner",
+            "evaluation-chair"
+          ]
+        },
+        "department": {
+          "enum": [
+            "staff",
+            "worker-forces",
+            "engineer-corps",
+            "oversight",
+            "logistics-research",
+            "evaluation-committee"
+          ]
+        },
+        "promptRevision": { "type": "integer", "minimum": 1 },
+        "configurationHash": { "$ref": "common-defs.schema.json#/$defs/sha256" },
+        "provider": { "type": "string", "minLength": 1, "maxLength": 240 },
+        "model": { "type": "string", "minLength": 1, "maxLength": 240 },
+        "aliasStatus": {
+          "enum": [
+            "EXACT_ROUTE_OBSERVED",
+            "FALLBACK_CHAIN_OBSERVED",
+            "ALIAS_UNPROVEN"
+          ]
+        },
+        "reasoningEffort": { "$ref": "common-defs.schema.json#/$defs/reasoningEffort" },
+        "toolProfile": { "$ref": "#/$defs/profileRef" },
+        "permissionProfile": { "$ref": "#/$defs/profileRef" },
+        "presetGeneration": { "type": "string", "minLength": 1, "maxLength": 240 },
+        "bundleVersion": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "dshRelease": { "const": "0.1.1-rc.2" },
+        "dshCommit": { "const": "b150a551b8d465e31e418e1b2eaf5e79bbb7d28e" }
+      }
+    },
+    "profileRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "revision"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 240 },
+        "revision": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "complexity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "semanticDecisions",
+        "unknownDependencies",
+        "writeDomains",
+        "toolFamilies",
+        "acceptanceAmbiguity",
+        "integrationFanOut",
+        "contextFootprint"
+      ],
+      "properties": {
+        "semanticDecisions": { "type": "integer", "minimum": 0, "maximum": 5 },
+        "unknownDependencies": { "type": "integer", "minimum": 0, "maximum": 5 },
+        "writeDomains": { "type": "integer", "minimum": 0, "maximum": 5 },
+        "toolFamilies": { "type": "integer", "minimum": 0, "maximum": 5 },
+        "acceptanceAmbiguity": { "type": "integer", "minimum": 0, "maximum": 5 },
+        "integrationFanOut": { "type": "integer", "minimum": 0, "maximum": 5 },
+        "contextFootprint": { "enum": ["small", "medium", "large"] }
+      }
+    },
+    "failureStage": {
+      "enum": [
+        "NONE",
+        "TASK_ORDER_AMBIGUITY",
+        "MODEL_TOOL_SELECTION",
+        "MODEL_ARGUMENT_SCHEMA",
+        "HOST_VALIDATION",
+        "PERMISSION_DENIED",
+        "PATH_SCOPE_REJECTION",
+        "TOOL_RUNTIME",
+        "WORKSPACE_STATE",
+        "VERIFICATION_FAILURE",
+        "INTEGRATION_FAILURE",
+        "PARENT_WAKEUP_FAILURE",
+        "PROVIDER_FAILURE",
+        "EXTERNAL_DEPENDENCY",
+        "USER_CANCELLATION",
+        "SYSTEM_CRASH",
+        "MISSION_SCOPE_CHANGE",
+        "UNKNOWN"
+      ]
+    },
+    "missingReason": {
+      "enum": [
+        "USER_CANCELLED",
+        "SYSTEM_CRASH",
+        "PROVIDER_UNAVAILABLE",
+        "EXTERNAL_DEPENDENCY",
+        "AGENT_FAILURE",
+        "MISSION_SCOPE_CHANGE",
+        "EVENT_GAP",
+        "SESSION_NOT_MATERIALIZED",
+        "UNKNOWN"
+      ]
+    }
+  }
+}

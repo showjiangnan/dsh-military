@@ -1,0 +1,55 @@
+schemaVersion: 1.0.0
+evaluationRequestId: evaluation-request-001
+requestHash: bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+datasetHash: cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+datasetArtifact:
+  artifactId: artifact-evaluation-dataset
+  sha256: cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+  mediaType: application/json
+  byteLength: 128000
+  classification: internal
+generatorVersion: dataset-generator-1.0.0
+rubricVersion: military-performance-rubric-1.0.0
+timeRange:
+  from: '2026-07-01T00:00:00Z'
+  to: '2026-08-01T00:00:00Z'
+filters:
+  tenantId: tenant-example
+  templateIds:
+  - worker-default
+  departments:
+  - worker-forces
+  workspaceIds:
+  - workspace-example
+  missionIds: []
+  includeIncomplete: true
+  excludedAttemptIds: []
+  actualPreset: military
+includedSessions:
+- sessionId: session-worker-001
+  rootSessionId: session-general
+  templateIds:
+  - worker-default
+  inclusionReason: Accepted task attempt in selected range
+excludedSessions:
+- sessionId: session-standard
+  reasonCode: NON_MILITARY_PRESET
+  details: actual preset was standard
+excludedAttempts: []
+strata:
+- key: taskType=code-change,risk=medium
+  sampleCount: 12
+  weight: 1.0
+missingness:
+- field: providerLatencyMs
+  count: 1
+  mechanism: MAR
+difficultyModelVersion: difficulty-vector-1.0.0
+deidentificationPolicyRef: deidentification-default
+sampleWeightPolicy: inverse propensity within task-type/risk strata
+sourceArtifactRefs:
+- artifact-evaluation-events
+attemptCount: 12
+missionCount: 6
+configurationCount: 1
+frozenAt: '2026-08-19T00:00:00Z'

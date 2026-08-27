@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "workspace-snapshot.schema.json",
+  "title": "Workspace Snapshot",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "workspaceSnapshotId",
+    "tenantId",
+    "workspaceKey",
+    "rootPathHash",
+    "git",
+    "fileManifest",
+    "environmentArtifact",
+    "createdAt"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0.0"
+    },
+    "workspaceSnapshotId": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "tenantId": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "workspaceKey": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "rootPathHash": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "git": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "repositoryId": {
+          "$ref": "common-defs.schema.json#/$defs/id"
+        },
+        "head": {
+          "type": "string",
+          "minLength": 7,
+          "maxLength": 64
+        },
+        "branch": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 240
+        },
+        "treeHash": {
+          "type": "string",
+          "minLength": 7,
+          "maxLength": 64
+        },
+        "dirtyStateHash": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        }
+      },
+      "required": [
+        "repositoryId",
+        "head",
+        "branch",
+        "treeHash",
+        "dirtyStateHash"
+      ]
+    },
+    "fileManifest": {
+      "$ref": "common-defs.schema.json#/$defs/artifactRef"
+    },
+    "environmentArtifact": {
+      "$ref": "common-defs.schema.json#/$defs/artifactRef"
+    },
+    "createdAt": {
+      "$ref": "common-defs.schema.json#/$defs/timestamp"
+    }
+  }
+}

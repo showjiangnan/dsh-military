@@ -1,0 +1,3949 @@
+{
+  "schemaVersion": "1.0.0",
+  "dshBaseline": {
+    "release": "0.1.1-rc.2",
+    "commit": "b150a551b8d465e31e418e1b2eaf5e79bbb7d28e"
+  },
+  "missionEvents": [
+    {
+      "type": "military/session-bound",
+      "title": "Military session bound",
+      "description": "Root session joined the fixed military preset and recorded its generation.",
+      "payloadSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "bindingRef",
+          "presetId",
+          "presetGeneration",
+          "capabilityFingerprint",
+          "rootSessionId"
+        ],
+        "properties": {
+          "bindingRef": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "presetId": {
+            "const": "military"
+          },
+          "presetGeneration": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4000
+          },
+          "capabilityFingerprint": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "rootSessionId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          }
+        }
+      },
+      "examplePayload": {
+        "bindingRef": "binding-session-general",
+        "presetId": "military",
+        "presetGeneration": "military@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "capabilityFingerprint": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "rootSessionId": "session-general"
+      }
+    },
+    {
+      "type": "military/session-quarantined",
+      "title": "Military session quarantined",
+      "description": "A resumed or changed session cannot safely execute under the active generation.",
+      "payloadSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "sessionId",
+          "reasonCode",
+          "expectedGeneration",
+          "actualGeneration"
+        ],
+        "properties": {
+          "sessionId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "reasonCode": {
+            "enum": [
+              "GENERATION_MISSING",
+              "GENERATION_INCOMPATIBLE",
+              "CAPABILITY_MISMATCH",
+              "MIGRATION_REQUIRED"
+            ]
+          },
+          "expectedGeneration": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4000
+          },
+          "actualGeneration": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4000
+          },
+          "migrationOrderId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          }
+        }
+      },
+      "examplePayload": {
+        "sessionId": "session-general",
+        "reasonCode": "GENERATION_INCOMPATIBLE",
+        "expectedGeneration": "military@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "actualGeneration": "military@sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "migrationOrderId": "migration-order-001"
+      }
+    },
+    {
+      "type": "preset/generation-resume-checked",
+      "title": "Preset generation resume checked",
+      "description": "Resume adapter compared the persisted generation with the active or archived mount.",
+      "payloadSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "sessionId",
+          "requestedGeneration",
+          "activeGeneration",
+          "disposition"
+        ],
+        "properties": {
+          "sessionId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "requestedGeneration": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4000
+          },
+          "activeGeneration": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4000
+          },
+          "disposition": {
+            "enum": [
+              "MATCHED",
+              "ARCHIVE_REBOUND",
+              "QUARANTINED"
+            ]
+          }
+        }
+      },
+      "examplePayload": {
+        "sessionId": "session-general",
+        "requestedGeneration": "military@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "activeGeneration": "military@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "disposition": "MATCHED"
+      }
+    },
+    {
+      "type": "preset/migration-completed",
+      "title": "Preset migration completed",
+      "description": "An authorized migration created or rebound a session under a compatible preset generation.",
+      "payloadSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "migrationOrderId",
+          "sessionId",
+          "fromGeneration",
+          "toGeneration",
+          "disposition"
+        ],
+        "properties": {
+          "migrationOrderId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "sessionId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "fromGeneration": {
+            "type": "string",
+            "minLength": 1
+          },
+          "toGeneration": {
+            "type": "string",
+            "minLength": 1
+          },
+          "disposition": {
+            "enum": [
+              "REBIND_ARCHIVE",
+              "EXPORT_IMPORT",
+              "NEW_PRESET_ID"
+            ]
+          },
+          "newSessionId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          }
+        }
+      },
+      "examplePayload": {
+        "migrationOrderId": "migration-order-001",
+        "sessionId": "session-general",
+        "fromGeneration": "military@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "toGeneration": "military@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "disposition": "EXPORT_IMPORT",
+        "newSessionId": "session-general-v2"
+      }
+    },
+    {
+      "type": "mission/started",
+      "title": "Mission started",
+      "description": "A General opened one authoritative mission.",
+      "payloadSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "title",
+          "rootSessionId",
+          "authorityContextRef"
+        ],
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 240
+          },
+          "rootSessionId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "authorityContextRef": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          }
+        }
+      },
+      "examplePayload": {
+        "title": "Implement verified authentication flow",
+        "rootSessionId": "session-general",
+        "authorityContextRef": "authority-context-001"
+      }
+    },
+    {
+      "type": "mission/command-accepted",
+      "title": "Mission command accepted",
+      "description": "The single-writer Mission Kernel admitted one command after revision, authority, budget and idempotency checks.",
+      "payloadSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "commandId",
+          "idempotencyKey",
+          "commandType",
+          "payloadSha256",
+          "actorAuthorityRef"
+        ],
+        "properties": {
+          "commandId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "idempotencyKey": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4000
+          },
+          "commandType": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4000
+          },
+          "payloadSha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "actorAuthorityRef": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4000
+          },
+          "taskId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "taskVersion": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      },
+      "examplePayload": {
+        "commandId": "command-001",
+        "idempotencyKey": "mission-001:task-001:create",
+        "commandType": "task.create",
+        "payloadSha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "actorAuthorityRef": "authority-general-001",
+        "taskId": "task-001",
+        "taskVersion": 1
+      }
+    },
+    {
+      "type": "mission/intent-ratified",
+      "title": "Mission intent ratified",
+      "description": "The user-owned mission intent was ratified by General.",
+      "payloadSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "missionIntentRef",
+          "approvedBy",
+          "decisionReceiptRef"
+        ],
+        "properties": {
+          "missionIntentRef": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "approvedBy": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "decisionReceiptRef": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          }
+        }
+      },
+      "examplePayload": {
+        "missionIntentRef": "mission-intent-001",
+        "approvedBy": "user-example",
+        "decisionReceiptRef": "decision-receipt-001"
+      }
+    },
+    {
+      "type": "direction/ratified",
+      "title": "Direction ratified",
+      "description": "General ratified a staff direction plan.",
+      "payloadSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "directionId",
+          "directionPlanRef",
+          "staffCouncilRef"
+        ],
+        "properties": {
+          "directionId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "directionPlanRef": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "staffCouncilRef": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          }
+        }
+      },
+      "examplePayload": {
+        "directionId": "direction-auth",
+        "directionPlanRef": "artifact-direction-plan",
+        "staffCouncilRef": "artifact-staff-council"
+      }
+    },
+    {
+      "type": "wave/opened",
+      "title": "Wave opened",
+      "description": "A schedulable wave entered execution.",
+      "payloadSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "directionId",
+          "waveId",
+          "wavePlanRef"
+        ],
+        "properties": {
+          "directionId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "waveId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "wavePlanRef": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          }
+        }
+      },
+      "examplePayload": {
+        "directionId": "direction-auth",
+        "waveId": "wave-auth-001",
+        "wavePlanRef": "artifact-wave-plan"
+      }
+    },
+    {
+      "type": "wave/barrier-satisfied",
+      "title": "Wave barrier satisfied",
+      "description": "All required task, integration, specs and oversight conditions passed.",
+      "payloadSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "waveId",
+          "acceptedTaskIds",
+          "integrationReceiptRefs",
+          "specsCommitRef"
+        ],
+        "properties": {
+          "waveId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "acceptedTaskIds": {
+            "type": "array",
+            "items": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "minItems": 1,
+            "uniqueItems": true
+          },
+          "integrationReceiptRefs": {
+            "type": "array",
+            "items": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "uniqueItems": true
+          },
+          "specsCommitRef": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          }
+        }
+      },
+      "examplePayload": {
+        "waveId": "wave-auth-001",
+        "acceptedTaskIds": [
+          "task-auth-api"
+        ],
+        "integrationReceiptRefs": [
+          "integration-receipt-001"
+        ],
+        "specsCommitRef": "specs-commit-001"
+      }
+    },
+    {
+      "type": "task/created",
+      "title": "Task created",
+      "description": "A versioned task order was added to the mission DAG.",
+      "payloadSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "taskId",
+          "taskVersion",
+          "taskOrderRef"
+        ],
+        "properties": {
+          "taskId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "taskVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "taskOrderRef": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          }
+        }
+      },
+      "examplePayload": {
+        "taskId": "task-auth-api",
+        "taskVersion": 1,
+        "taskOrderRef": "artifact-task-order"
+      }
+    },
+    {
+      "type": "task/leased",
+      "title": "Task leased",
+      "description": "A role-bound agent received an exclusive task lease.",
+      "payloadSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "taskId",
+          "taskVersion",
+          "agent",
+          "workspaceLeaseId",
+          "leaseExpiresAt"
+        ],
+        "properties": {
+          "taskId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "taskVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "agent": {
+            "$ref": "common-defs.schema.json#/$defs/agentIdentity"
+          },
+          "workspaceLeaseId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "leaseExpiresAt": {
+            "$ref": "common-defs.schema.json#/$defs/timestamp"
+          }
+        }
+      },
+      "examplePayload": {
+        "taskId": "task-auth-api",
+        "taskVersion": 1,
+        "agent": {
+          "agentId": "agent-worker-001",
+          "sessionId": "session-worker-001",
+          "role": "worker",
+          "displayName": "Worker 001",
+          "generation": 1,
+          "templateId": "worker-default",
+          "templateRevision": 1
+        },
+        "workspaceLeaseId": "workspace-lease-001",
+        "leaseExpiresAt": "2026-08-19T01:00:00Z"
+      }
+    },
+    {
+      "type": "task/candidate-submitted",
+      "title": "Task candidate submitted",
+      "description": "A worker proposed a candidate for external verification.",
+      "payloadSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "taskId",
+          "taskVersion",
+          "candidateId",
+          "candidateRef"
+        ],
+        "properties": {
+          "taskId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "taskVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "candidateId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "candidateRef": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          }
+        }
+      },
+      "examplePayload": {
+        "taskId": "task-auth-api",
+        "taskVersion": 1,
+        "candidateId": "candidate-001",
+        "candidateRef": "artifact-candidate-001"
+      }
+    },
+    {
+      "type": "task/blocker-submitted",
+      "title": "Task blocker submitted",
+      "description": "A worker submitted evidence of an unresolved blocker.",
+      "payloadSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "taskId",
+          "taskVersion",
+          "blockerId",
+          "evidenceRefs"
+        ],
+        "properties": {
+          "taskId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "taskVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "blockerId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "requestId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "evidenceRefs": {
+            "type": "array",
+            "items": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "minItems": 1,
+            "uniqueItems": true
+          }
+        }
+      },
+      "examplePayload": {
+        "taskId": "task-auth-api",
+        "taskVersion": 1,
+        "blockerId": "blocker-001",
+        "requestId": "radio-request-001",
+        "evidenceRefs": [
+          "artifact-error-log"
+        ]
+      }
+    },
+    {
+      "type": "verification/completed",
+      "title": "Verification completed",
+      "description": "Harness completed deterministic and optional semantic verification.",
+      "payloadSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "taskId",
+          "taskVersion",
+          "candidateId",
+          "verificationReceiptRef",
+          "disposition"
+        ],
+        "properties": {
+          "taskId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "taskVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "candidateId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "verificationReceiptRef": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "disposition": {
+            "enum": [
+              "ACCEPTED",
+              "REWORK",
+              "BLOCKED",
+              "FROZEN",
+              "STRATEGIC",
+              "HUMAN_REVIEW_REQUIRED"
+            ]
+          }
+        }
+      },
+      "examplePayload": {
+        "taskId": "task-auth-api",
+        "taskVersion": 1,
+        "candidateId": "candidate-001",
+        "verificationReceiptRef": "verification-receipt-001",
+        "disposition": "ACCEPTED"
+      }
+    },
+    {
+      "type": "task/accepted",
+      "title": "Task accepted",
+      "description": "Harness committed an accepted task result after verification.",
+      "payloadSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "taskId",
+          "taskVersion",
+          "candidateId",
+          "verificationReceiptRef",
+          "integrationRequired"
+        ],
+        "properties": {
+          "taskId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "taskVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "candidateId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "verificationReceiptRef": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "integrationRequired": {
+            "type": "boolean"
+          }
+        }
+      },
+      "examplePayload": {
+        "taskId": "task-auth-api",
+        "taskVersion": 1,
+        "candidateId": "candidate-001",
+        "verificationReceiptRef": "verification-receipt-001",
+        "integrationRequired": true
+      }
+    },
+    {
+      "type": "task/cancelled",
+      "title": "Task cancelled",
+      "description": "Harness terminally cancelled a Task after an explicit user or policy abort.",
+      "payloadSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "taskId",
+          "taskVersion",
+          "reasonCode",
+          "cancelledAgentId"
+        ],
+        "properties": {
+          "taskId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "taskVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "reasonCode": {
+            "enum": [
+              "USER_CANCELLED",
+              "PARENT_CANCELLED",
+              "STEP_BUDGET_EXHAUSTED",
+              "NO_PROGRESS_LIMIT",
+              "AGENT_ABORTED"
+            ]
+          },
+          "cancelledAgentId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          }
+        }
+      },
+      "examplePayload": {
+        "taskId": "task-auth-api",
+        "taskVersion": 1,
+        "reasonCode": "USER_CANCELLED",
+        "cancelledAgentId": "agent-worker-001"
+      }
+    },
+    {
+      "type": "task/rework-requested",
+      "title": "Task rework requested",
+      "description": "Harness issued a new task version after rejected verification.",
+      "payloadSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "taskId",
+          "previousVersion",
+          "newVersion",
+          "reasonCodes"
+        ],
+        "properties": {
+          "taskId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "previousVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "newVersion": {
+            "type": "integer",
+            "minimum": 2
+          },
+          "reasonCodes": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120
+            },
+            "minItems": 1,
+            "uniqueItems": true
+          }
+        }
+      },
+      "examplePayload": {
+        "taskId": "task-auth-api",
+        "previousVersion": 1,
+        "newVersion": 2,
+        "reasonCodes": [
+          "TEST_FAILURE"
+        ]
+      }
+    },
+    {
+      "type": "task/integration-queued",
+      "title": "Task integration queued",
+      "description": "An accepted candidate patch entered the controlled main integration queue.",
+      "payloadSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "taskId",
+          "candidatePatchId",
+          "integrationOrderId"
+        ],
+        "properties": {
+          "taskId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "candidatePatchId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "integrationOrderId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          }
+        }
+      },
+      "examplePayload": {
+        "taskId": "task-auth-api",
+        "candidatePatchId": "candidate-patch-001",
+        "integrationOrderId": "integration-order-001"
+      }
+    },
+    {
+      "type": "task/integrated",
+      "title": "Task integrated",
+      "description": "An accepted patch was applied to controlled local main and regressed.",
+      "payloadSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "taskId",
+          "integrationReceiptId",
+          "commit",
+          "treeHash"
+        ],
+        "properties": {
+          "taskId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "integrationReceiptId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "commit": {
+            "type": "string",
+            "minLength": 7,
+            "maxLength": 64
+          },
+          "treeHash": {
+            "type": "string",
+            "minLength": 7,
+            "maxLength": 64
+          }
+        }
+      },
+      "examplePayload": {
+        "taskId": "task-auth-api",
+        "integrationReceiptId": "integration-receipt-001",
+        "commit": "0123456789abcdef0123456789abcdef01234567",
+        "treeHash": "89abcdef0123456789abcdef0123456789abcdef"
+      }
+    },
+    {
+      "type": "workspace/lease-acquired",
+      "title": "Workspace lease acquired",
+      "description": "A task obtained a versioned isolated workspace lease.",
+      "payloadSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "workspaceLeaseId",
+          "taskId",
+          "agentId",
+          "workspaceSnapshotId",
+          "expiresAt"
+        ],
+        "properties": {
+          "workspaceLeaseId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "taskId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "agentId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "workspaceSnapshotId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "expiresAt": {
+            "$ref": "common-defs.schema.json#/$defs/timestamp"
+          }
+        }
+      },
+      "examplePayload": {
+        "workspaceLeaseId": "workspace-lease-001",
+        "taskId": "task-auth-api",
+        "agentId": "agent-worker-001",
+        "workspaceSnapshotId": "workspace-snapshot-001",
+        "expiresAt": "2026-08-19T01:00:00Z"
+      }
+    },
+    {
+      "type": "workspace/snapshot-created",
+      "title": "Workspace snapshot created",
+      "description": "Harness froze the input baseline for a task attempt.",
+      "payloadSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "workspaceSnapshotId",
+          "taskId",
+          "gitHead",
+          "treeHash",
+          "dirtyStateHash"
+        ],
+        "properties": {
+          "workspaceSnapshotId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "taskId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "gitHead": {
+            "type": "string",
+            "minLength": 7,
+            "maxLength": 64
+          },
+          "treeHash": {
+            "type": "string",
+            "minLength": 7,
+            "maxLength": 64
+          },
+          "dirtyStateHash": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          }
+        }
+      },
+      "examplePayload": {
+        "workspaceSnapshotId": "workspace-snapshot-001",
+        "taskId": "task-auth-api",
+        "gitHead": "0123456789abcdef0123456789abcdef01234567",
+        "treeHash": "89abcdef0123456789abcdef0123456789abcdef",
+        "dirtyStateHash": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+      }
+    },
+    {
+      "type": "workspace/lease-released",
+      "title": "Workspace lease released",
+      "description": "A task workspace lease ended and its isolated worktree became eligible for cleanup.",
+      "payloadSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "workspaceLeaseId",
+          "taskId",
+          "state"
+        ],
+        "properties": {
+          "workspaceLeaseId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "taskId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "state": {
+            "enum": [
+              "RELEASED",
+              "EXPIRED",
+              "REVOKED"
+            ]
+          },
+          "cleanupReceiptRef": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          }
+        }
+      },
+      "examplePayload": {
+        "workspaceLeaseId": "workspace-lease-001",
+        "taskId": "task-001",
+        "state": "RELEASED",
+        "cleanupReceiptRef": "cleanup-receipt-001"
+      }
+    },
+    {
+      "type": "workspace/drift-detected",
+      "title": "Workspace drift detected",
+      "description": "The integration target changed from the task base snapshot without granting control over the external actor.",
+      "payloadSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "workspaceSnapshotId",
+          "expectedHead",
+          "actualHead",
+          "changedPaths"
+        ],
+        "properties": {
+          "workspaceSnapshotId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "expectedHead": {
+            "type": "string",
+            "minLength": 1
+          },
+          "actualHead": {
+            "type": "string",
+            "minLength": 1
+          },
+          "changedPaths": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "uniqueItems": true
+          },
+          "sourceSessionId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          }
+        }
+      },
+      "examplePayload": {
+        "workspaceSnapshotId": "workspace-snapshot-001",
+        "expectedHead": "abc123",
+        "actualHead": "def456",
+        "changedPaths": [
+          "src/auth.ts"
+        ],
+        "sourceSessionId": "session-standard-sibling"
+      }
+    },
+    {
+      "type": "integration/conflict-detected",
+      "title": "Integration conflict detected",
+      "description": "Controlled main integration found a deterministic merge conflict.",
+      "payloadSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "integrationOrderId",
+          "conflictReportRef",
+          "affectedPaths"
+        ],
+        "properties": {
+          "integrationOrderId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "conflictReportRef": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "affectedPaths": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 1024
+            },
+            "minItems": 1,
+            "uniqueItems": true
+          }
+        }
+      },
+      "examplePayload": {
+        "integrationOrderId": "integration-order-001",
+        "conflictReportRef": "artifact-conflict-report",
+        "affectedPaths": [
+          "src/auth.ts"
+        ]
+      }
+    },
+    {
+      "type": "integration/regression-failed",
+      "title": "Integration regression failed",
+      "description": "An accepted patch could not be committed because global regression checks failed.",
+      "payloadSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "integrationOrderId",
+          "checkReceiptRefs",
+          "failureArtifact"
+        ],
+        "properties": {
+          "integrationOrderId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "checkReceiptRefs": {
+            "type": "array",
+            "items": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "minItems": 1,
+            "uniqueItems": true
+          },
+          "failureArtifact": {
+            "$ref": "common-defs.schema.json#/$defs/artifactRef"
+          }
+        }
+      },
+      "examplePayload": {
+        "integrationOrderId": "integration-order-001",
+        "checkReceiptRefs": [
+          "check-receipt-global"
+        ],
+        "failureArtifact": {
+          "artifactId": "artifact-regression",
+          "sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+          "mediaType": "text/plain",
+          "classification": "internal",
+          "byteLength": 1280
+        }
+      }
+    },
+    {
+      "type": "radio/requested",
+      "title": "Radio request admitted",
+      "description": "Evidence gate admitted a tactical guidance request.",
+      "payloadSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "requestId",
+          "taskId",
+          "taskVersion",
+          "requestRef"
+        ],
+        "properties": {
+          "requestId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "taskId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "taskVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "requestRef": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          }
+        }
+      },
+      "examplePayload": {
+        "requestId": "radio-request-001",
+        "taskId": "task-auth-api",
+        "taskVersion": 1,
+        "requestRef": "artifact-radio-request"
+      }
+    },
+    {
+      "type": "radio/guidance-issued",
+      "title": "Radio guidance issued",
+      "description": "An advisor produced validated tactical guidance.",
+      "payloadSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "guidanceId",
+          "requestId",
+          "advisorId",
+          "skillRefs"
+        ],
+        "properties": {
+          "guidanceId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "requestId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "advisorId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "skillRefs": {
+            "type": "array",
+            "items": {
+              "$ref": "common-defs.schema.json#/$defs/skillRef"
+            }
+          }
+        }
+      },
+      "examplePayload": {
+        "guidanceId": "guidance-001",
+        "requestId": "radio-request-001",
+        "advisorId": "advisor-react",
+        "skillRefs": [
+          {
+            "skillId": "skill-react-state",
+            "version": "1.0.0",
+            "usageStage": "assigned"
+          }
+        ]
+      }
+    },
+    {
+      "type": "radio/guidance-delivered",
+      "title": "Radio guidance delivered",
+      "description": "Broker delivered non-stale guidance to the requesting task version.",
+      "payloadSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "guidanceId",
+          "taskId",
+          "taskVersion",
+          "deliveryReceiptRef"
+        ],
+        "properties": {
+          "guidanceId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "taskId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "taskVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "deliveryReceiptRef": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          }
+        }
+      },
+      "examplePayload": {
+        "guidanceId": "guidance-001",
+        "taskId": "task-auth-api",
+        "taskVersion": 1,
+        "deliveryReceiptRef": "radio-delivery-001"
+      }
+    },
+    {
+      "type": "decision/question-set-created",
+      "title": "Decision question set created",
+      "description": "A child or General created a durable user decision set.",
+      "payloadSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "decisionSetId",
+          "originAgentId",
+          "questionSetRef"
+        ],
+        "properties": {
+          "decisionSetId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "originAgentId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "questionSetRef": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "taskVersion": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      },
+      "examplePayload": {
+        "decisionSetId": "decision-set-001",
+        "originAgentId": "agent-chief-001",
+        "questionSetRef": "artifact-question-set",
+        "taskVersion": 1
+      }
+    },
+    {
+      "type": "decision/question-presented",
+      "title": "Decision question presented",
+      "description": "Root General presented one question set through DSH user questions.",
+      "payloadSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "decisionSetId",
+          "presentationId",
+          "rootSessionId"
+        ],
+        "properties": {
+          "decisionSetId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "presentationId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "rootSessionId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          }
+        }
+      },
+      "examplePayload": {
+        "decisionSetId": "decision-set-001",
+        "presentationId": "question-presentation-001",
+        "rootSessionId": "session-general"
+      }
+    },
+    {
+      "type": "decision/answered",
+      "title": "Decision answered",
+      "description": "Harness durably recorded the user response and provenance.",
+      "payloadSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "decisionSetId",
+          "answerReceiptRef",
+          "answeredBy"
+        ],
+        "properties": {
+          "decisionSetId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "answerReceiptRef": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "answeredBy": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          }
+        }
+      },
+      "examplePayload": {
+        "decisionSetId": "decision-set-001",
+        "answerReceiptRef": "answer-receipt-001",
+        "answeredBy": "user-example"
+      }
+    },
+    {
+      "type": "decision/stale",
+      "title": "Decision question became stale",
+      "description": "A pending user decision no longer matched the current mission or task revision.",
+      "payloadSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "decisionSetId",
+          "reasonCode"
+        ],
+        "properties": {
+          "decisionSetId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "reasonCode": {
+            "enum": [
+              "TASK_VERSION_CHANGED",
+              "MISSION_CHANGED",
+              "SOURCE_REVOKED",
+              "SUPERSEDED"
+            ]
+          },
+          "taskVersion": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      },
+      "examplePayload": {
+        "decisionSetId": "decision-set-001",
+        "reasonCode": "TASK_VERSION_CHANGED",
+        "taskVersion": 2
+      }
+    },
+    {
+      "type": "decision/expired",
+      "title": "Decision expired",
+      "description": "An unanswered or stale decision set reached a terminal state.",
+      "payloadSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "decisionSetId",
+          "reason"
+        ],
+        "properties": {
+          "decisionSetId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "reason": {
+            "enum": [
+              "TTL",
+              "TASK_VERSION_CHANGED",
+              "MISSION_CANCELLED",
+              "SUPERSEDED",
+              "ORIGIN_AGENT_GONE"
+            ]
+          }
+        }
+      },
+      "examplePayload": {
+        "decisionSetId": "decision-set-001",
+        "reason": "TASK_VERSION_CHANGED"
+      }
+    },
+    {
+      "type": "oversight/frozen",
+      "title": "Agent frozen",
+      "description": "Oversight controller froze an anomalous agent before completion.",
+      "payloadSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "targetAgentId",
+          "taskId",
+          "inspectionReportRef",
+          "reasonCodes"
+        ],
+        "properties": {
+          "targetAgentId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "taskId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "inspectionReportRef": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "reasonCodes": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120
+            },
+            "minItems": 1,
+            "uniqueItems": true
+          }
+        }
+      },
+      "examplePayload": {
+        "targetAgentId": "agent-worker-001",
+        "taskId": "task-auth-api",
+        "inspectionReportRef": "artifact-inspection-report",
+        "reasonCodes": [
+          "UNVERIFIED_TOOL_CLAIM"
+        ]
+      }
+    },
+    {
+      "type": "oversight/released",
+      "title": "Agent released",
+      "description": "Harness released a frozen agent under an approved correction order.",
+      "payloadSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "targetAgentId",
+          "correctionOrderRef",
+          "releasedBy"
+        ],
+        "properties": {
+          "targetAgentId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "correctionOrderRef": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "releasedBy": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          }
+        }
+      },
+      "examplePayload": {
+        "targetAgentId": "agent-worker-001",
+        "correctionOrderRef": "correction-order-001",
+        "releasedBy": "agent-harness"
+      }
+    },
+    {
+      "type": "specs/commit-recorded",
+      "title": "Specs commit recorded",
+      "description": "Engineer committed validated specs changes on controlled local main.",
+      "payloadSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "taskId",
+          "commit",
+          "treeHash",
+          "changedPaths"
+        ],
+        "properties": {
+          "taskId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "commit": {
+            "type": "string",
+            "minLength": 7,
+            "maxLength": 64
+          },
+          "treeHash": {
+            "type": "string",
+            "minLength": 7,
+            "maxLength": 64
+          },
+          "changedPaths": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 1024
+            },
+            "minItems": 1,
+            "uniqueItems": true
+          }
+        }
+      },
+      "examplePayload": {
+        "taskId": "task-specs-001",
+        "commit": "0123456789abcdef0123456789abcdef01234567",
+        "treeHash": "89abcdef0123456789abcdef0123456789abcdef",
+        "changedPaths": [
+          "specs/01-requirements/functional.md"
+        ]
+      }
+    },
+    {
+      "type": "context/compaction-required",
+      "title": "Compaction required",
+      "description": "Context pressure crossed a template or General policy threshold.",
+      "payloadSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "agentId",
+          "compactionAttemptId",
+          "meterTokens",
+          "thresholdTokens"
+        ],
+        "properties": {
+          "agentId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "compactionAttemptId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "meterTokens": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "thresholdTokens": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      },
+      "examplePayload": {
+        "agentId": "agent-general",
+        "compactionAttemptId": "compaction-attempt-001",
+        "meterTokens": 360000,
+        "thresholdTokens": 360000
+      }
+    },
+    {
+      "type": "context/compaction-attempted",
+      "title": "Compaction attempted",
+      "description": "Harness invoked DSH RC.2 compaction at a safe boundary.",
+      "payloadSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "attemptId",
+          "agentId",
+          "trigger",
+          "provider",
+          "model"
+        ],
+        "properties": {
+          "attemptId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "agentId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "trigger": {
+            "enum": [
+              "PRESSURE",
+              "CONTEXT_OVERFLOW",
+              "MANUAL",
+              "HANDOFF"
+            ]
+          },
+          "provider": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          },
+          "model": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          }
+        }
+      },
+      "examplePayload": {
+        "attemptId": "compaction-attempt-001",
+        "agentId": "agent-general",
+        "trigger": "PRESSURE",
+        "provider": "deepseek-official",
+        "model": "deepseek-v4-pro"
+      }
+    },
+    {
+      "type": "context/compaction-completed",
+      "title": "Compaction completed",
+      "description": "A compaction attempt ended with an explicit success, no-op or failure.",
+      "payloadSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "attemptId",
+          "outcome"
+        ],
+        "properties": {
+          "attemptId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "outcome": {
+            "enum": [
+              "SUCCEEDED",
+              "NO_SAFE_RANGE",
+              "FAILED",
+              "CANCELLED"
+            ]
+          },
+          "summaryEventSeq": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "errorCode": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          }
+        }
+      },
+      "examplePayload": {
+        "attemptId": "compaction-attempt-001",
+        "outcome": "SUCCEEDED",
+        "summaryEventSeq": 321
+      }
+    },
+    {
+      "type": "model/selection-changed",
+      "title": "General model selection changed",
+      "description": "User changed the root General session model through the DSH model selector.",
+      "payloadSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "sessionId",
+          "provider",
+          "model",
+          "source"
+        ],
+        "properties": {
+          "sessionId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "provider": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          },
+          "model": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          },
+          "source": {
+            "enum": [
+              "PRESET_DEFAULT",
+              "NEW_SESSION_SELECTION",
+              "SESSION_MODEL_SELECTOR",
+              "RESUME"
+            ]
+          },
+          "previousProvider": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          },
+          "previousModel": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          }
+        }
+      },
+      "examplePayload": {
+        "sessionId": "session-general",
+        "provider": "deepseek-official",
+        "model": "deepseek-v4-pro",
+        "source": "SESSION_MODEL_SELECTOR",
+        "previousProvider": "deepseek-official",
+        "previousModel": "deepseek-v4-flash"
+      }
+    },
+    {
+      "type": "model/selection-rejected",
+      "title": "General model selection rejected",
+      "description": "A requested General session model failed a capability, reasoning, residency or budget gate and the previous route remained active.",
+      "payloadSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "provider",
+          "model",
+          "reasonCode",
+          "previousReceiptRef"
+        ],
+        "properties": {
+          "provider": {
+            "type": "string",
+            "minLength": 1
+          },
+          "model": {
+            "type": "string",
+            "minLength": 1
+          },
+          "reasonCode": {
+            "enum": [
+              "UNSUPPORTED_REASONING",
+              "CONTEXT_TOO_SMALL",
+              "DATA_RESIDENCY",
+              "TOOL_CALLING",
+              "BUDGET",
+              "UNSUPPORTED_PROVIDER"
+            ]
+          },
+          "previousReceiptRef": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          }
+        }
+      },
+      "examplePayload": {
+        "provider": "deepseek-official",
+        "model": "unsupported-model",
+        "reasonCode": "UNSUPPORTED_REASONING",
+        "previousReceiptRef": "model-receipt-001"
+      }
+    },
+    {
+      "type": "model/fallback",
+      "title": "Model fallback applied",
+      "description": "An explicitly allowed compatible fallback replaced an unavailable route.",
+      "payloadSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "agentId",
+          "fromProvider",
+          "fromModel",
+          "toProvider",
+          "toModel",
+          "reason"
+        ],
+        "properties": {
+          "agentId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "fromProvider": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          },
+          "fromModel": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          },
+          "toProvider": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          },
+          "toModel": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          }
+        }
+      },
+      "examplePayload": {
+        "agentId": "agent-worker-001",
+        "fromProvider": "deepseek-official",
+        "fromModel": "deepseek-v4-pro",
+        "toProvider": "enterprise-deepseek",
+        "toModel": "deepseek-v4-pro",
+        "reason": "primary endpoint unavailable"
+      }
+    },
+    {
+      "type": "budget/reserved",
+      "title": "Resource budget reserved",
+      "description": "Harness reserved bounded capacity before starting an expensive operation.",
+      "payloadSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "reservationId",
+          "policyId",
+          "scope",
+          "reserved"
+        ],
+        "properties": {
+          "reservationId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "policyId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "scope": {
+            "enum": [
+              "MISSION",
+              "DIRECTION",
+              "WAVE",
+              "TASK",
+              "OPERATION"
+            ]
+          },
+          "reserved": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [],
+            "properties": {
+              "modelRequests": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "reasoningTokens": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "toolCalls": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "apiCalls": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "wallClockSeconds": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "storageBytes": {
+                "type": "integer",
+                "minimum": 0
+              }
+            }
+          },
+          "leaseUntil": {
+            "$ref": "common-defs.schema.json#/$defs/timestamp"
+          }
+        }
+      },
+      "examplePayload": {
+        "reservationId": "budget-reservation-001",
+        "policyId": "budget-policy-default",
+        "scope": "TASK",
+        "reserved": {
+          "modelRequests": 3,
+          "reasoningTokens": 12000,
+          "toolCalls": 20,
+          "apiCalls": 0,
+          "wallClockSeconds": 600,
+          "storageBytes": 1048576
+        },
+        "leaseUntil": "2026-08-19T01:00:00Z"
+      }
+    },
+    {
+      "type": "budget/settled",
+      "title": "Resource budget settled",
+      "description": "Actual usage was deduplicated against one reservation and unused capacity was released.",
+      "payloadSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "reservationId",
+          "usageReceiptId",
+          "actual"
+        ],
+        "properties": {
+          "reservationId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "usageReceiptId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "actual": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [],
+            "properties": {
+              "modelRequests": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "reasoningTokens": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "toolCalls": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "apiCalls": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "wallClockSeconds": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "storageBytes": {
+                "type": "integer",
+                "minimum": 0
+              }
+            }
+          },
+          "released": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [],
+            "properties": {
+              "modelRequests": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "reasoningTokens": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "toolCalls": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "apiCalls": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "wallClockSeconds": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "storageBytes": {
+                "type": "integer",
+                "minimum": 0
+              }
+            }
+          }
+        }
+      },
+      "examplePayload": {
+        "reservationId": "budget-reservation-001",
+        "usageReceiptId": "usage-receipt-001",
+        "actual": {
+          "modelRequests": 2,
+          "reasoningTokens": 9000,
+          "toolCalls": 12,
+          "apiCalls": 0,
+          "wallClockSeconds": 420,
+          "storageBytes": 524288
+        },
+        "released": {
+          "modelRequests": 1,
+          "reasoningTokens": 3000,
+          "toolCalls": 8,
+          "apiCalls": 0,
+          "wallClockSeconds": 180,
+          "storageBytes": 524288
+        }
+      }
+    },
+    {
+      "type": "budget/threshold-reached",
+      "title": "Resource budget threshold reached",
+      "description": "A deployment, tenant, mission, wave or task budget reached policy threshold.",
+      "payloadSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "budgetScope",
+          "budgetKind",
+          "used",
+          "limit",
+          "disposition"
+        ],
+        "properties": {
+          "budgetScope": {
+            "enum": [
+              "DEPLOYMENT",
+              "TENANT",
+              "MISSION",
+              "WAVE",
+              "TASK"
+            ]
+          },
+          "budgetKind": {
+            "enum": [
+              "MODEL_REQUESTS",
+              "REASONING_TOKENS",
+              "WALL_CLOCK",
+              "TOOL_CALLS",
+              "API_CALLS",
+              "CONCURRENT_AGENTS",
+              "RADIO_ROUNDS",
+              "REWORK_ATTEMPTS",
+              "STORAGE_BYTES"
+            ]
+          },
+          "used": {
+            "type": "number",
+            "minimum": 0
+          },
+          "limit": {
+            "type": "number",
+            "minimum": 0
+          },
+          "disposition": {
+            "enum": [
+              "PAUSE_AND_REPORT",
+              "REQUIRE_USER_AUTHORIZATION",
+              "DEGRADE_NONCRITICAL_RESEARCH",
+              "CANCEL_SPECULATIVE_TASKS"
+            ]
+          }
+        }
+      },
+      "examplePayload": {
+        "budgetScope": "MISSION",
+        "budgetKind": "REASONING_TOKENS",
+        "used": 900000,
+        "limit": 900000,
+        "disposition": "REQUIRE_USER_AUTHORIZATION"
+      }
+    },
+    {
+      "type": "budget/exhausted",
+      "title": "Resource budget exhausted",
+      "description": "A hard limit stopped new admission and selected an explicit safe disposition.",
+      "payloadSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "policyId",
+          "scope",
+          "disposition",
+          "usedPercent"
+        ],
+        "properties": {
+          "policyId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "scope": {
+            "enum": [
+              "DEPLOYMENT",
+              "TENANT",
+              "MISSION",
+              "DIRECTION",
+              "WAVE",
+              "TASK"
+            ]
+          },
+          "disposition": {
+            "enum": [
+              "PAUSE_AND_REPORT",
+              "REQUIRE_USER_AUTHORIZATION",
+              "DEGRADE_NONCRITICAL_RESEARCH",
+              "CANCEL_SPECULATIVE_TASKS",
+              "TERMINATE_TASK",
+              "TERMINATE_MISSION"
+            ]
+          },
+          "usedPercent": {
+            "type": "number",
+            "minimum": 100
+          }
+        }
+      },
+      "examplePayload": {
+        "policyId": "budget-policy-default",
+        "scope": "MISSION",
+        "disposition": "REQUIRE_USER_AUTHORIZATION",
+        "usedPercent": 100.0
+      }
+    },
+    {
+      "type": "memory/trajectory-created",
+      "title": "Trajectory memory created",
+      "description": "Harness accepted a source-covered tactical trajectory memory.",
+      "payloadSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "waveId",
+          "memoryRef",
+          "sourceEventCount"
+        ],
+        "properties": {
+          "waveId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "memoryRef": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "sourceEventCount": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      },
+      "examplePayload": {
+        "waveId": "wave-auth-001",
+        "memoryRef": "artifact-tactical-memory",
+        "sourceEventCount": 42
+      }
+    },
+    {
+      "type": "memory/effectiveness-scheduled",
+      "title": "Effectiveness assessment scheduled",
+      "description": "General compaction triggered an idempotent effectiveness job.",
+      "payloadSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "compactionId",
+          "evaluationJobId"
+        ],
+        "properties": {
+          "compactionId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "evaluationJobId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          }
+        }
+      },
+      "examplePayload": {
+        "compactionId": "compaction-001",
+        "evaluationJobId": "effectiveness-job-001"
+      }
+    },
+    {
+      "type": "memory/effectiveness-created",
+      "title": "Effectiveness assessment created",
+      "description": "Harness accepted a verified tactical effectiveness assessment.",
+      "payloadSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "compactionId",
+          "assessmentRef",
+          "causalStrength"
+        ],
+        "properties": {
+          "compactionId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "assessmentRef": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "causalStrength": {
+            "enum": [
+              "none",
+              "correlated",
+              "incremental",
+              "causal-supported"
+            ]
+          }
+        }
+      },
+      "examplePayload": {
+        "compactionId": "compaction-001",
+        "assessmentRef": "artifact-effectiveness-001",
+        "causalStrength": "correlated"
+      }
+    },
+    {
+      "type": "tactic/version-published",
+      "title": "Tactic version published",
+      "description": "Governance published a new version into a controlled lifecycle stage.",
+      "payloadSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "skillId",
+          "version",
+          "lifecycle"
+        ],
+        "properties": {
+          "skillId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "version": {
+            "$ref": "common-defs.schema.json#/$defs/semver"
+          },
+          "lifecycle": {
+            "enum": [
+              "DRAFT",
+              "SIMULATION",
+              "CANARY",
+              "TESTING",
+              "STABLE",
+              "QUARANTINED",
+              "DEPRECATED",
+              "RETIRED"
+            ]
+          }
+        }
+      },
+      "examplePayload": {
+        "skillId": "skill-react-state",
+        "version": "1.1.0",
+        "lifecycle": "CANARY"
+      }
+    },
+    {
+      "type": "agent-template/instantiated",
+      "title": "Agent template instantiated",
+      "description": "Runtime froze a template revision and effective model route for a child.",
+      "payloadSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "templateId",
+          "revision",
+          "agentId",
+          "provider",
+          "model",
+          "reasoningEffort"
+        ],
+        "properties": {
+          "templateId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "revision": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "agentId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "provider": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          },
+          "model": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          },
+          "reasoningEffort": {
+            "$ref": "common-defs.schema.json#/$defs/reasoningEffort"
+          }
+        }
+      },
+      "examplePayload": {
+        "templateId": "worker-default",
+        "revision": 1,
+        "agentId": "agent-worker-001",
+        "provider": "deepseek-official",
+        "model": "deepseek-v4-pro",
+        "reasoningEffort": "high"
+      }
+    },
+    {
+      "type": "agent/execution-bound",
+      "title": "Agent execution binding created",
+      "description": "Harness froze one non-General agent template, model, reasoning, policy and preset generation before publication.",
+      "payloadSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "bindingId",
+          "agentId",
+          "agentGeneration",
+          "templateId",
+          "templateRevision",
+          "provider",
+          "model",
+          "reasoningEffort",
+          "presetGeneration"
+        ],
+        "properties": {
+          "bindingId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "agentId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "agentGeneration": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "templateId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "templateRevision": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "provider": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          },
+          "model": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          },
+          "reasoningEffort": {
+            "enum": [
+              "low",
+              "high",
+              "max"
+            ]
+          },
+          "presetGeneration": {
+            "type": "string",
+            "pattern": "^military@sha256:[a-f0-9]{64}$"
+          }
+        }
+      },
+      "examplePayload": {
+        "bindingId": "agent-binding-worker-react-001",
+        "agentId": "agent-worker-react-001",
+        "agentGeneration": 1,
+        "templateId": "worker-react",
+        "templateRevision": 3,
+        "provider": "deepseek-official",
+        "model": "deepseek-v4-pro",
+        "reasoningEffort": "high",
+        "presetGeneration": "military@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      }
+    },
+    {
+      "type": "brainstorm/started",
+      "title": "Brainstorm started",
+      "description": "General opened the explicit brainstorm command workflow.",
+      "payloadSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "orderId",
+          "rootSessionId",
+          "projectStage"
+        ],
+        "properties": {
+          "orderId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "rootSessionId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "projectStage": {
+            "enum": [
+              "IDEATION",
+              "SPECS_ONLY",
+              "ACTIVE",
+              "LEGACY"
+            ]
+          }
+        }
+      },
+      "examplePayload": {
+        "orderId": "brainstorm-order-001",
+        "rootSessionId": "session-general",
+        "projectStage": "IDEATION"
+      }
+    },
+    {
+      "type": "brainstorm/decision-recorded",
+      "title": "Brainstorm decision recorded",
+      "description": "A user-owned brainstorm decision became a durable record.",
+      "payloadSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "orderId",
+          "decisionId",
+          "answerReceiptRef"
+        ],
+        "properties": {
+          "orderId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "decisionId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "answerReceiptRef": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          }
+        }
+      },
+      "examplePayload": {
+        "orderId": "brainstorm-order-001",
+        "decisionId": "decision-product-scope",
+        "answerReceiptRef": "answer-receipt-001"
+      }
+    },
+    {
+      "type": "brainstorm/completed",
+      "title": "Brainstorm completed",
+      "description": "Brainstorm produced mission intent and optional specs handoff.",
+      "payloadSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "orderId",
+          "missionIntentRef"
+        ],
+        "properties": {
+          "orderId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "missionIntentRef": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "specsMaintenanceOrderRef": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          }
+        }
+      },
+      "examplePayload": {
+        "orderId": "brainstorm-order-001",
+        "missionIntentRef": "mission-intent-001",
+        "specsMaintenanceOrderRef": "specs-order-001"
+      }
+    },
+    {
+      "type": "staff/chief-advice-issued",
+      "title": "Chief of Staff advice issued",
+      "description": "Chief generated a model-derived reference opinion with explicit assumptions.",
+      "payloadSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "adviceId",
+          "decisionId",
+          "adviceRef",
+          "confidence"
+        ],
+        "properties": {
+          "adviceId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "decisionId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "adviceRef": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "confidence": {
+            "type": "number",
+            "minimum": 0
+          }
+        }
+      },
+      "examplePayload": {
+        "adviceId": "chief-advice-001",
+        "decisionId": "decision-architecture",
+        "adviceRef": "artifact-chief-advice",
+        "confidence": 0.72
+      }
+    },
+    {
+      "type": "mission/completed",
+      "title": "Mission completed",
+      "description": "General reported mission completion after all authoritative gates passed.",
+      "payloadSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "completionReportRef",
+          "acceptedTaskCount",
+          "integratedTaskCount"
+        ],
+        "properties": {
+          "completionReportRef": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "acceptedTaskCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "integratedTaskCount": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "examplePayload": {
+        "completionReportRef": "artifact-mission-completion",
+        "acceptedTaskCount": 8,
+        "integratedTaskCount": 7
+      }
+    },
+    {
+      "type": "mission/cancelled",
+      "title": "Mission cancelled",
+      "description": "An authorized principal cancelled the mission and recovery actions were recorded.",
+      "payloadSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "reason",
+          "authorizedBy",
+          "cancellationReceiptRef"
+        ],
+        "properties": {
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4000
+          },
+          "authorizedBy": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "cancellationReceiptRef": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          }
+        }
+      },
+      "examplePayload": {
+        "reason": "User cancelled after scope change",
+        "authorizedBy": "user-example",
+        "cancellationReceiptRef": "authorization-receipt-cancel"
+      }
+    }
+  ],
+  "administrativeEvents": [
+    {
+      "type": "tag/changed",
+      "title": "Tactical tag changed",
+      "description": "A stable tag id changed metadata or lifecycle.",
+      "payloadSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "tagId",
+          "revision",
+          "operation"
+        ],
+        "properties": {
+          "tagId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "revision": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "operation": {
+            "enum": [
+              "created",
+              "renamed",
+              "paused",
+              "resumed",
+              "deleted"
+            ]
+          }
+        }
+      },
+      "examplePayload": {
+        "tagId": "tag-react",
+        "revision": 2,
+        "operation": "renamed"
+      }
+    },
+    {
+      "type": "agent-template/changed",
+      "title": "Agent template changed",
+      "description": "A department template revision changed lifecycle or content.",
+      "payloadSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "templateId",
+          "revision",
+          "operation"
+        ],
+        "properties": {
+          "templateId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "revision": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "operation": {
+            "enum": [
+              "created",
+              "activated",
+              "paused",
+              "retired"
+            ]
+          }
+        }
+      },
+      "examplePayload": {
+        "templateId": "worker-default",
+        "revision": 2,
+        "operation": "activated"
+      }
+    },
+    {
+      "type": "tool-profile/changed",
+      "title": "Tool profile changed",
+      "description": "A versioned tool visibility and execution profile changed.",
+      "payloadSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "toolProfileId",
+          "revision",
+          "operation"
+        ],
+        "properties": {
+          "toolProfileId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "revision": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "operation": {
+            "enum": [
+              "created",
+              "activated",
+              "paused",
+              "retired"
+            ]
+          }
+        }
+      },
+      "examplePayload": {
+        "toolProfileId": "tools-worker-code",
+        "revision": 2,
+        "operation": "activated"
+      }
+    },
+    {
+      "type": "permission-profile/changed",
+      "title": "Permission profile changed",
+      "description": "A deny-first permission profile changed.",
+      "payloadSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "permissionProfileId",
+          "revision",
+          "operation"
+        ],
+        "properties": {
+          "permissionProfileId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "revision": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "operation": {
+            "enum": [
+              "created",
+              "activated",
+              "revoked",
+              "retired"
+            ]
+          }
+        }
+      },
+      "examplePayload": {
+        "permissionProfileId": "permission-worker-workspace",
+        "revision": 3,
+        "operation": "revoked"
+      }
+    },
+    {
+      "type": "api-grant/changed",
+      "title": "Enterprise API grant changed",
+      "description": "A scoped enterprise API grant changed or was revoked.",
+      "payloadSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "grantId",
+          "revision",
+          "operation"
+        ],
+        "properties": {
+          "grantId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "revision": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "operation": {
+            "enum": [
+              "created",
+              "activated",
+              "revoked",
+              "expired"
+            ]
+          }
+        }
+      },
+      "examplePayload": {
+        "grantId": "grant-architecture-read",
+        "revision": 1,
+        "operation": "activated"
+      }
+    },
+    {
+      "type": "model-capability/changed",
+      "title": "Model capability profile changed",
+      "description": "A benchmarked provider/model capability declaration changed.",
+      "payloadSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "profileId",
+          "revision",
+          "provider",
+          "model",
+          "operation"
+        ],
+        "properties": {
+          "profileId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "revision": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "provider": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          },
+          "model": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          },
+          "operation": {
+            "enum": [
+              "created",
+              "validated",
+              "deprecated"
+            ]
+          }
+        }
+      },
+      "examplePayload": {
+        "profileId": "model-capability-dsv4pro",
+        "revision": 1,
+        "provider": "deepseek-official",
+        "model": "deepseek-v4-pro",
+        "operation": "validated"
+      }
+    },
+    {
+      "type": "context/manifest-created",
+      "title": "Context manifest created",
+      "description": "Context Compiler persisted the exact manifest used to assemble one department-Agent model step.",
+      "payloadSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "manifestId",
+          "missionId",
+          "taskId",
+          "taskVersion",
+          "missionRevision",
+          "agentId",
+          "agentGeneration",
+          "sessionId",
+          "turn",
+          "step",
+          "artifactRef",
+          "manifestSha256",
+          "sectionKinds",
+          "omittedEvidenceCount",
+          "tokenBudget"
+        ],
+        "properties": {
+          "manifestId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "missionId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "taskId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "taskVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "missionRevision": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "agentId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "agentGeneration": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "sessionId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "turn": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "step": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "artifactRef": {
+            "$ref": "common-defs.schema.json#/$defs/artifactRef"
+          },
+          "manifestSha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "sectionKinds": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "enum": [
+                "CONSTITUTION",
+                "STATE",
+                "EVIDENCE",
+                "WORKING"
+              ]
+            }
+          },
+          "omittedEvidenceCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "tokenBudget": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      },
+      "examplePayload": {
+        "manifestId": "context-manifest-example",
+        "missionId": "mission-example",
+        "taskId": "task-example",
+        "taskVersion": 1,
+        "missionRevision": 7,
+        "agentId": "agent-worker-example",
+        "agentGeneration": 1,
+        "sessionId": "session-worker-example",
+        "turn": 2,
+        "step": 1,
+        "artifactRef": {
+          "artifactId": "artifact-context-manifest-example",
+          "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "mediaType": "application/vnd.dsh-military.context-manifest+json",
+          "byteLength": 1024,
+          "classification": "confidential",
+          "description": "Exact Context Manifest for one model step"
+        },
+        "manifestSha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "sectionKinds": [
+          "CONSTITUTION",
+          "STATE",
+          "EVIDENCE",
+          "WORKING"
+        ],
+        "omittedEvidenceCount": 0,
+        "tokenBudget": 320000
+      }
+    },
+    {
+      "type": "data-residency-policy/changed",
+      "title": "Data residency policy changed",
+      "description": "A versioned data residency policy was created, revised, paused or retired.",
+      "payloadSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "policyId",
+          "revision",
+          "status"
+        ],
+        "properties": {
+          "policyId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "revision": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "status": {
+            "enum": [
+              "DRAFT",
+              "ACTIVE",
+              "PAUSED",
+              "REVOKED",
+              "RETIRED"
+            ]
+          }
+        }
+      },
+      "examplePayload": {
+        "policyId": "policy-001",
+        "revision": 1,
+        "status": "ACTIVE"
+      }
+    },
+    {
+      "type": "redaction-policy/changed",
+      "title": "Redaction policy changed",
+      "description": "A versioned response redaction policy changed.",
+      "payloadSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "policyId",
+          "revision",
+          "status"
+        ],
+        "properties": {
+          "policyId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "revision": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "status": {
+            "enum": [
+              "DRAFT",
+              "ACTIVE",
+              "PAUSED",
+              "REVOKED",
+              "RETIRED"
+            ]
+          }
+        }
+      },
+      "examplePayload": {
+        "policyId": "policy-001",
+        "revision": 1,
+        "status": "ACTIVE"
+      }
+    },
+    {
+      "type": "verifier-profile/changed",
+      "title": "Verifier profile changed",
+      "description": "A versioned verifier profile changed.",
+      "payloadSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "verifierProfileId",
+          "revision",
+          "status"
+        ],
+        "properties": {
+          "verifierProfileId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "revision": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "status": {
+            "enum": [
+              "DRAFT",
+              "ACTIVE",
+              "PAUSED",
+              "REVOKED",
+              "RETIRED"
+            ]
+          }
+        }
+      },
+      "examplePayload": {
+        "verifierProfileId": "verifier-001",
+        "revision": 1,
+        "status": "ACTIVE"
+      }
+    },
+    {
+      "type": "resource-budget-policy/changed",
+      "title": "Resource budget policy changed",
+      "description": "A versioned deployment, tenant or mission budget policy changed.",
+      "payloadSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "policyId",
+          "revision",
+          "status"
+        ],
+        "properties": {
+          "policyId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "revision": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "status": {
+            "enum": [
+              "DRAFT",
+              "ACTIVE",
+              "PAUSED",
+              "REVOKED",
+              "RETIRED"
+            ]
+          }
+        }
+      },
+      "examplePayload": {
+        "policyId": "policy-001",
+        "revision": 1,
+        "status": "ACTIVE"
+      }
+    },
+    {
+      "type": "authorization/granted",
+      "title": "Authorization granted",
+      "description": "A principal granted a bounded high-impact authorization.",
+      "payloadSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "authorizationId",
+          "principalId",
+          "scope",
+          "expiresAt"
+        ],
+        "properties": {
+          "authorizationId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "principalId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "scope": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          },
+          "expiresAt": {
+            "$ref": "common-defs.schema.json#/$defs/timestamp"
+          }
+        }
+      },
+      "examplePayload": {
+        "authorizationId": "authorization-001",
+        "principalId": "user-example",
+        "scope": "github:push:repo/example:main",
+        "expiresAt": "2026-08-20T00:00:00Z"
+      }
+    },
+    {
+      "type": "authorization/revoked",
+      "title": "Authorization revoked",
+      "description": "A previously granted authorization was revoked.",
+      "payloadSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "authorizationId",
+          "principalId",
+          "reason"
+        ],
+        "properties": {
+          "authorizationId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "principalId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          }
+        }
+      },
+      "examplePayload": {
+        "authorizationId": "authorization-001",
+        "principalId": "user-example",
+        "reason": "User withdrew remote write permission"
+      }
+    },
+    {
+      "type": "tactical-ingestion/requested",
+      "title": "Tactical ingestion requested",
+      "description": "A user authorized a historical or direct knowledge extraction job.",
+      "payloadSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "requestId",
+          "sourceKind",
+          "requestedTagIds"
+        ],
+        "properties": {
+          "requestId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "sourceKind": {
+            "enum": [
+              "SESSION_RANGE",
+              "DIRECT_TEXT",
+              "ARTIFACT"
+            ]
+          },
+          "requestedTagIds": {
+            "type": "array",
+            "items": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "minItems": 1,
+            "uniqueItems": true
+          }
+        }
+      },
+      "examplePayload": {
+        "requestId": "ingestion-request-001",
+        "sourceKind": "SESSION_RANGE",
+        "requestedTagIds": [
+          "tag-react"
+        ]
+      }
+    },
+    {
+      "type": "tactical-ingestion/source-snapshotted",
+      "title": "Tactical source snapshotted",
+      "description": "Harness froze and scanned the source material before extraction.",
+      "payloadSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "requestId",
+          "snapshotId",
+          "sourceHash",
+          "classification"
+        ],
+        "properties": {
+          "requestId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "snapshotId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "sourceHash": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "classification": {
+            "$ref": "common-defs.schema.json#/$defs/classification"
+          }
+        }
+      },
+      "examplePayload": {
+        "requestId": "ingestion-request-001",
+        "snapshotId": "tactical-source-001",
+        "sourceHash": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+        "classification": "confidential"
+      }
+    },
+    {
+      "type": "tactical-ingestion/candidate-created",
+      "title": "Tactical extraction candidate created",
+      "description": "Extractor produced a user-reviewable candidate with provenance.",
+      "payloadSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "requestId",
+          "candidateId",
+          "candidateHash",
+          "operation"
+        ],
+        "properties": {
+          "requestId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "candidateId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "candidateHash": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "operation": {
+            "enum": [
+              "NEW_TACTIC",
+              "SUPPLEMENT"
+            ]
+          }
+        }
+      },
+      "examplePayload": {
+        "requestId": "ingestion-request-001",
+        "candidateId": "extraction-candidate-001",
+        "candidateHash": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+        "operation": "SUPPLEMENT"
+      }
+    },
+    {
+      "type": "tactical-ingestion/reviewed",
+      "title": "Tactical ingestion reviewed",
+      "description": "User or authorized reviewer approved, returned or rejected the candidate.",
+      "payloadSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "requestId",
+          "candidateId",
+          "disposition",
+          "reviewerId"
+        ],
+        "properties": {
+          "requestId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "candidateId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "disposition": {
+            "enum": [
+              "APPROVED_AS_DRAFT",
+              "RETURNED",
+              "REJECTED"
+            ]
+          },
+          "reviewerId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          }
+        }
+      },
+      "examplePayload": {
+        "requestId": "ingestion-request-001",
+        "candidateId": "extraction-candidate-001",
+        "disposition": "APPROVED_AS_DRAFT",
+        "reviewerId": "user-example"
+      }
+    },
+    {
+      "type": "tactical-source/revoked",
+      "title": "Tactical source revoked",
+      "description": "Source rights, accuracy or retention status invalidated derived knowledge.",
+      "payloadSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "snapshotId",
+          "reason",
+          "revocationOrderId"
+        ],
+        "properties": {
+          "snapshotId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "reason": {
+            "enum": [
+              "OWNER_REQUEST",
+              "LICENSE_CHANGE",
+              "SECURITY_INCIDENT",
+              "PROVEN_INCORRECT",
+              "RETENTION_EXPIRY"
+            ]
+          },
+          "revocationOrderId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          }
+        }
+      },
+      "examplePayload": {
+        "snapshotId": "tactical-source-001",
+        "reason": "PROVEN_INCORRECT",
+        "revocationOrderId": "knowledge-revocation-001"
+      }
+    },
+    {
+      "type": "tactical-source/impact-assessed",
+      "title": "Tactical source impact assessed",
+      "description": "Harness traced revoked source influence across tactics and accepted tasks.",
+      "payloadSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "revocationOrderId",
+          "impactReportRef",
+          "affectedTacticVersions",
+          "affectedTaskCount"
+        ],
+        "properties": {
+          "revocationOrderId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "impactReportRef": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "affectedTacticVersions": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 240
+            },
+            "uniqueItems": true
+          },
+          "affectedTaskCount": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "examplePayload": {
+        "revocationOrderId": "knowledge-revocation-001",
+        "impactReportRef": "artifact-impact-report",
+        "affectedTacticVersions": [
+          "skill-react-state@1.1.0"
+        ],
+        "affectedTaskCount": 2
+      }
+    },
+    {
+      "type": "tactical-source/revalidation-completed",
+      "title": "Tactical source revalidation completed",
+      "description": "Affected accepted results and tactic versions were revalidated after source revocation or correction.",
+      "payloadSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "revocationOrderId",
+          "disposition",
+          "reverifiedTaskIds"
+        ],
+        "properties": {
+          "revocationOrderId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "disposition": {
+            "enum": [
+              "CLEARED",
+              "PARTIALLY_CLEARED",
+              "REMAINS_QUARANTINED"
+            ]
+          },
+          "reverifiedTaskIds": {
+            "type": "array",
+            "items": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "uniqueItems": true
+          },
+          "reportRef": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          }
+        }
+      },
+      "examplePayload": {
+        "revocationOrderId": "revocation-order-001",
+        "disposition": "PARTIALLY_CLEARED",
+        "reverifiedTaskIds": [
+          "task-001"
+        ],
+        "reportRef": "revalidation-report-001"
+      }
+    },
+    {
+      "type": "performance-evaluation/requested",
+      "title": "Performance evaluation requested",
+      "description": "User opened a cross-session evaluation run.",
+      "payloadSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "evaluationRequestId",
+          "datasetJobId",
+          "requestedBy"
+        ],
+        "properties": {
+          "evaluationRequestId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "datasetJobId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "requestedBy": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          }
+        }
+      },
+      "examplePayload": {
+        "evaluationRequestId": "evaluation-request-001",
+        "datasetJobId": "dataset-job-001",
+        "requestedBy": "user-example"
+      }
+    },
+    {
+      "type": "performance-evaluation/dataset-frozen",
+      "title": "Performance dataset frozen",
+      "description": "Dataset auditor froze the reproducible evaluation manifest.",
+      "payloadSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "evaluationRequestId",
+          "datasetHash",
+          "datasetArtifact"
+        ],
+        "properties": {
+          "evaluationRequestId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "datasetHash": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "datasetArtifact": {
+            "$ref": "common-defs.schema.json#/$defs/artifactRef"
+          }
+        }
+      },
+      "examplePayload": {
+        "evaluationRequestId": "evaluation-request-001",
+        "datasetHash": "1111111111111111111111111111111111111111111111111111111111111111",
+        "datasetArtifact": {
+          "artifactId": "artifact-evaluation-dataset",
+          "sha256": "2222222222222222222222222222222222222222222222222222222222222222",
+          "mediaType": "application/json",
+          "byteLength": 4096,
+          "classification": "confidential"
+        }
+      }
+    },
+    {
+      "type": "performance-evaluation/template-completed",
+      "title": "Template evaluation completed",
+      "description": "One template revision received a validated individual performance result.",
+      "payloadSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "evaluationRequestId",
+          "templateId",
+          "templateRevision",
+          "performanceArtifact"
+        ],
+        "properties": {
+          "evaluationRequestId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "templateId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "templateRevision": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "performanceArtifact": {
+            "$ref": "common-defs.schema.json#/$defs/artifactRef"
+          }
+        }
+      },
+      "examplePayload": {
+        "evaluationRequestId": "evaluation-request-001",
+        "templateId": "worker-default",
+        "templateRevision": 1,
+        "performanceArtifact": {
+          "artifactId": "artifact-worker-performance",
+          "sha256": "3333333333333333333333333333333333333333333333333333333333333333",
+          "mediaType": "application/json",
+          "byteLength": 2048,
+          "classification": "confidential"
+        }
+      }
+    },
+    {
+      "type": "performance-evaluation/completed",
+      "title": "Performance evaluation completed",
+      "description": "Committee chair report passed source and statistical validation.",
+      "payloadSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "evaluationRequestId",
+          "reportId",
+          "reportArtifact"
+        ],
+        "properties": {
+          "evaluationRequestId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "reportId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "reportArtifact": {
+            "$ref": "common-defs.schema.json#/$defs/artifactRef"
+          }
+        }
+      },
+      "examplePayload": {
+        "evaluationRequestId": "evaluation-request-001",
+        "reportId": "performance-report-001",
+        "reportArtifact": {
+          "artifactId": "artifact-performance-report",
+          "sha256": "4444444444444444444444444444444444444444444444444444444444444444",
+          "mediaType": "application/json",
+          "byteLength": 8192,
+          "classification": "confidential"
+        }
+      }
+    },
+    {
+      "type": "performance-evaluation/cancelled",
+      "title": "Performance evaluation cancelled",
+      "description": "A durable evaluation job was cancelled without publishing a final report.",
+      "payloadSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "evaluationRequestId",
+          "reasonCode"
+        ],
+        "properties": {
+          "evaluationRequestId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "reasonCode": {
+            "enum": [
+              "USER_CANCELLED",
+              "BUDGET_EXHAUSTED",
+              "AUTHORIZATION_REVOKED",
+              "DATASET_INVALID",
+              "BUNDLE_DISABLED"
+            ]
+          },
+          "partialDatasetManifestRef": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          }
+        }
+      },
+      "examplePayload": {
+        "evaluationRequestId": "evaluation-request-001",
+        "reasonCode": "USER_CANCELLED",
+        "partialDatasetManifestRef": "dataset-manifest-001"
+      }
+    },
+    {
+      "type": "performance-evaluation/reopened",
+      "title": "Performance evaluation reopened",
+      "description": "A dataset correction or appeal created a new report revision.",
+      "payloadSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "evaluationRequestId",
+          "previousReportId",
+          "reason",
+          "appealRef"
+        ],
+        "properties": {
+          "evaluationRequestId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "previousReportId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          },
+          "appealRef": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          }
+        }
+      },
+      "examplePayload": {
+        "evaluationRequestId": "evaluation-request-001",
+        "previousReportId": "performance-report-001",
+        "reason": "Incorrectly classified user cancellation",
+        "appealRef": "appeal-001"
+      }
+    },
+    {
+      "type": "performance-evaluation/appeal-resolved",
+      "title": "Performance evaluation appeal resolved",
+      "description": "The committee or authorized reviewer resolved an appeal without rewriting the original report revision.",
+      "payloadSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "appealId",
+          "disposition",
+          "resolvedBy"
+        ],
+        "properties": {
+          "appealId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "disposition": {
+            "enum": [
+              "UPHELD",
+              "PARTIALLY_UPHELD",
+              "DENIED"
+            ]
+          },
+          "resolvedBy": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "supersedingReportId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          }
+        }
+      },
+      "examplePayload": {
+        "appealId": "evaluation-appeal-001",
+        "disposition": "UPHELD",
+        "resolvedBy": "evaluation-chair-001",
+        "supersedingReportId": "performance-report-2026-q3-r2"
+      }
+    },
+    {
+      "type": "performance-evaluation/appeal-submitted",
+      "title": "Performance evaluation appeal submitted",
+      "description": "An authorized principal challenged one frozen performance report revision.",
+      "payloadSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "appealId",
+          "reportId",
+          "reportRevision",
+          "submittedBy",
+          "grounds"
+        ],
+        "properties": {
+          "appealId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "reportId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "reportRevision": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "submittedBy": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "grounds": {
+            "enum": [
+              "DATASET_ERROR",
+              "RUBRIC_ERROR",
+              "ATTRIBUTION_ERROR",
+              "MISSING_CONTEXT",
+              "OTHER"
+            ]
+          }
+        }
+      },
+      "examplePayload": {
+        "appealId": "evaluation-appeal-001",
+        "reportId": "performance-report-2026-q3",
+        "reportRevision": 1,
+        "submittedBy": "user-example",
+        "grounds": "ATTRIBUTION_ERROR"
+      }
+    },
+    {
+      "type": "preset-generation/installed",
+      "title": "Preset generation installed",
+      "description": "Installer registered an immutable military generation asset.",
+      "payloadSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "presetId",
+          "generation",
+          "manifestHash",
+          "compatibility"
+        ],
+        "properties": {
+          "presetId": {
+            "const": "military"
+          },
+          "generation": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4000
+          },
+          "manifestHash": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "compatibility": {
+            "enum": [
+              "RC2_CURRENT",
+              "RC2_ARCHIVED"
+            ]
+          }
+        }
+      },
+      "examplePayload": {
+        "presetId": "military",
+        "generation": "military@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "manifestHash": "5555555555555555555555555555555555555555555555555555555555555555",
+        "compatibility": "RC2_CURRENT"
+      }
+    },
+    {
+      "type": "preset-generation/deprecated",
+      "title": "Preset generation deprecated",
+      "description": "A generation stopped serving new sessions but remained available for resume.",
+      "payloadSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "presetId",
+          "generation",
+          "replacementGeneration"
+        ],
+        "properties": {
+          "presetId": {
+            "const": "military"
+          },
+          "generation": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4000
+          },
+          "replacementGeneration": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4000
+          }
+        }
+      },
+      "examplePayload": {
+        "presetId": "military",
+        "generation": "military@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "replacementGeneration": "military@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      }
+    },
+    {
+      "type": "compatibility/probed",
+      "title": "Compatibility probe completed",
+      "description": "Startup probe recorded the DSH RC.2 capability disposition.",
+      "payloadSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "reportId",
+          "dshCommit",
+          "disposition"
+        ],
+        "properties": {
+          "reportId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "dshCommit": {
+            "type": "string",
+            "minLength": 40,
+            "maxLength": 40
+          },
+          "disposition": {
+            "enum": [
+              "READY",
+              "DEGRADED_READ_ONLY",
+              "MIGRATION_REQUIRED",
+              "UNSUPPORTED"
+            ]
+          }
+        }
+      },
+      "examplePayload": {
+        "reportId": "compatibility-report-001",
+        "dshCommit": "b150a551b8d465e31e418e1b2eaf5e79bbb7d28e",
+        "disposition": "READY"
+      }
+    },
+    {
+      "type": "bundle/installed",
+      "title": "Bundle installed",
+      "description": "Installer atomically installed bundle assets and roster overlay.",
+      "payloadSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "operationId",
+          "bundleVersion",
+          "receiptRef"
+        ],
+        "properties": {
+          "operationId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "bundleVersion": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "receiptRef": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          }
+        }
+      },
+      "examplePayload": {
+        "operationId": "bundle-operation-001",
+        "bundleVersion": "0.9.0-draft",
+        "receiptRef": "bundle-receipt-001"
+      }
+    },
+    {
+      "type": "bundle/upgraded",
+      "title": "Bundle upgraded",
+      "description": "Installer upgraded assets while preserving generations and settings.",
+      "payloadSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "operationId",
+          "fromVersion",
+          "toVersion",
+          "receiptRef"
+        ],
+        "properties": {
+          "operationId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "fromVersion": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "toVersion": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "receiptRef": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          }
+        }
+      },
+      "examplePayload": {
+        "operationId": "bundle-operation-002",
+        "fromVersion": "0.2.0-draft",
+        "toVersion": "0.9.0-draft",
+        "receiptRef": "bundle-receipt-002"
+      }
+    },
+    {
+      "type": "bundle/rolled-back",
+      "title": "Bundle rolled back",
+      "description": "Installer restored the last known-good composition and assets.",
+      "payloadSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "operationId",
+          "fromVersion",
+          "toVersion",
+          "receiptRef"
+        ],
+        "properties": {
+          "operationId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "fromVersion": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "toVersion": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "receiptRef": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          }
+        }
+      },
+      "examplePayload": {
+        "operationId": "bundle-operation-003",
+        "fromVersion": "0.9.0-draft",
+        "toVersion": "0.2.0-draft",
+        "receiptRef": "bundle-receipt-003"
+      }
+    },
+    {
+      "type": "bundle/disabled",
+      "title": "Bundle disabled",
+      "description": "New Military session and mission admission was disabled while retained data and existing session dispositions remained explicit.",
+      "payloadSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "operationId",
+          "receiptRef"
+        ],
+        "properties": {
+          "operationId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "receiptRef": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "existingSessionDisposition": {
+            "enum": [
+              "ALLOW_CONVERGENCE",
+              "READ_ONLY",
+              "PAUSE"
+            ]
+          }
+        }
+      },
+      "examplePayload": {
+        "operationId": "bundle-operation-disable",
+        "receiptRef": "bundle-receipt-disable",
+        "existingSessionDisposition": "ALLOW_CONVERGENCE"
+      }
+    },
+    {
+      "type": "bundle/uninstalled",
+      "title": "Bundle uninstalled",
+      "description": "Installer removed active composition while retaining governed data per policy.",
+      "payloadSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "operationId",
+          "bundleVersion",
+          "dataDisposition",
+          "receiptRef"
+        ],
+        "properties": {
+          "operationId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "bundleVersion": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "dataDisposition": {
+            "enum": [
+              "RETAINED",
+              "EXPORTED_AND_REMOVED",
+              "REMOVED"
+            ]
+          },
+          "receiptRef": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          }
+        }
+      },
+      "examplePayload": {
+        "operationId": "bundle-operation-004",
+        "bundleVersion": "0.9.0-draft",
+        "dataDisposition": "RETAINED",
+        "receiptRef": "bundle-receipt-004"
+      }
+    }
+  ]
+}

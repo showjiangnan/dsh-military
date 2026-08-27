@@ -1,0 +1,34 @@
+schemaVersion: 1.0.0
+dshBaseline:
+  release: 0.1.1-rc.2
+  commit: b150a551b8d465e31e418e1b2eaf5e79bbb7d28e
+traceId: trace-performance-appeal
+scenario: performance-report-appeal-and-superseding-revision
+initialState:
+  state: REPORT_REVISION_ONE_FROZEN
+steps:
+  - index: 1
+    action: submit an evidence-backed appeal against report revision one
+    eventType: performance-evaluation/appeal-submitted
+    expectedState: APPEAL_SUBMITTED
+  - index: 2
+    action: reopen evaluation without mutating the original report
+    eventType: performance-evaluation/reopened
+    expectedState: REEVALUATION_OPEN
+  - index: 3
+    action: freeze the corrected evaluation dataset
+    eventType: performance-evaluation/dataset-frozen
+    expectedState: DATASET_REVISION_TWO_FROZEN
+  - index: 4
+    action: publish a superseding report revision
+    eventType: performance-evaluation/completed
+    expectedState: REPORT_REVISION_TWO_FROZEN
+  - index: 5
+    action: resolve the appeal with the superseding report reference
+    eventType: performance-evaluation/appeal-resolved
+    expectedState: APPEAL_UPHELD
+finalProjectionHash: '0000000000000000000000000000000000000000000000000000000000000010'
+invariants:
+  - the original report revision remains immutable
+  - the appeal is authorized and cites concrete findings and evidence
+  - an upheld appeal references a separately frozen superseding report

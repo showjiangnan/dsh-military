@@ -1,0 +1,151 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "tactical-request.schema.json",
+  "title": "Tactical Request",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "requestId",
+    "identity",
+    "location",
+    "environmentSnapshotRef",
+    "currentSkills",
+    "blocker",
+    "attempts",
+    "evidence",
+    "requestedDecision",
+    "budget",
+    "idempotencyKey",
+    "createdAt"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0.0"
+    },
+    "requestId": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "identity": {
+      "$ref": "common-defs.schema.json#/$defs/agentIdentity"
+    },
+    "location": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "missionId",
+        "directionId",
+        "waveId",
+        "taskId",
+        "taskVersion",
+        "attemptId"
+      ],
+      "properties": {
+        "missionId": {
+          "$ref": "common-defs.schema.json#/$defs/id"
+        },
+        "directionId": {
+          "$ref": "common-defs.schema.json#/$defs/id"
+        },
+        "waveId": {
+          "$ref": "common-defs.schema.json#/$defs/id"
+        },
+        "taskId": {
+          "$ref": "common-defs.schema.json#/$defs/id"
+        },
+        "taskVersion": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "attemptId": {
+          "$ref": "common-defs.schema.json#/$defs/id"
+        }
+      }
+    },
+    "environmentSnapshotRef": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "currentSkills": {
+      "type": "array",
+      "items": {
+        "$ref": "common-defs.schema.json#/$defs/skillRef"
+      }
+    },
+    "blocker": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type",
+        "statement",
+        "reproducible"
+      ],
+      "properties": {
+        "type": {
+          "type": "string"
+        },
+        "statement": {
+          "type": "string",
+          "minLength": 1
+        },
+        "reproducible": {
+          "type": "boolean"
+        },
+      "minimalReproduction": {
+        "type": "string"
+      }
+      }
+    },
+    "attempts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+      "required": [
+        "action",
+        "observation",
+        "toolCallIds"
+        ],
+        "properties": {
+          "action": {
+            "type": "string"
+          },
+          "observation": {
+            "type": "string"
+          },
+          "reasonRejected": {
+            "type": "string"
+          },
+          "toolCallIds": {
+            "type": "array",
+            "items": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            }
+          }
+        }
+      }
+    },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "$ref": "common-defs.schema.json#/$defs/evidenceRef"
+      },
+      "minItems": 1
+    },
+    "requestedDecision": {
+      "type": "string",
+      "minLength": 1
+    },
+    "budget": {
+      "$ref": "common-defs.schema.json#/$defs/budget"
+    },
+    "idempotencyKey": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "createdAt": {
+      "$ref": "common-defs.schema.json#/$defs/timestamp"
+    },
+    "expiresAt": {
+      "$ref": "common-defs.schema.json#/$defs/timestamp"
+    }
+  }
+}

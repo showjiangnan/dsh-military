@@ -1,0 +1,39 @@
+{
+  "schemaVersion": "1.0.0",
+  "source": {
+    "kind": "anonymized-user-session-export",
+    "observedAt": "2026-08-24",
+    "archiveSha256": "a9048cd488db29a03982a5835f466558f2d1697f3b07ea1e097fb8a91ab2a273"
+  },
+  "route": {
+    "provider": "deepseek-official",
+    "model": "deepseek-v4-flash",
+    "reasoning": "max"
+  },
+  "observed": {
+    "sessionEvents": 1591,
+    "balancedToolCallPairs": 60,
+    "invalidToolArgumentJson": 0,
+    "visibleTools": 47,
+    "visibleMilitaryTools": 34,
+    "militaryCalls": 11,
+    "militaryErrors": 7,
+    "opaqueStructuredFields": 17,
+    "militaryToolsWithOpaqueFields": 16
+  },
+  "defectClasses": [
+    "brainstorm-mission-rediscovery",
+    "task-order-schema-guessing",
+    "role-invalid-tool-selection",
+    "map-at-rc2-json-boundary"
+  ],
+  "postFixContract": {
+    "maximumVisibleGeneralMilitaryTools": 15,
+    "opaqueStructuredFields": 0,
+    "contextReturnsMissionAndBrainstorm": true,
+    "missionStartRetryDisposition": "EXISTING",
+    "taskIdentityOwner": "HOST",
+    "missionSnapshotTasksEncoding": "ARRAY",
+    "installedRc2ThreeBootE2eRequired": true
+  }
+}

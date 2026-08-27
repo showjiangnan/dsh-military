@@ -1,0 +1,22 @@
+flowchart TB
+  U[用户 / 统帅] --> G[General Agent / 将军]
+  G --> SD[Staff Department / 参谋部]
+  SD --> MR[Military Runtime]
+  MR --> W[Worker Forces]
+  MR --> E[Engineer Corps]
+  MR --> O[Oversight Controller]
+  W --> V[Verification Engine]
+  E --> V
+  W --> R[Staff Radio]
+  E --> R
+  R --> SD
+  V --> L[(Mission Ledger)]
+  O --> L
+  MR --> L
+  E --> Git[(Local main Git)]
+  MR --> A[(Artifact Store)]
+  V --> A
+  L --> LR[Logistics & Research]
+  LR --> G
+  TS[(Tactical Registry)] --> SD
+  LR --> TS

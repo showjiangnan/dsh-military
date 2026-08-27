@@ -1,0 +1,23 @@
+sequenceDiagram
+  participant W as Worker/Engineer
+  participant T as submit_candidate Tool
+  participant I as Completion Interlock
+  participant V as Verifier Registry
+  participant O as Oversight
+  participant L as Mission Ledger
+  W->>T: Candidate + evidence mapping
+  T->>L: candidate/submitted
+  T-->>W: receipt; conclude turn
+  T->>I: verify proposal
+  I->>I: identity/version/tool/artifact/scope checks
+  I->>V: execute acceptance contract
+  V-->>I: verifier receipts
+  I->>O: anomaly inspection when required
+  O-->>I: read-only inspection report
+  alt accepted
+    I->>L: task/accepted (CAS)
+  else rework
+    I->>L: task/rework-requested
+  else freeze
+    I->>L: oversight/frozen
+  end

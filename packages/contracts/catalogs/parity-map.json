@@ -1,0 +1,200 @@
+{
+  "schemaVersion": "1.0.0",
+  "contracts": [
+    {
+      "typescriptInterface": "AgentIdentity",
+      "schema": "common-defs.schema.json",
+      "pointer": "/$defs/agentIdentity"
+    },
+    {
+      "typescriptInterface": "ArtifactRef",
+      "schema": "common-defs.schema.json",
+      "pointer": "/$defs/artifactRef"
+    },
+    {
+      "typescriptInterface": "EvidenceRef",
+      "schema": "common-defs.schema.json",
+      "pointer": "/$defs/evidenceRef"
+    },
+    {
+      "typescriptInterface": "MilitarySessionBinding",
+      "schema": "military-session-binding.schema.json",
+      "pointer": ""
+    },
+    {
+      "typescriptInterface": "GeneralExecutionPolicy",
+      "schema": "general-execution-policy.schema.json",
+      "pointer": ""
+    },
+    {
+      "typescriptInterface": "WorkspaceLease",
+      "schema": "workspace-lease.schema.json",
+      "pointer": ""
+    },
+    {
+      "typescriptInterface": "CandidatePatch",
+      "schema": "candidate-patch.schema.json",
+      "pointer": ""
+    },
+    {
+      "typescriptInterface": "EvaluationDatasetManifest",
+      "schema": "evaluation-dataset-manifest.schema.json",
+      "pointer": ""
+    },
+    {
+      "typescriptInterface": "AgentTemplateProfile",
+      "schema": "agent-template-profile.schema.json",
+      "pointer": ""
+    },
+    {
+      "typescriptInterface": "PresetGenerationManifest",
+      "schema": "preset-generation-manifest.schema.json",
+      "pointer": ""
+    },
+    {
+      "typescriptInterface": "PresetMigrationOrder",
+      "schema": "preset-migration-order.schema.json",
+      "pointer": ""
+    },
+    {
+      "typescriptInterface": "CompatibilityReport",
+      "schema": "compatibility-report.schema.json",
+      "pointer": ""
+    },
+    {
+      "typescriptInterface": "MilitaryAuthorityContext",
+      "schema": "authority-context.schema.json",
+      "pointer": ""
+    },
+    {
+      "typescriptInterface": "UserAuthorizationReceipt",
+      "schema": "user-authorization-receipt.schema.json",
+      "pointer": ""
+    },
+    {
+      "typescriptInterface": "ToolProfile",
+      "schema": "tool-profile.schema.json",
+      "pointer": ""
+    },
+    {
+      "typescriptInterface": "PermissionProfile",
+      "schema": "permission-profile.schema.json",
+      "pointer": ""
+    },
+    {
+      "typescriptInterface": "EnterpriseApiGrant",
+      "schema": "enterprise-api-grant.schema.json",
+      "pointer": ""
+    },
+    {
+      "typescriptInterface": "DataResidencyPolicy",
+      "schema": "data-residency-policy.schema.json",
+      "pointer": ""
+    },
+    {
+      "typescriptInterface": "RedactionPolicy",
+      "schema": "redaction-policy.schema.json",
+      "pointer": ""
+    },
+    {
+      "typescriptInterface": "VerifierProfile",
+      "schema": "verifier-profile.schema.json",
+      "pointer": ""
+    },
+    {
+      "typescriptInterface": "ModelCapabilityProfile",
+      "schema": "model-capability-profile.schema.json",
+      "pointer": ""
+    },
+    {
+      "typescriptInterface": "ModelSelectionReceipt",
+      "schema": "model-selection-receipt.schema.json",
+      "pointer": ""
+    },
+    {
+      "typescriptInterface": "WorkspaceSnapshot",
+      "schema": "workspace-snapshot.schema.json",
+      "pointer": ""
+    },
+    {
+      "typescriptInterface": "IntegrationOrder",
+      "schema": "integration-order.schema.json",
+      "pointer": ""
+    },
+    {
+      "typescriptInterface": "IntegrationReceipt",
+      "schema": "integration-receipt.schema.json",
+      "pointer": ""
+    },
+    {
+      "typescriptInterface": "TacticalSourceSnapshot",
+      "schema": "tactical-source-snapshot.schema.json",
+      "pointer": ""
+    },
+    {
+      "typescriptInterface": "KnowledgeRevocationOrder",
+      "schema": "knowledge-revocation-order.schema.json",
+      "pointer": ""
+    },
+    {
+      "typescriptInterface": "DecisionBrokerRecord",
+      "schema": "decision-broker-record.schema.json",
+      "pointer": ""
+    },
+    {
+      "typescriptInterface": "CompactionAttempt",
+      "schema": "compaction-attempt.schema.json",
+      "pointer": ""
+    },
+    {
+      "typescriptInterface": "ChangeOrder",
+      "schema": "change-order.schema.json",
+      "pointer": ""
+    },
+    {
+      "typescriptInterface": "ResourceBudgetPolicy",
+      "schema": "resource-budget-policy.schema.json",
+      "pointer": ""
+    },
+    {
+      "typescriptInterface": "BundleLifecycleReceipt",
+      "schema": "bundle-lifecycle-receipt.schema.json",
+      "pointer": ""
+    },
+    {
+      "typescriptInterface": "MilitarySettingsDocument",
+      "schema": "military-settings.schema.json",
+      "pointer": ""
+    },
+    {
+      "typescriptInterface": "AgentExecutionBinding",
+      "schema": "agent-execution-binding.schema.json",
+      "pointer": ""
+    },
+    {
+      "typescriptInterface": "PresetResumeReceipt",
+      "schema": "preset-resume-receipt.schema.json",
+      "pointer": ""
+    },
+    {
+      "typescriptInterface": "ResourceBudgetReservation",
+      "schema": "resource-budget-reservation.schema.json",
+      "pointer": ""
+    },
+    {
+      "typescriptInterface": "ResourceUsageReceipt",
+      "schema": "resource-usage-receipt.schema.json",
+      "pointer": ""
+    },
+    {
+      "typescriptInterface": "PerformanceEvaluationAppeal",
+      "schema": "performance-evaluation-appeal.schema.json",
+      "pointer": ""
+    },
+    {
+      "typescriptInterface": "MilitaryFailure",
+      "schema": "military-failure.schema.json",
+      "pointer": ""
+    }
+  ]
+}

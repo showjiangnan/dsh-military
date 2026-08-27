@@ -1,0 +1,24 @@
+schemaVersion: 1.0.0
+attemptId: compaction-attempt-001
+agent:
+  agentId: agent-general
+  sessionId: session-general
+  role: general
+  displayName: General
+  generation: 1
+rootSessionId: session-general
+pressureGeneration: 1
+contextBudgetTokens: 400000
+thresholdTokens: 360000
+meterTokens: 365000
+trigger: PRESSURE
+safeBoundary:
+  toolPairsBalanced: true
+  candidateTransactionIdle: true
+  gitTransactionIdle: true
+  freezeStateStable: true
+outcome: SUCCEEDED
+dshCompactionId: compaction-001
+summaryEventSeq: 321
+createdAt: '2026-08-19T00:00:00Z'
+completedAt: '2026-08-19T00:00:10Z'

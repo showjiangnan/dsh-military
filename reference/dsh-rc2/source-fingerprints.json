@@ -1,0 +1,48 @@
+{
+  "schemaVersion": "1.0.0",
+  "release": "0.1.1-rc.2",
+  "commit": "b150a551b8d465e31e418e1b2eaf5e79bbb7d28e",
+  "source": "https://github.com/deepseek-ai/deepseek-harness",
+  "files": [
+    {
+      "path": "package.json",
+      "gitBlobSha1": "391c93d9389f1ab62af3032d8ba8b8d2d5f9309d",
+      "purpose": "release and Node/pnpm baseline"
+    },
+    {
+      "path": "packages/preset/agent-presets/src/index.ts",
+      "gitBlobSha1": "6a24a89d7610a51d095d2bba8b34077d73960746",
+      "purpose": "fixed preset mount and composeFrom contract"
+    },
+    {
+      "path": "packages/subagent/subagent/src/continuation.ts",
+      "gitBlobSha1": "652a3ba6c8919a1a96e1e716403d5d8a27f37df5",
+      "purpose": "caller-reserved childId, next-step reports and continuable ownership"
+    },
+    {
+      "path": "packages/core/session/src/types.ts",
+      "gitBlobSha1": "31ce28a01bc67d8525f36c5cca16501bd4238444",
+      "purpose": "Session envelope and version-zero persistence contract"
+    },
+    {
+      "path": "packages/interaction/commands/src/index.ts",
+      "gitBlobSha1": "9e078938ede7d26d90c30ecc321a9b07425a25e1",
+      "purpose": "attachment-aware command invocation"
+    },
+    {
+      "path": "packages/client/ui-settings/src/client/settings-scope.ts",
+      "gitBlobSha1": "36e674c9375dda61bad8fc5230c5bca374ae84be",
+      "purpose": "shared SettingsScope describe mirror"
+    },
+    {
+      "path": "packages/client/tsdown.client.ts",
+      "gitBlobSha1": "44aab8cf1b831aff6a7d9d05dcd32479ab85d03f",
+      "purpose": "RC.2 dynamic client package graph and bundle contract"
+    },
+    {
+      "path": "packages/llm/llm-deepseek/src/adapter.ts",
+      "gitBlobSha1": "8c303331316239e831a79add5807548c5b5157e1",
+      "purpose": "image input and reasoning passback behavior"
+    }
+  ]
+}

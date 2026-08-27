@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "integration-order.schema.json",
+  "title": "Controlled Main Integration Order",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "integrationOrderId",
+    "missionId",
+    "taskId",
+    "taskVersion",
+    "candidatePatchId",
+    "targetBranch",
+    "expectedHead",
+    "expectedTreeHash",
+    "conflictPolicy",
+    "verifierProfileRefs",
+    "authorizedBy",
+    "createdAt"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0.0"
+    },
+    "integrationOrderId": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "missionId": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "taskId": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "taskVersion": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "candidatePatchId": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "targetBranch": {
+      "const": "main"
+    },
+    "expectedHead": {
+      "type": "string",
+      "minLength": 7,
+      "maxLength": 64
+    },
+    "expectedTreeHash": {
+      "type": "string",
+      "minLength": 7,
+      "maxLength": 64
+    },
+    "conflictPolicy": {
+      "enum": [
+        "STOP_AND_REPORT",
+        "CREATE_REWORK_TASK"
+      ]
+    },
+    "verifierProfileRefs": {
+      "type": "array",
+      "items": {
+        "$ref": "common-defs.schema.json#/$defs/id"
+      },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "authorizedBy": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "createdAt": {
+      "$ref": "common-defs.schema.json#/$defs/timestamp"
+    }
+  }
+}

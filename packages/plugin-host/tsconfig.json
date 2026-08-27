@@ -1,0 +1,8 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": { "rootDir": "src", "outDir": "lib", "composite": true, "tsBuildInfoFile": "lib/.tsbuildinfo" },
+  "include": ["src/**/*.ts"],
+  "references": [
+    {"path":"../contracts"},{"path":"../core"},{"path":"../infrastructure"},{"path":"../runtime"},{"path":"../storage-sqlite"},{"path":"../preset"}
+  ]
+}

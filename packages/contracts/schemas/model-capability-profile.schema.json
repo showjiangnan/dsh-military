@@ -1,0 +1,155 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "model-capability-profile.schema.json",
+  "title": "Model Capability Profile",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "profileId",
+    "revision",
+    "status",
+    "provider",
+    "model",
+    "supportedReasoning",
+    "contextWindowTokens",
+    "maxOutputTokens",
+    "toolCalling",
+    "inputModalities",
+    "reasoningPassback",
+    "dataResidencyPolicyRefs",
+    "benchmarks",
+    "validatedAt"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0.0"
+    },
+    "profileId": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "revision": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "status": {
+      "enum": [
+        "DRAFT",
+        "CANARY",
+        "VALIDATED",
+        "DEPRECATED"
+      ]
+    },
+    "provider": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 160
+    },
+    "model": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 160
+    },
+    "supportedReasoning": {
+      "type": "array",
+      "items": {
+        "enum": [
+          "off",
+          "low",
+          "high",
+          "max"
+        ]
+      },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "contextWindowTokens": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "maxOutputTokens": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "toolCalling": {
+      "type": "boolean"
+    },
+    "vision": {
+      "type": "boolean"
+    },
+    "dataResidencyPolicyRefs": {
+      "type": "array",
+      "items": {
+        "$ref": "common-defs.schema.json#/$defs/id"
+      },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "benchmarks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "taskType": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          },
+          "reasoning": {
+            "enum": [
+              "low",
+              "high",
+              "max"
+            ]
+          },
+          "sampleCount": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "finalAcceptanceRate": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "falseCompletionRate": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          }
+        },
+        "required": [
+          "taskType",
+          "reasoning",
+          "sampleCount",
+          "finalAcceptanceRate",
+          "falseCompletionRate"
+        ]
+      }
+    },
+    "validatedAt": {
+      "$ref": "common-defs.schema.json#/$defs/timestamp"
+    },
+    "inputModalities": {
+      "type": "array",
+      "items": {
+        "enum": [
+          "text",
+          "image"
+        ]
+      },
+      "minItems": 1,
+      "uniqueItems": true,
+      "contains": {
+        "const": "text"
+      }
+    },
+    "reasoningPassback": {
+      "const": "all-reasoning-turns"
+    },
+    "maximumRequestImageBytes": {
+      "type": "integer",
+      "minimum": 1
+    }
+  }
+}

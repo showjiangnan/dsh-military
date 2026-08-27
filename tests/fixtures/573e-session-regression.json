@@ -1,0 +1,53 @@
+{
+  "schemaVersion": "1.0.0",
+  "source": {
+    "kind": "anonymized-user-session-export",
+    "observedAt": "2026-08-24",
+    "archiveSha256": "77317ad998fa821b24943c60b81b7bf5e525405f3b220b38704cd06a948f75a7"
+  },
+  "route": {
+    "provider": "deepseek-official",
+    "model": "deepseek-v4-flash",
+    "reasoning": "max"
+  },
+  "observed": {
+    "jsonlLines": 171,
+    "requestHeaderTools": 16,
+    "toolCalls": 5,
+    "toolErrors": 3,
+    "toolCallsOutsideRequestHeader": 3,
+    "distinctNamesOutsideRequestHeader": [
+      "bash",
+      "glob"
+    ],
+    "hiddenToolGuidanceSectionsInSystemPrompt": [
+      "tool:read",
+      "tool:write",
+      "tool:edit",
+      "tool:glob",
+      "tool:grep",
+      "tool:bash",
+      "tool:jobs",
+      "tool:web_search"
+    ],
+    "statusResultChars": 36759,
+    "statusTemplateRows": 33,
+    "statusUniqueTemplateIds": 11,
+    "statusRevisionsPerTemplate": 3
+  },
+  "defectClasses": [
+    "tool-schema-and-system-prompt-visibility-drift",
+    "brainstorm-repository-discovery-route-contradiction",
+    "generic-tool-denial-lacked-role-recovery",
+    "status-returned-all-immutable-template-revisions"
+  ],
+  "postFixContract": {
+    "promptMentionsOnlyVisibleToolGuidance": true,
+    "generalRepositoryDiscoveryRoute": "ADVISOR_GENERALIST_WITHOUT_TASK",
+    "deniedGenericToolRetryable": false,
+    "deniedGenericToolNamesAValidRecoveryRoute": true,
+    "statusOneLatestRunnableRowPerTemplateId": true,
+    "maximumStatusResultChars": 8000,
+    "maximumStatusTemplateRows": 11
+  }
+}

@@ -1,0 +1,182 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "mission-intent.schema.json",
+  "title": "Mission Intent",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "missionId",
+    "version",
+    "title",
+    "userDirection",
+    "desiredOutcomes",
+    "hardConstraints",
+    "prohibitedActions",
+    "knownFacts",
+    "assumptions",
+    "unknowns",
+    "completionCriteria",
+    "projectStage",
+    "createdBy",
+    "createdAt"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0.0"
+    },
+    "missionId": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "userDirection": {
+      "type": "string",
+      "minLength": 1
+    },
+    "desiredOutcomes": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "minItems": 1
+    },
+    "hardConstraints": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "uniqueItems": true
+    },
+    "preferences": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "prohibitedActions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "uniqueItems": true
+    },
+    "knownFacts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "statement",
+          "evidence"
+        ],
+        "properties": {
+          "statement": {
+            "type": "string"
+          },
+          "evidence": {
+            "type": "array",
+            "items": {
+              "$ref": "common-defs.schema.json#/$defs/evidenceRef"
+            }
+          }
+        }
+      }
+    },
+    "assumptions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "statement",
+          "risk"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "statement": {
+            "type": "string"
+          },
+          "risk": {
+            "enum": [
+              "low",
+              "medium",
+              "high"
+            ]
+          },
+          "validationPlan": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "unknowns": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "question",
+          "blocking"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "question": {
+            "type": "string"
+          },
+          "blocking": {
+            "type": "boolean"
+          },
+          "owner": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "completionCriteria": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "minItems": 1
+    },
+    "userApprovalRequired": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "dataClassification": {
+      "$ref": "common-defs.schema.json#/$defs/classification"
+    },
+    "projectStage": {
+      "enum": [
+        "IDEATION",
+        "SPECS_ONLY",
+        "ACTIVE",
+        "LEGACY"
+      ]
+    },
+    "createdBy": {
+      "$ref": "common-defs.schema.json#/$defs/agentIdentity"
+    },
+    "createdAt": {
+      "$ref": "common-defs.schema.json#/$defs/timestamp"
+    }
+  }
+}

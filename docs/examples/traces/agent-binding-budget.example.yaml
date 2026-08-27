@@ -1,0 +1,34 @@
+schemaVersion: 1.0.0
+dshBaseline:
+  release: 0.1.1-rc.2
+  commit: b150a551b8d465e31e418e1b2eaf5e79bbb7d28e
+traceId: trace-agent-binding-budget
+scenario: agent-binding-and-budget-settlement
+initialState:
+  state: TEMPLATE_SELECTED
+steps:
+  - index: 1
+    action: instantiate an approved worker template
+    eventType: agent-template/instantiated
+    expectedState: TEMPLATE_INSTANTIATED
+  - index: 2
+    action: freeze effective model, policy and preset facts
+    eventType: agent/execution-bound
+    expectedState: EXECUTION_BOUND
+  - index: 3
+    action: reserve task-level resources before publication
+    eventType: budget/reserved
+    expectedState: BUDGET_RESERVED
+  - index: 4
+    action: lease the task to the bound agent
+    eventType: task/leased
+    expectedState: EXECUTING
+  - index: 5
+    action: settle actual usage after accepted work
+    eventType: budget/settled
+    expectedState: BUDGET_SETTLED
+finalProjectionHash: '000000000000000000000000000000000000000000000000000000000000000f'
+invariants:
+  - no child Agent is published without an immutable execution binding
+  - no expensive task execution begins without a valid budget reservation
+  - one settlement idempotency key is charged at most once

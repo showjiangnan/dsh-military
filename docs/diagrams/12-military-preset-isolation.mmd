@@ -1,0 +1,11 @@
+flowchart LR
+  UI[New Session Preset Chip] -->|select military| Roster[Agent Presets Roster]
+  Roster --> Standing[Military Standing Scope]
+  Standing --> General[General Root Agent]
+  General -->|composeFrom| Child[Military Child Agent]
+  Host[Host Plane Services] --> Standing
+  Host --> Admin[Settings / Evaluation UI]
+  Standard[Standard Session] -. no parent relation .- Standing
+  Standard --> DefaultFlow[DSH Default Workflow]
+  Guard{actual preset == military?} -->|yes| Runtime[Military Runtime]
+  Guard -->|no| Return[Immediate Return]

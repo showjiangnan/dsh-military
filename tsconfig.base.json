@@ -1,0 +1,105 @@
+{
+  "compilerOptions": {
+    "target": "ES2023",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "jsx": "react-jsx",
+    "lib": [
+      "ES2023",
+      "DOM",
+      "DOM.Iterable"
+    ],
+    "types": [
+      "node",
+      "react"
+    ],
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+    "useUnknownInCatchVariables": true,
+    "verbatimModuleSyntax": true,
+    "isolatedModules": true,
+    "resolveJsonModule": true,
+    "allowJs": false,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "declaration": true,
+    "declarationMap": false,
+    "sourceMap": true,
+    "ignoreDeprecations": "6.0",
+    "baseUrl": ".",
+    "paths": {
+      "@dsh-military/contracts": [
+        "packages/contracts/src/index.ts"
+      ],
+      "@dsh-military/contracts/role-prompts": [
+        "packages/contracts/src/role-prompts.ts"
+      ],
+      "@dsh-military/contracts/control-plane": [
+        "packages/contracts/src/control-plane.ts"
+      ],
+      "@dsh-military/contracts/operations-control": [
+        "packages/contracts/src/operations-control.ts"
+      ],
+      "@dsh-military/contracts/workspace-control": [
+        "packages/contracts/src/workspace-control.ts"
+      ],
+      "@dsh-military/contracts/benchmark-control": [
+        "packages/contracts/src/benchmark-control.ts"
+      ],
+      "@dsh-military/contracts/knowledge-control": [
+        "packages/contracts/src/knowledge-control.ts"
+      ],
+      "@dsh-military/runtime": [
+        "packages/runtime/src/index.ts"
+      ],
+      "@dsh-military/storage-sqlite": [
+        "packages/storage-sqlite/src/index.ts"
+      ],
+      "@dsh-military/plugin-host": [
+        "packages/plugin-host/src/index.ts"
+      ],
+      "@dsh-military/tools": [
+        "packages/tools/src/index.ts"
+      ],
+      "@dsh-military/command-brainstorm": [
+        "packages/command-brainstorm/src/index.ts"
+      ],
+      "@dsh-military/webui": [
+        "packages/webui/src/index.ts"
+      ],
+      "@dsh-military/webui/client": [
+        "packages/webui/src/client/index.tsx"
+      ],
+      "@dsh-military/preset": [
+        "packages/preset/src/index.ts"
+      ],
+      "@dsh-military/testkit": [
+        "packages/testkit/src/index.ts"
+      ],
+      "@dsh-military/core": [
+        "packages/core/src/index.ts"
+      ],
+      "@dsh-military/infrastructure": [
+        "packages/infrastructure/src/index.ts"
+      ],
+      "@dsh-military/plugin-host/*": [
+        "packages/plugin-host/src/*.ts"
+      ],
+      "@dsh-military/installer": [
+        "packages/installer/src/index.ts"
+      ],
+      "@dsh-military/installer/cli": [
+        "packages/installer/src/cli.ts"
+      ],
+      "@dsh-military/bundle": [
+        "packages/bundle/src/index.ts"
+      ],
+      "@dsh-military/plugin-host/rc2-adapter": [
+        "packages/plugin-host/src/rc2-adapter.ts"
+      ]
+    }
+  }
+}

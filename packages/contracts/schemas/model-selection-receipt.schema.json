@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "model-selection-receipt.schema.json",
+  "title": "General Session Model Selection Receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "receiptId",
+    "sessionId",
+    "provider",
+    "model",
+    "reasoningEffort",
+    "source",
+    "capabilityProfileId",
+    "selectedBy",
+    "selectedAt"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0.0"
+    },
+    "receiptId": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "sessionId": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "provider": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 160
+    },
+    "model": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 160
+    },
+    "reasoningEffort": {
+      "enum": [
+        "high",
+        "max"
+      ]
+    },
+    "source": {
+      "enum": [
+        "PRESET_DEFAULT",
+        "NEW_SESSION_SELECTION",
+        "SESSION_MODEL_SELECTOR",
+        "RESUME"
+      ]
+    },
+    "previousProvider": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 160
+    },
+    "previousModel": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 160
+    },
+    "previousReasoningEffort": {
+      "enum": [
+        "high",
+        "max"
+      ]
+    },
+    "capabilityProfileId": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "selectedBy": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "selectedAt": {
+      "$ref": "common-defs.schema.json#/$defs/timestamp"
+    }
+  }
+}

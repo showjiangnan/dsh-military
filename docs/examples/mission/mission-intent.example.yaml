@@ -1,0 +1,53 @@
+schemaVersion: 1.0.0
+missionId: mission-demo-webapi
+version: 1
+title: 为现有 TypeScript 服务增加审计事件查询接口
+userDirection: 在不破坏现有 API 的前提下，增加一个可分页查询审计事件的只读接口，并配套测试和维护文档。
+desiredOutcomes:
+  - 提供经过鉴权的 GET /api/audit-events 接口
+  - 支持 cursor 分页和时间范围过滤
+  - 通过类型检查、单元测试和集成测试
+  - specs 与实现保持可追踪
+hardConstraints:
+  - 不修改现有公开响应字段的语义
+  - 不向远端 Git 仓库推送
+  - 不访问生产环境
+preferences:
+  - 优先复用现有数据库访问层
+  - 保持现有代码风格
+prohibitedActions:
+  - 删除现有测试
+  - 绕过权限中间件
+  - 执行数据库破坏性迁移
+knownFacts:
+  - statement: 项目使用 TypeScript，并有可运行的测试命令。
+    evidence:
+      - kind: artifact
+        ref: artifact-env-snapshot
+        claim: package.json 与工具探测结果确认 TypeScript 和测试脚本存在。
+assumptions:
+  - id: assumption-audit-table
+    statement: 现有数据层已经能读取 audit_events 表。
+    risk: medium
+    validationPlan: 在第一波次侦察任务中验证数据访问层和 schema。
+unknowns:
+  - id: unknown-auth-role
+    question: 哪些现有角色有权读取审计事件？
+    blocking: true
+    owner: web-backend-advisor
+completionCriteria:
+  - 接口功能和错误路径均通过验收合同
+  - specs 追踪矩阵覆盖全部需求与测试
+  - 工兵在本地 main 形成 specs commit
+userApprovalRequired:
+  - 任何远端 Git 写操作
+  - 任何生产环境访问
+dataClassification: internal
+projectStage: ACTIVE
+createdBy:
+  agentId: agent-general-1
+  sessionId: session-general-1
+  role: general
+  displayName: 总指挥 Agent
+  generation: 1
+createdAt: "2026-08-18T02:00:00Z"

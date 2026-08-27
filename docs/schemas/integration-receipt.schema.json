@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "integration-receipt.schema.json",
+  "title": "Controlled Main Integration Receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "integrationReceiptId",
+    "integrationOrderId",
+    "disposition",
+    "beforeHead",
+    "checkReceiptRefs",
+    "startedAt",
+    "completedAt"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0.0"
+    },
+    "integrationReceiptId": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "integrationOrderId": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "disposition": {
+      "enum": [
+        "APPLIED",
+        "CONFLICT",
+        "REGRESSION_FAILED",
+        "STALE"
+      ]
+    },
+    "beforeHead": {
+      "type": "string",
+      "minLength": 7,
+      "maxLength": 64
+    },
+    "afterHead": {
+      "type": "string",
+      "minLength": 7,
+      "maxLength": 64
+    },
+    "commit": {
+      "type": "string",
+      "minLength": 7,
+      "maxLength": 64
+    },
+    "treeHash": {
+      "type": "string",
+      "minLength": 7,
+      "maxLength": 64
+    },
+    "checkReceiptRefs": {
+      "type": "array",
+      "items": {
+        "$ref": "common-defs.schema.json#/$defs/id"
+      },
+      "uniqueItems": true
+    },
+    "conflictReportRef": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "startedAt": {
+      "$ref": "common-defs.schema.json#/$defs/timestamp"
+    },
+    "completedAt": {
+      "$ref": "common-defs.schema.json#/$defs/timestamp"
+    }
+  }
+}

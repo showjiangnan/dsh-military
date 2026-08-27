@@ -1,0 +1,16 @@
+flowchart TB
+  ML[(Mission Ledger\nGlobal durable truth)]
+  SL[(DSH Session Logs\nPer-agent model-visible truth)]
+  AS[(Artifact Store\nLarge evidence)]
+  RP[Deterministic Projections]
+  MD[Model-authored Documents]
+  UI[WebUI]
+  ML --> RP
+  ML --> SL
+  AS --> ML
+  AS --> RP
+  RP --> MD
+  MD --> ML: verification receipt only
+  ML --> UI
+  SL --> UI
+  AS --> UI

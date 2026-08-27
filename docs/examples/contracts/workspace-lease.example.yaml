@@ -1,0 +1,29 @@
+schemaVersion: 1.0.0
+workspaceLeaseId: workspace-lease-001
+tenantId: tenant-example
+missionId: mission-example
+taskId: task-auth-api
+taskVersion: 1
+agent:
+  agentId: agent-worker-001
+  sessionId: session-worker-001
+  role: worker
+  displayName: Worker 001
+  generation: 1
+  templateId: worker-default
+  templateRevision: 1
+workspaceSnapshotId: workspace-snapshot-001
+mode: WRITE
+pathScope:
+  readPaths:
+  - .
+  writePaths:
+  - src/**
+  - tests/**
+  forbiddenPaths:
+  - .git/**
+  - specs/**
+state: ACTIVE
+leaseVersion: 1
+acquiredAt: '2026-08-19T00:00:00Z'
+expiresAt: '2026-08-19T01:00:00Z'

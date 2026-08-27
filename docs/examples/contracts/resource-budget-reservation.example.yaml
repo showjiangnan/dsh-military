@@ -1,0 +1,39 @@
+schemaVersion: 1.0.0
+reservationId: budget-reservation-task-001
+tenantId: tenant-example
+scopeType: TASK
+scopeId: task-react-filter
+policyId: budget-worker-standard
+policyRevision: 2
+ownerAgent:
+  agentId: agent-worker-react-001
+  sessionId: session-worker-react-001
+  role: worker
+  displayName: React Worker 1
+  generation: 1
+  templateId: worker-react
+  templateRevision: 3
+requested:
+  modelRequests: 12
+  reasoningTokens: 160000
+  wallClockSeconds: 1800
+  toolCalls: 80
+  apiCalls: 10
+  concurrentAgents: 1
+  radioRounds: 2
+  reworkAttempts: 2
+  storageBytes: 104857600
+granted:
+  modelRequests: 10
+  reasoningTokens: 140000
+  wallClockSeconds: 1500
+  toolCalls: 70
+  apiCalls: 8
+  concurrentAgents: 1
+  radioRounds: 2
+  reworkAttempts: 2
+  storageBytes: 83886080
+state: RESERVED
+idempotencyKey: task-react-filter:v3:budget
+reservedAt: '2026-08-19T01:02:00Z'
+expiresAt: '2026-08-19T01:32:00Z'

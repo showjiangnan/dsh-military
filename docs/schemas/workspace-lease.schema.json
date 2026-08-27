@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "workspace-lease.schema.json",
+  "title": "Workspace Lease",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "workspaceLeaseId",
+    "tenantId",
+    "missionId",
+    "taskId",
+    "taskVersion",
+    "agent",
+    "workspaceSnapshotId",
+    "mode",
+    "pathScope",
+    "state",
+    "leaseVersion",
+    "acquiredAt",
+    "expiresAt"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0.0"
+    },
+    "workspaceLeaseId": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "tenantId": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "missionId": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "taskId": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "taskVersion": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "agent": {
+      "$ref": "common-defs.schema.json#/$defs/agentIdentity"
+    },
+    "workspaceSnapshotId": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "mode": {
+      "enum": [
+        "READ",
+        "WRITE"
+      ]
+    },
+    "pathScope": {
+      "$ref": "common-defs.schema.json#/$defs/pathScope"
+    },
+    "state": {
+      "enum": [
+        "ACTIVE",
+        "RELEASED",
+        "EXPIRED",
+        "REVOKED"
+      ]
+    },
+    "leaseVersion": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "acquiredAt": {
+      "$ref": "common-defs.schema.json#/$defs/timestamp"
+    },
+    "expiresAt": {
+      "$ref": "common-defs.schema.json#/$defs/timestamp"
+    }
+  }
+}

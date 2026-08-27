@@ -1,0 +1,203 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "tactical-ingestion-request.schema.json",
+  "title": "Tactical Ingestion Request",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "requestId",
+    "requestedBy",
+    "source",
+    "tagSelection",
+    "desiredOutcome",
+    "extractionPolicy",
+    "consent",
+    "createdAt"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0.0"
+    },
+    "requestId": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "requestedBy": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "source": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "sourceType",
+            "sessionId",
+            "includeToolResults"
+          ],
+          "properties": {
+            "sourceType": {
+              "const": "session"
+            },
+            "sessionId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "startSeq": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "endSeq": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "includeToolResults": {
+              "type": "boolean"
+            },
+            "includeReasoning": {
+              "const": false
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "sourceType",
+            "content"
+          ],
+          "properties": {
+            "sourceType": {
+              "const": "direct-text"
+            },
+            "content": {
+              "type": "string",
+              "minLength": 20,
+              "maxLength": 200000
+            },
+            "title": {
+              "type": "string",
+              "maxLength": 200
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "sourceType",
+            "artifact"
+          ],
+          "properties": {
+            "sourceType": {
+              "const": "artifact"
+            },
+            "artifact": {
+              "$ref": "common-defs.schema.json#/$defs/artifactRef"
+            },
+            "title": {
+              "type": "string",
+              "maxLength": 200
+            }
+          }
+        }
+      ]
+    },
+    "tagSelection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "primaryTagId",
+        "additionalTagIds",
+        "allowProposeNewTags"
+      ],
+      "properties": {
+        "primaryTagId": {
+          "$ref": "common-defs.schema.json#/$defs/id"
+        },
+        "additionalTagIds": {
+          "type": "array",
+          "items": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "uniqueItems": true
+        },
+        "allowProposeNewTags": {
+          "type": "boolean"
+        }
+      }
+    },
+    "desiredOutcome": {
+      "enum": [
+        "AUTO",
+        "NEW_TACTIC",
+        "SUPPLEMENT"
+      ]
+    },
+    "targetSkill": {
+      "$ref": "common-defs.schema.json#/$defs/skillRef"
+    },
+    "extractionGoal": {
+      "type": "string",
+      "maxLength": 4000
+    },
+    "extractionPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "classification",
+        "visibility",
+        "redactSecrets",
+        "requireUserReview"
+      ],
+      "properties": {
+        "classification": {
+          "$ref": "common-defs.schema.json#/$defs/classification"
+        },
+        "visibility": {
+          "enum": [
+            "user-private",
+            "workspace-private",
+            "organization-private"
+          ]
+        },
+        "redactSecrets": {
+          "const": true
+        },
+        "requireUserReview": {
+          "const": true
+        },
+        "allowExternalModel": {
+          "type": "boolean"
+        }
+      }
+    },
+    "consent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "confirmed",
+        "purpose",
+        "confirmedAt"
+      ],
+      "properties": {
+        "confirmed": {
+          "const": true
+        },
+        "purpose": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1000
+        },
+        "confirmedAt": {
+          "$ref": "common-defs.schema.json#/$defs/timestamp"
+        }
+      }
+    },
+    "createdAt": {
+      "$ref": "common-defs.schema.json#/$defs/timestamp"
+    },
+    "idempotencyKey": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    }
+  }
+}

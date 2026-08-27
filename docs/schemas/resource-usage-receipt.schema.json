@@ -1,0 +1,177 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "resource-usage-receipt.schema.json",
+  "title": "Resource Usage Settlement Receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "receiptId",
+    "reservationId",
+    "scopeType",
+    "scopeId",
+    "actual",
+    "overages",
+    "disposition",
+    "sourceEventIds",
+    "idempotencyKey",
+    "startedAt",
+    "completedAt"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0.0"
+    },
+    "receiptId": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "reservationId": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "scopeType": {
+      "enum": [
+        "DEPLOYMENT",
+        "TENANT",
+        "MISSION",
+        "WAVE",
+        "TASK"
+      ]
+    },
+    "scopeId": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "actual": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "modelRequests",
+        "reasoningTokens",
+        "wallClockSeconds",
+        "toolCalls",
+        "apiCalls",
+        "concurrentAgents",
+        "radioRounds",
+        "reworkAttempts",
+        "storageBytes"
+      ],
+      "properties": {
+        "modelRequests": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "reasoningTokens": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "wallClockSeconds": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "toolCalls": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "apiCalls": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "concurrentAgents": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "radioRounds": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "reworkAttempts": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "storageBytes": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "overages": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "modelRequests",
+        "reasoningTokens",
+        "wallClockSeconds",
+        "toolCalls",
+        "apiCalls",
+        "concurrentAgents",
+        "radioRounds",
+        "reworkAttempts",
+        "storageBytes"
+      ],
+      "properties": {
+        "modelRequests": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "reasoningTokens": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "wallClockSeconds": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "toolCalls": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "apiCalls": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "concurrentAgents": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "radioRounds": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "reworkAttempts": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "storageBytes": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "disposition": {
+      "enum": [
+        "SETTLED",
+        "PARTIAL",
+        "OVER_BUDGET",
+        "CANCELLED"
+      ]
+    },
+    "sourceEventIds": {
+      "type": "array",
+      "items": {
+        "$ref": "common-defs.schema.json#/$defs/id"
+      },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "idempotencyKey": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 240
+    },
+    "startedAt": {
+      "$ref": "common-defs.schema.json#/$defs/timestamp"
+    },
+    "completedAt": {
+      "$ref": "common-defs.schema.json#/$defs/timestamp"
+    }
+  }
+}

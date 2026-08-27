@@ -1,0 +1,89 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "decision-broker-record.schema.json",
+  "title": "Military Decision Broker Record",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "decisionSetId",
+    "rootSessionId",
+    "originAgentId",
+    "missionId",
+    "state",
+    "priority",
+    "questionSetRef",
+    "version",
+    "createdAt",
+    "expiresAt",
+    "updatedAt"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0.0"
+    },
+    "decisionSetId": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "rootSessionId": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "originAgentId": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "missionId": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "taskId": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "taskVersion": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "state": {
+      "enum": [
+        "CREATED",
+        "QUEUED",
+        "PRESENTED",
+        "PARTIALLY_ANSWERED",
+        "ANSWERED",
+        "EXPIRED",
+        "CANCELLED",
+        "SUPERSEDED",
+        "STALE",
+        "DELIVERY_FAILED"
+      ]
+    },
+    "priority": {
+      "enum": [
+        "LOW",
+        "NORMAL",
+        "HIGH",
+        "CRITICAL"
+      ]
+    },
+    "questionSetRef": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "presentationId": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "answerReceiptRef": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "createdAt": {
+      "$ref": "common-defs.schema.json#/$defs/timestamp"
+    },
+    "expiresAt": {
+      "$ref": "common-defs.schema.json#/$defs/timestamp"
+    },
+    "updatedAt": {
+      "$ref": "common-defs.schema.json#/$defs/timestamp"
+    }
+  }
+}

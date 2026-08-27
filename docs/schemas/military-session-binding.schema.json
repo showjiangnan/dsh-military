@@ -1,0 +1,75 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "military-session-binding.schema.json",
+  "title": "Military Session Binding",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "sessionId",
+    "presetId",
+    "presetGeneration",
+    "rootAgentId",
+    "activatedAt",
+    "workspaceKey",
+    "capabilityFingerprint",
+    "tenantId",
+    "generationManifestRef",
+    "dshBaselineCommit"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0.0"
+    },
+    "sessionId": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "presetId": {
+      "const": "military"
+    },
+    "presetGeneration": {
+      "type": "string",
+      "pattern": "^military@sha256:[a-f0-9]{64}$"
+    },
+    "rootAgentId": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "activatedAt": {
+      "$ref": "common-defs.schema.json#/$defs/timestamp"
+    },
+    "workspaceKey": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "selectionSource": {
+      "enum": [
+        "new-session-selection",
+        "blank-session-selection",
+        "resume"
+      ]
+    },
+    "capabilityFingerprint": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "parentSessionId": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "tenantId": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "generationManifestRef": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "dshBaselineCommit": {
+      "const": "b150a551b8d465e31e418e1b2eaf5e79bbb7d28e"
+    },
+    "resumeDisposition": {
+      "enum": [
+        "NEW",
+        "MATCHED",
+        "ARCHIVE_REBOUND",
+        "QUARANTINED"
+      ]
+    }
+  }
+}

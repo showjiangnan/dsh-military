@@ -1,0 +1,37 @@
+schemaVersion: 1.0.0
+orderId: brainstorm-react-product-001
+sessionId: session-military-react-001
+missionId: mission-react-001
+canonicalCommand: brainstorm
+displayName: 头脑风暴
+revision: 2
+status: QUESTIONING
+projectStage: IDEATION
+questionPolicy:
+  askUserTool: ask_user_question
+  maxRounds: 5
+  maxQuestionsPerRound: 3
+  maxTotalQuestions: 12
+phases:
+  - GOAL
+  - CONSTRAINTS
+  - EXPERIENCE
+  - TECHNICAL
+  - CONVERGENCE
+knownFacts:
+  - 用户希望开发一个面向企业团队的 React 管理台。
+constraints:
+  - 首个版本必须可本地部署。
+unknowns:
+  - 首要用户流程
+  - 数据权限模型
+answeredQuestionIds:
+  - decision-primary-user
+pendingDecisionSetRefs:
+  - decision-set-react-002
+specsHandoff:
+  required: true
+  engineerOnly: true
+  localMainCommitRequired: true
+createdAt: 2026-08-18T01:45:00Z
+updatedAt: 2026-08-18T01:48:00Z

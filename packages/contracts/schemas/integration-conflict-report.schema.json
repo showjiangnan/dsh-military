@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "integration-conflict-report.schema.json",
+  "title": "Integration Conflict Report",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "conflictReportId",
+    "integrationOrderId",
+    "baseHead",
+    "currentHead",
+    "paths",
+    "conflictArtifact",
+    "recommendedDisposition",
+    "createdAt"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0.0"
+    },
+    "conflictReportId": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "integrationOrderId": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "baseHead": {
+      "type": "string",
+      "minLength": 7,
+      "maxLength": 64
+    },
+    "currentHead": {
+      "type": "string",
+      "minLength": 7,
+      "maxLength": 64
+    },
+    "paths": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 1024
+      },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "conflictArtifact": {
+      "$ref": "common-defs.schema.json#/$defs/artifactRef"
+    },
+    "recommendedDisposition": {
+      "enum": [
+        "REWORK",
+        "REPLAN_WAVE",
+        "USER_REVIEW"
+      ]
+    },
+    "createdAt": {
+      "$ref": "common-defs.schema.json#/$defs/timestamp"
+    }
+  }
+}

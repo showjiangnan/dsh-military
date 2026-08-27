@@ -1,0 +1,54 @@
+schemaVersion: 1.0.0
+missionId: mission-demo-webapi
+directionId: direction-audit-read-api
+waveId: wave-1-recon-and-contract
+taskId: task-recon-auth
+taskVersion: 1
+objective: 确认现有 API 的鉴权中间件、角色模型和测试夹具，并形成可引用的侦察证据。
+whyItMatters: 后续接口必须复用正确鉴权边界，不能由实现 Worker 猜测角色。
+taskType: repository-reconnaissance
+assignedRole: worker
+complexity:
+  semanticDecisions: 2
+  unknownDependencies: 2
+  writeDomains: 0
+  toolFamilies: 2
+  acceptanceAmbiguity: 1
+  integrationFanOut: 2
+  contextFootprint: small
+scope:
+  readPaths:
+    - src/**
+    - test/**
+    - package.json
+  writePaths: []
+  forbiddenPaths:
+    - .env*
+    - node_modules/**
+allowedTools:
+  - fs_search
+  - fs_read
+  - bash
+requiredEvidence:
+  - 真实文件路径与关键代码位置
+  - 测试命令或测试夹具位置
+acceptance:
+  contractId: ac-repository-recon
+  version: 1
+dependencies: []
+tactics:
+  - skillId: tactic-codebase-auth-recon
+    version: 1.2.0
+    usageStage: assigned
+environmentSnapshotRef: env-snapshot-20260818-001
+stopConditions:
+  - 发现需要读取密钥或生产配置
+  - 现有鉴权实现无法从允许路径确认
+escalationConditions:
+  - 出现多个互斥鉴权体系且无法判断主路径
+budget:
+  modelSteps: 6
+  toolCalls: 20
+  guidanceRequests: 1
+  wallClockSeconds: 900
+  maxOutputTokens: 10000

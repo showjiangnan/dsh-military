@@ -1,0 +1,126 @@
+schemaVersion: 1.0.0
+baseline:
+  release: 0.1.1-rc.2
+  commit: b150a551b8d465e31e418e1b2eaf5e79bbb7d28e
+cases:
+  - id: rc2-preset-discovery
+    category: preset
+    preconditions: [clean web profile, military root installed]
+    action: list agent presets
+    assertions: [military is healthy and selectable, existing system presets remain visible]
+  - id: rc2-standard-isolation
+    category: isolation
+    preconditions: [new Standard session]
+    action: assemble request and command catalog
+    assertions: [no Military prompt, no Military tool schema, no brainstorm command, no Military listener side effect]
+  - id: rc2-military-selection
+    category: preset
+    preconditions: [blank session]
+    action: select military and submit first user message
+    assertions: [actual preset is military, session binding records exact generation]
+  - id: rc2-nonblank-lock
+    category: preset
+    preconditions: [session has durable model-visible history]
+    action: attempt preset change
+    assertions: [agent-preset-locked is returned, composition and history remain unchanged]
+  - id: rc2-child-compose-from
+    category: subagent
+    preconditions: [Military General on archived or current generation]
+    action: create continuable child through setup
+    assertions: [child joins exact parent standing generation, no second preset mount is resolved by id]
+  - id: rc2-general-preset-default
+    category: model
+    preconditions: [Military session without explicit model selection]
+    action: execute first General request
+    assertions: [provider/model equal military preset default, effective reasoning is high or max, request header is reconstructable]
+  - id: rc2-general-model-switch
+    category: model
+    preconditions: [active Military General]
+    action: choose a compatible model in session UI
+    assertions: [only later General requests use the new route, ModelSelectionReceipt is durable, existing children remain unchanged]
+  - id: rc2-general-model-reject
+    category: model
+    preconditions: [active valid General route]
+    action: select a route without required reasoning or residency
+    assertions: [selection is rejected before provider I/O, previous route remains active]
+  - id: rc2-agent-execution-binding
+    category: subagent
+    preconditions: [active Department Template and sufficient budget]
+    action: create a Worker
+    assertions: [AgentExecutionBinding is committed before publication, effective route and tools match binding revisions]
+  - id: rc2-root-user-question
+    category: interaction
+    preconditions: [root Military General]
+    action: call ask_user_question
+    assertions: [Web dialog is displayed, answer is durably correlated]
+  - id: rc2-delegated-question-relay
+    category: interaction
+    preconditions: [delegated child requires a user decision]
+    action: child attempts direct ask then submits DecisionQuestionSet
+    assertions: [direct call is rejected, General presents one deduplicated question, answer returns to live task version]
+  - id: rc2-compaction-attempt
+    category: compaction
+    preconditions: [context pressure crosses configured threshold]
+    action: reach a safe step boundary
+    assertions: [one CompactionAttempt is recorded for pressure generation, failure pauses or hands off rather than fabricating success]
+  - id: rc2-freeze-interlock
+    category: oversight
+    preconditions: [Worker has active write task]
+    action: Inspector evidence triggers freeze
+    assertions: [active turn is cancelled with inbox preserved, subsequent pre-step and write tools are denied]
+  - id: rc2-worktree-integration
+    category: workspace
+    preconditions: [verified Candidate Patch and unchanged expected main]
+    action: execute Integration Order
+    assertions: [global regression passes before local main moves, IntegrationReceipt and specs receipt are durable]
+  - id: rc2-budget-reservation
+    category: budget
+    preconditions: [task requests expensive work]
+    action: reserve then settle resources
+    assertions: [no negative hierarchy balance, duplicate settlement is ignored, expired lease is recoverable]
+  - id: rc2-conversation-replay
+    category: web
+    implementation: planned-beta
+    preconditions: [Military Remote/Projection adapter is installed]
+    action: reload and paginate Military runtime views
+    assertions: [views rebuild from Military Ledger projections, no private military/* DSH Session event or latest-unfinished heuristic is used]
+  - id: rc2-generation-restart-resume
+    category: recovery
+    preconditions: [Session uses generation G1, current files later become G2]
+    action: restart process and resume old root Session
+    assertions: [G1 is identified from binding, RC.2 public seam does not silently mount G2, archived-only root quarantines and emits a PresetResumeReceipt plus migration path]
+  - id: rc2-evaluation-appeal
+    category: evaluation
+    preconditions: [frozen performance report revision and authorized principal]
+    action: submit and uphold an evidence-backed appeal
+    assertions: [old report is immutable, new dataset and superseding revision are created, resolution events are durable]
+  - id: rc2-reserved-child-id
+    category: subagent
+    preconditions: [durable activation provisioning exists]
+    action: start continuable child with caller-reserved childId
+    assertions: [returned childId equals reservation, duplicate retry reconciles or quarantines]
+  - id: rc2-report-delivery
+    category: subagent
+    preconditions: [live parent and child]
+    action: send quiet then next-step reports
+    assertions: [quiet does not wake idle parent, next-step reaches nearest parent step]
+  - id: rc2-selective-drain
+    category: subagent
+    preconditions: [parent owns three direct continuable children]
+    action: drain one named child
+    assertions: [target and descendants settle, sibling children remain active]
+  - id: rc2-brainstorm-images
+    category: command
+    preconditions: [Military General and attachment store]
+    action: invoke /brainstorm with text and image
+    assertions: [image is durably admitted, handler receives Attachment block, text-only model is not selected for image analysis]
+  - id: rc2-settings-shared-mirror
+    category: web
+    preconditions: [multiple Military settings cards]
+    action: open settings and mutate one namespace
+    assertions: [one shared describe mirror serves all cards, revision conflict recovers without duplicate readers]
+  - id: rc2-deepseek-reasoning-passback
+    category: model
+    preconditions: [reasoning-enabled DeepSeek model]
+    action: execute two non-tool reasoning turns
+    assertions: [later request includes prior reasoning state, context budget uses actual usage]

@@ -1,0 +1,51 @@
+schemaVersion: 2.0.0
+release: 0.1.1-rc.2
+commit: b150a551b8d465e31e418e1b2eaf5e79bbb7d28e
+required:
+  agentPresets:
+    mount: true
+    composeFrom: true
+    blankSessionSelection: true
+    nonBlankLock: true
+  subagents:
+    continuable: true
+    callerReservedChildId: true
+    reportDeliveries: [quiet, next-step]
+    selectiveDirectChildDrain: true
+  commands:
+    attachmentAwareInvocation: true
+    imageAdmissionBeforeHandler: true
+  userQuestions:
+    rootAvailable: true
+    delegatedChildAllowed: false
+  compaction:
+    lifecycleEvents: true
+    safeRegion: true
+  requestAudit:
+    requestHeader: true
+    effectiveReasoningRecorded: true
+  webClient:
+    sharedSettingsDescribeMirror: true
+    manifestDeclaredExternals: true
+    conversationNodes: false
+  deepseekAdapter:
+    reasoningEfforts: [off, low, high, max]
+    reasoningPassbackAllReasonedTurns: true
+    imageInputByModelCapability: true
+  sessionPersistence:
+    required: true
+  sessionEvents:
+    externalRequiredTypeRegistration: false
+    militaryAuthorityUsesOwnLedger: true
+militaryAdapters:
+  generationVerificationAndQuarantine: required
+  archivedRootGenerationRebind: unsupported-on-standard-rc2
+  generalPresetDefaultModel: required
+  sessionModelOverrideValidation: required
+  decisionBroker: required
+  taskWorkspaceProvisioning: required
+unsupportedWithoutAdapter:
+  - exact old-generation resume after process restart
+  - user-question relay from delegated child
+  - authoritative Mission state in experimental Agent Team
+  - required military/* events in the DSH Session Log

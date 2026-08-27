@@ -1,0 +1,12 @@
+flowchart TD
+  Source[Session / Direct Experience / Artifact] --> Consent[Explicit Scope and Consent]
+  Consent --> Snapshot[Immutable Source Snapshot]
+  Snapshot --> Scan[Secret PII Injection Scan]
+  Scan --> Tags[Tag Eligibility and Match]
+  Tags --> Extract[High-value Extraction]
+  Extract --> Similarity[Existing Tactic Search]
+  Similarity --> Candidate[NEW or SUPPLEMENT Candidate]
+  Candidate --> Review[User Diff Review]
+  Review -->|approve| Draft[DRAFT Tactic Version]
+  Review -->|reject| Archive[Rejected Candidate Audit]
+  Draft --> Lifecycle[Simulation / Canary / Testing]

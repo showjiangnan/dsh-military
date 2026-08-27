@@ -1,0 +1,37 @@
+schemaVersion: 1.0.0
+inspectionId: inspection-task-recon-auth-1
+identity:
+  agentId: agent-inspector-1
+  sessionId: session-inspector-1
+  role: inspector
+  displayName: 督战队只读检查员
+  generation: 1
+targetAgent:
+  agentId: agent-worker-auth-1
+  sessionId: session-worker-auth-1
+  role: worker
+  displayName: 快速反应部队-鉴权侦察
+  generation: 1
+taskId: task-recon-auth
+taskVersion: 1
+trigger: candidate-submitted
+findings:
+  - code: finding-tool-claim-consistent
+    severity: info
+    statement: Candidate 声明的工具调用均可在 Session 工具事件中找到。
+    deterministic: true
+    affectedClaims:
+      - 已运行 policyGuard 测试
+  - code: finding-scope-clean
+    severity: info
+    statement: 工作区 Diff 为空，符合只读任务范围。
+    deterministic: true
+recommendedDisposition: NO_ACTION
+evidence:
+  - kind: event
+    ref: event-tool-call-run-auth-tests
+    claim: 真实工具调用和成功结果。
+  - kind: artifact
+    ref: artifact-auth-test-output
+    claim: 测试输出 Artifact。
+createdAt: "2026-08-18T02:46:00Z"

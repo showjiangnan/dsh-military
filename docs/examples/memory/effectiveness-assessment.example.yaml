@@ -1,0 +1,46 @@
+schemaVersion: 1.0.0
+assessmentId: assessment-compaction-1
+missionId: mission-demo-webapi
+triggerRef: compaction-general-1
+window:
+  fromEventId: event-mission-intent-ratified
+  toEventId: event-compaction-general-1-end
+skillAssessments:
+  - skill:
+      skillId: tactic-codebase-auth-recon
+      version: 1.2.0
+      usageStage: contributed
+    assigned: 1
+    attempted: 1
+    accepted: 1
+    firstPassAccepted: 1
+    contributionLevel: incremental
+    description: 该战术提供了稳定的侦察结构；任务一次验收通过，但样本量仅为一，不能声称因果。
+    negativeEffects: []
+    confidence: 0.55
+  - skill:
+      skillId: tactic-api-policy-migration-detection
+      version: 0.8.0
+      guidanceId: guidance-auth-stack-1
+      usageStage: contributed
+    assigned: 1
+    attempted: 1
+    accepted: 1
+    firstPassAccepted: 1
+    contributionLevel: correlated
+    description: 战术指导后阻塞被解决；由于没有同条件对照，当前只记录相关性。
+    negativeEffects: []
+    confidence: 0.45
+systemMetrics:
+  tasksAccepted: 3
+  firstPassAcceptanceRate: 0.6667
+  tacticalGuidanceLiftObserved: 1.0
+  falseCompletionCount: 0
+limitations:
+  - 样本量小，且任务类型不同。
+  - 没有随机对照，不能做强因果推断。
+sourceEventIds:
+  - event-task-recon-auth-accepted
+  - event-radio-guidance-auth-stack-delivered
+  - event-compaction-general-1-end
+createdAt: "2026-08-18T03:15:00Z"

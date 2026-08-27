@@ -1,0 +1,32 @@
+schemaVersion: 1.0.0
+contractId: ac-repository-recon
+version: 1
+taskType: repository-reconnaissance
+clauses:
+  - clauseId: ac-auth-files
+    description: 必须识别鉴权中间件和角色定义的真实文件位置。
+    severity: critical
+    verifierIds:
+      - verifier-file-exists
+      - verifier-reference-consistency
+    evidenceKinds:
+      - artifact
+      - tool-call
+    passCondition: 所有引用文件存在，且 Artifact 中的摘录来自对应版本。
+    humanReviewOnAmbiguity: true
+  - clauseId: ac-auth-tests
+    description: 必须识别至少一个可复用的鉴权测试或夹具，或证明其不存在。
+    severity: required
+    verifierIds:
+      - verifier-file-exists
+    evidenceKinds:
+      - artifact
+      - tool-call
+    passCondition: 测试路径存在，或全库检索证据支持“不存在”结论。
+    humanReviewOnAmbiguity: false
+regressionChecks: []
+forbiddenEffects:
+  - 修改仓库文件
+  - 访问密钥文件
+completionRule: all-required
+minimumEvidenceCoverage: 1.0

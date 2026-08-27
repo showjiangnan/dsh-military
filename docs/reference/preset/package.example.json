@@ -1,0 +1,21 @@
+{
+  "name": "@your-org/dsh-military-preset",
+  "version": "0.3.0",
+  "description": "Fixed system agent preset assets for dsh-military",
+  "type": "module",
+  "exports": {
+    "./agent-presets": "./agent-presets",
+    "./agent-presets/military/preset.yml": "./agent-presets/military/preset.yml",
+    "./agent-presets/military/agent.cordis.yml": "./agent-presets/military/agent.cordis.yml",
+    "./package.json": "./package.json",
+    "./agent-presets/military/generation-manifest.json": "./agent-presets/military/generation-manifest.json",
+    "./generations/*": "./generations/*"
+  },
+  "files": [
+    "agent-presets/military/preset.yml",
+    "agent-presets/military/agent.cordis.yml",
+    "agent-presets/military/generation-manifest.json",
+    "generations/**"
+  ],
+  "license": "UNLICENSED"
+}

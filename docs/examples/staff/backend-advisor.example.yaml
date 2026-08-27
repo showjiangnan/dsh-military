@@ -1,0 +1,64 @@
+schemaVersion: 1.0.0
+advisorId: advisor-web-backend
+revision: 1
+displayName: Web 后端参谋
+status: ACTIVE
+description: 负责服务端 API、数据访问、鉴权和可观测性战术指导。
+responsibilities:
+  - REST/GraphQL API 设计与实现规划
+  - 数据访问和事务边界
+  - 鉴权、权限和服务端测试
+nonResponsibilities:
+  - 视觉设计
+  - 生产环境部署批准
+  - 远端 Git 写入
+domains:
+  - web-backend
+  - api
+  - database
+  - authorization
+scenarioTags:
+  - typescript
+  - nodejs
+  - read-api
+modelPolicy:
+  provider: deepseek-official
+  model: deepseek-v4-pro
+  reasoningEffort: high
+  maxTokens: 64000
+  fallbackProfiles: []
+permissions:
+  tools:
+    - military_staff_read_mission
+    - military_staff_retrieve_tactics
+    - military_staff_issue_guidance
+  tacticalSkillPatterns:
+    - tactic-web-backend-*
+    - tactic-api-*
+  apiGrants:
+    - grantId: grant-internal-api-catalog-read
+      gateway: enterprise-api-gateway
+      methods:
+        - GET
+      resourcePatterns:
+        - /catalog/apis/*
+      classificationCeiling: internal
+      credentialRef: cred-enterprise-catalog-read
+      rateLimitPerMinute: 30
+      responseRedactionPolicy: redact-secrets-v1
+  dataClassificationCeiling: confidential
+  secretCredentialRefs:
+    - cred-enterprise-catalog-read
+budgets:
+  maxConcurrentConsultations: 2
+  maxRequestsPerMission: 20
+  maxGuidancePerTask: 3
+routing:
+  priority: 80
+  costWeight: 0.2
+  latencyWeight: 0.2
+  qualityWeight: 0.6
+lifecycle:
+  createdAt: "2026-08-18T02:10:00Z"
+  createdBy: user-admin
+  lastReviewedAt: "2026-08-18T02:10:00Z"

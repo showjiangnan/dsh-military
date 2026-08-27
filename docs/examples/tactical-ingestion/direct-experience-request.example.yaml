@@ -1,0 +1,27 @@
+schemaVersion: 1.0.0
+requestId: ingestion-react-experience-002
+requestedBy: user-local
+source:
+  sourceType: direct-text
+  title: 十年 React 前端性能排障经验
+  content: >-
+    在大型受控表单中，首先区分全局状态传播、字段订阅范围和昂贵派生计算。
+    不要一开始就使用 memo 覆盖所有组件；先用 Profiler 和可重复交互记录定位提交阶段。
+tagSelection:
+  primaryTagId: tag-react
+  additionalTagIds:
+    - tag-performance
+  allowProposeNewTags: false
+desiredOutcome: NEW_TACTIC
+extractionGoal: 转换为带前置条件、诊断步骤、停止条件和验证指标的私有战术。
+extractionPolicy:
+  classification: internal
+  visibility: user-private
+  redactSecrets: true
+  requireUserReview: true
+  allowExternalModel: false
+consent:
+  confirmed: true
+  purpose: 用户主动提交其从业经验用于私有战术提炼。
+  confirmedAt: 2026-08-18T01:25:00Z
+createdAt: 2026-08-18T01:25:00Z

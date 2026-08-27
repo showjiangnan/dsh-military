@@ -1,0 +1,75 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "tool-profile.schema.json",
+  "title": "Versioned Tool Profile",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "toolProfileId",
+    "revision",
+    "status",
+    "allowTools",
+    "denyTools",
+    "maxParallelCalls",
+    "timeoutOverrides",
+    "createdAt"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0.0"
+    },
+    "toolProfileId": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "revision": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "status": {
+      "enum": [
+        "DRAFT",
+        "ACTIVE",
+        "PAUSED",
+        "RETIRED"
+      ]
+    },
+    "allowTools": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 160
+      },
+      "uniqueItems": true
+    },
+    "denyTools": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 160
+      },
+      "uniqueItems": true
+    },
+    "maxParallelCalls": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 32
+    },
+    "timeoutOverrides": {
+      "description": "Exact tool-name deadlines in milliseconds. Omitted tools inherit the DSH tool definition.",
+      "type": "object",
+      "additionalProperties": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 3600000
+      },
+      "properties": {},
+      "required": []
+    },
+    "createdAt": {
+      "$ref": "common-defs.schema.json#/$defs/timestamp"
+    }
+  }
+}

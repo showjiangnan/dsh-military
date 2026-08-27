@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "data-residency-policy.schema.json",
+  "title": "Data Residency Policy",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "policyId",
+    "revision",
+    "status",
+    "allowedRegions",
+    "allowedProviders",
+    "classificationCeiling",
+    "allowCrossBorder",
+    "retentionDays",
+    "createdAt"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0.0"
+    },
+    "policyId": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "revision": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "status": {
+      "enum": [
+        "ACTIVE",
+        "PAUSED",
+        "RETIRED"
+      ]
+    },
+    "allowedRegions": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 2,
+        "maxLength": 80
+      },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "allowedProviders": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 160
+      },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "classificationCeiling": {
+      "$ref": "common-defs.schema.json#/$defs/classification"
+    },
+    "allowCrossBorder": {
+      "type": "boolean"
+    },
+    "retentionDays": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "createdAt": {
+      "$ref": "common-defs.schema.json#/$defs/timestamp"
+    }
+  }
+}

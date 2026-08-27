@@ -1,0 +1,10 @@
+{
+  "code": "BUDGET_RESERVATION_REQUIRED",
+  "message": "A resource reservation is required before the Worker can start.",
+  "retryable": true,
+  "details": {
+    "scopeType": "TASK",
+    "scopeId": "task-react-filter",
+    "policyId": "budget-worker-standard"
+  }
+}

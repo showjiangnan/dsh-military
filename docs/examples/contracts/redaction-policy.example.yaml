@@ -1,0 +1,14 @@
+schemaVersion: 1.0.0
+policyId: redaction-architecture
+revision: 1
+status: ACTIVE
+dropFields:
+- credentials
+- tokens
+maskFields:
+- ownerEmail
+maxResponseBytes: 65536
+promptInjectionIsolation: true
+secretPatterns:
+- AKIA[0-9A-Z]{16}
+createdAt: '2026-08-19T00:00:00Z'

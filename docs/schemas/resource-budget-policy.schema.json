@@ -1,0 +1,121 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "resource-budget-policy.schema.json",
+  "title": "Hierarchical Resource Budget Policy",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "policyId",
+    "revision",
+    "status",
+    "scope",
+    "limits",
+    "warningPercent",
+    "hardStopPercent",
+    "disposition",
+    "createdAt"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0.0"
+    },
+    "policyId": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "revision": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "status": {
+      "enum": [
+        "ACTIVE",
+        "PAUSED",
+        "RETIRED"
+      ]
+    },
+    "scope": {
+      "enum": [
+        "DEPLOYMENT",
+        "TENANT",
+        "MISSION",
+        "WAVE",
+        "TASK"
+      ]
+    },
+    "limits": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "modelRequests": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "reasoningTokens": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "wallClockSeconds": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "toolCalls": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "apiCalls": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "concurrentAgents": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "radioRounds": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "reworkAttempts": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "storageBytes": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "required": [
+        "modelRequests",
+        "reasoningTokens",
+        "wallClockSeconds",
+        "toolCalls",
+        "apiCalls",
+        "concurrentAgents",
+        "radioRounds",
+        "reworkAttempts",
+        "storageBytes"
+      ]
+    },
+    "warningPercent": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 99
+    },
+    "hardStopPercent": {
+      "type": "integer",
+      "minimum": 100,
+      "maximum": 100
+    },
+    "disposition": {
+      "enum": [
+        "PAUSE_AND_REPORT",
+        "REQUIRE_USER_AUTHORIZATION",
+        "DEGRADE_NONCRITICAL_RESEARCH",
+        "CANCEL_SPECULATIVE_TASKS"
+      ]
+    },
+    "createdAt": {
+      "$ref": "common-defs.schema.json#/$defs/timestamp"
+    }
+  }
+}

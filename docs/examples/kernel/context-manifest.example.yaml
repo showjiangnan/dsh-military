@@ -1,0 +1,26 @@
+schemaVersion: 1.0.0
+manifestId: context-manifest-001
+missionId: mission-001
+missionRevision: 12
+taskId: task-001
+taskVersion: 1
+sections:
+- kind: CONSTITUTION
+  contentRef: mission-intent:mission-001
+  sha256: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+  tokenEstimate: 1200
+  sourceEventIds: [event-mission-started]
+- kind: STATE
+  contentRef: task-state:task-001@1
+  sha256: bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+  tokenEstimate: 800
+omittedEvidenceRefs: [artifact-obsolete-001]
+tokenAllocation:
+  constitution: 1200
+  state: 800
+  evidence: 4000
+  working: 2000
+  reasoningPassbackReserve: 16000
+  imageReserve: 0
+contentSha256: cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+createdAt: '2026-08-20T00:00:00Z'

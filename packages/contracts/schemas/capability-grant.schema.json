@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "capability-grant.schema.json",
+  "title": "Capability Grant",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "grantId", "principalId", "activationId", "missionId", "taskId", "taskVersion", "allowedTools", "resourcePatterns", "dataClassificationCeiling", "maximumUses", "uses", "issuedAt", "expiresAt", "nonce", "state"],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "grantId": { "$ref": "common-defs.schema.json#/$defs/id" },
+    "principalId": { "type": "string", "minLength": 1 },
+    "activationId": { "$ref": "common-defs.schema.json#/$defs/id" },
+    "missionId": { "$ref": "common-defs.schema.json#/$defs/id" },
+    "taskId": { "$ref": "common-defs.schema.json#/$defs/id" },
+    "taskVersion": { "type": "integer", "minimum": 1 },
+    "allowedTools": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true },
+    "resourcePatterns": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true },
+    "dataClassificationCeiling": { "$ref": "common-defs.schema.json#/$defs/dataClassification" },
+    "maximumUses": { "type": "integer", "minimum": 1 },
+    "uses": { "type": "integer", "minimum": 0 },
+    "issuedAt": { "$ref": "common-defs.schema.json#/$defs/timestamp" },
+    "expiresAt": { "$ref": "common-defs.schema.json#/$defs/timestamp" },
+    "nonce": { "type": "string", "minLength": 16 },
+    "state": { "enum": ["ACTIVE", "REVOKED", "EXPIRED", "EXHAUSTED"] }
+  }
+}

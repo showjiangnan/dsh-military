@@ -1,0 +1,17 @@
+schemaVersion: 1.0.0
+graphId: claim-graph-001
+candidateId: candidate-001
+claims:
+- claimId: claim-tests-pass
+  statement: Required tests pass in the isolated workspace.
+  type: behavior
+  required: true
+  minimumTier: V2
+links:
+- claimId: claim-tests-pass
+  evidenceRef: check-receipt-unit-tests
+  supports: true
+  tier: V2
+  validityScope: task-001@1
+  producedAtRevision: 12
+createdAt: '2026-08-20T00:00:00Z'

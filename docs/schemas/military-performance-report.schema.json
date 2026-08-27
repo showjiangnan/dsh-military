@@ -1,0 +1,306 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "military-performance-report.schema.json",
+  "title": "Military Performance Decision Report",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "reportId",
+    "reportRevision",
+    "evaluationRequestId",
+    "requestHash",
+    "datasetHash",
+    "datasetArtifact",
+    "period",
+    "dataQuality",
+    "individualPerformance",
+    "overallPerformance",
+    "comparisons",
+    "decision",
+    "priorityRecommendations",
+    "unsupportedConclusions",
+    "classification",
+    "sourceArtifactRefs",
+    "createdAt"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "reportId": { "$ref": "common-defs.schema.json#/$defs/id" },
+    "reportRevision": { "type": "integer", "minimum": 1 },
+    "evaluationRequestId": { "$ref": "common-defs.schema.json#/$defs/id" },
+    "requestHash": { "$ref": "common-defs.schema.json#/$defs/sha256" },
+    "datasetHash": { "$ref": "common-defs.schema.json#/$defs/sha256" },
+    "datasetArtifact": { "$ref": "common-defs.schema.json#/$defs/artifactRef" },
+    "period": { "$ref": "performance-evaluation-request.schema.json#/properties/period" },
+    "dataQuality": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "militarySessions",
+        "templateRevisions",
+        "uniqueAttempts",
+        "uniqueMissions",
+        "missingEventRate",
+        "notes"
+      ],
+      "properties": {
+        "militarySessions": { "type": "integer", "minimum": 0 },
+        "templateRevisions": { "type": "integer", "minimum": 0 },
+        "uniqueAttempts": { "type": "integer", "minimum": 0 },
+        "uniqueMissions": { "type": "integer", "minimum": 0 },
+        "missingEventRate": { "$ref": "#/$defs/rate" },
+        "notes": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1, "maxLength": 4000 }
+        }
+      }
+    },
+    "individualPerformance": {
+      "type": "array",
+      "items": { "$ref": "agent-template-performance.schema.json" }
+    },
+    "overallPerformance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "missionCompletionRate",
+        "taskFinalAcceptanceRate",
+        "crossDepartmentHandoffRate",
+        "radioResolutionRate",
+        "freezeRecoveryRate",
+        "specsCommitCoverageRate",
+        "analysisPoints"
+      ],
+      "properties": {
+        "missionCompletionRate": { "$ref": "#/$defs/rate" },
+        "taskFinalAcceptanceRate": { "$ref": "#/$defs/rate" },
+        "crossDepartmentHandoffRate": { "$ref": "#/$defs/rate" },
+        "radioResolutionRate": { "$ref": "#/$defs/rate" },
+        "freezeRecoveryRate": { "$ref": "#/$defs/rate" },
+        "specsCommitCoverageRate": { "$ref": "#/$defs/rate" },
+        "analysisPoints": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1, "maxLength": 4000 },
+          "minItems": 1
+        }
+      }
+    },
+    "comparisons": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/comparison" }
+    },
+    "decision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "promotionAllowed",
+        "blockers",
+        "recommendation"
+      ],
+      "properties": {
+        "status": { "$ref": "#/$defs/decisionStatus" },
+        "promotionAllowed": { "const": false },
+        "blockers": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1, "maxLength": 4000 }
+        },
+        "recommendation": { "type": "string", "minLength": 1, "maxLength": 4000 }
+      }
+    },
+    "priorityRecommendations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["priority", "owner", "action", "successMetric"],
+        "properties": {
+          "priority": { "type": "integer", "minimum": 1 },
+          "owner": { "type": "string", "minLength": 1, "maxLength": 500 },
+          "action": { "type": "string", "minLength": 1, "maxLength": 4000 },
+          "successMetric": { "type": "string", "minLength": 1, "maxLength": 4000 }
+        }
+      },
+      "minItems": 1
+    },
+    "unsupportedConclusions": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1, "maxLength": 4000 }
+    },
+    "classification": { "$ref": "common-defs.schema.json#/$defs/classification" },
+    "sourceArtifactRefs": {
+      "type": "array",
+      "items": { "$ref": "common-defs.schema.json#/$defs/artifactRef" },
+      "minItems": 1
+    },
+    "createdAt": { "$ref": "common-defs.schema.json#/$defs/timestamp" }
+  },
+  "$defs": {
+    "rate": { "type": "number", "minimum": 0, "maximum": 1 },
+    "decisionStatus": {
+      "enum": [
+        "NO_DATA",
+        "EARLY_SIGNAL",
+        "EXPLORATORY",
+        "DECISION_ELIGIBLE",
+        "REGRESSION_ALERT"
+      ]
+    },
+    "difference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["estimate", "low", "high"],
+      "properties": {
+        "estimate": { "type": "number", "minimum": -1, "maximum": 1 },
+        "low": { "type": "number", "minimum": -1, "maximum": 1 },
+        "high": { "type": "number", "minimum": -1, "maximum": 1 }
+      }
+    },
+    "comparison": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "comparisonId",
+        "role",
+        "candidateConfigurationKey",
+        "baselineConfigurationKey",
+        "design",
+        "observational",
+        "sample",
+        "quality",
+        "covariateBalance",
+        "safety",
+        "efficiency",
+        "decision",
+        "blockers"
+      ],
+      "properties": {
+        "comparisonId": { "type": "string", "minLength": 1, "maxLength": 7000 },
+        "role": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "candidateConfigurationKey": { "type": "string", "minLength": 1, "maxLength": 3000 },
+        "baselineConfigurationKey": { "type": "string", "minLength": 1, "maxLength": 3000 },
+        "design": { "enum": ["OBSERVATIONAL", "PAIRED_MISSION", "RANDOMIZED"] },
+        "observational": { "type": "boolean" },
+        "sample": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "candidateAttempts",
+            "baselineAttempts",
+            "candidateMissions",
+            "baselineMissions"
+          ],
+          "properties": {
+            "candidateAttempts": { "type": "integer", "minimum": 0 },
+            "baselineAttempts": { "type": "integer", "minimum": 0 },
+            "candidateMissions": { "type": "integer", "minimum": 0 },
+            "baselineMissions": { "type": "integer", "minimum": 0 }
+          }
+        },
+        "quality": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "candidateFinalAcceptance",
+            "baselineFinalAcceptance",
+            "difference",
+            "nonInferiorityMargin",
+            "nonInferior",
+            "intervalMethod"
+          ],
+          "properties": {
+            "candidateFinalAcceptance": {
+              "$ref": "agent-template-performance.schema.json#/$defs/rateInterval"
+            },
+            "baselineFinalAcceptance": {
+              "$ref": "agent-template-performance.schema.json#/$defs/rateInterval"
+            },
+            "difference": { "$ref": "#/$defs/difference" },
+            "nonInferiorityMargin": { "type": "number", "minimum": 0, "maximum": 0.5 },
+            "nonInferior": { "type": "boolean" },
+            "intervalMethod": { "const": "MISSION_CLUSTER_BOOTSTRAP" }
+          }
+        },
+        "covariateBalance": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "taskTypeOverlapRate",
+            "candidateMeanDifficulty",
+            "baselineMeanDifficulty",
+            "standardizedDifficultyDifference",
+            "balanced",
+            "notes"
+          ],
+          "properties": {
+            "taskTypeOverlapRate": { "$ref": "#/$defs/rate" },
+            "candidateMeanDifficulty": { "type": "number", "minimum": 0 },
+            "baselineMeanDifficulty": { "type": "number", "minimum": 0 },
+            "standardizedDifficultyDifference": { "type": "number" },
+            "balanced": { "type": "boolean" },
+            "notes": {
+              "type": "array",
+              "items": { "type": "string", "minLength": 1, "maxLength": 2000 }
+            }
+          }
+        },
+        "safety": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "candidateIncidents",
+            "baselineIncidents",
+            "hardGatePassed",
+            "reasons"
+          ],
+          "properties": {
+            "candidateIncidents": { "type": "integer", "minimum": 0 },
+            "baselineIncidents": { "type": "integer", "minimum": 0 },
+            "hardGatePassed": { "type": "boolean" },
+            "reasons": {
+              "type": "array",
+              "items": { "type": "string", "minLength": 1, "maxLength": 2000 }
+            }
+          }
+        },
+        "efficiency": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "candidateTokensPerAcceptedOutcome",
+            "baselineTokensPerAcceptedOutcome",
+            "candidateCostStatus",
+            "baselineCostStatus",
+            "candidateLatencyPerAcceptedOutcomeSeconds",
+            "baselineLatencyPerAcceptedOutcomeSeconds"
+          ],
+          "properties": {
+            "candidateTokensPerAcceptedOutcome": { "type": "number", "minimum": 0 },
+            "baselineTokensPerAcceptedOutcome": { "type": "number", "minimum": 0 },
+            "tokenImprovementRate": { "type": "number" },
+            "candidateCostStatus": { "$ref": "#/$defs/costStatus" },
+            "baselineCostStatus": { "$ref": "#/$defs/costStatus" },
+            "candidateCostPerAcceptedOutcomeUsd": { "type": "number", "minimum": 0 },
+            "baselineCostPerAcceptedOutcomeUsd": { "type": "number", "minimum": 0 },
+            "candidateLatencyPerAcceptedOutcomeSeconds": { "type": "number", "minimum": 0 },
+            "baselineLatencyPerAcceptedOutcomeSeconds": { "type": "number", "minimum": 0 },
+            "latencyImprovementRate": { "type": "number" }
+          }
+        },
+        "decision": { "$ref": "#/$defs/decisionStatus" },
+        "blockers": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1, "maxLength": 4000 }
+        }
+      }
+    },
+    "costStatus": {
+      "enum": [
+        "OBSERVED",
+        "ESTIMATED",
+        "PROVIDER_PRICING_UNAVAILABLE"
+      ]
+    }
+  }
+}

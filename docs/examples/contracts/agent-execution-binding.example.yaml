@@ -1,0 +1,64 @@
+schemaVersion: 1.0.0
+bindingId: agent-binding-worker-react-001
+tenantId: tenant-example
+rootSessionId: session-general
+missionId: mission-react-dashboard
+agent:
+  agentId: agent-worker-react-001
+  sessionId: session-worker-react-001
+  role: worker
+  displayName: React Worker 1
+  generation: 1
+  templateId: worker-react
+  templateRevision: 3
+departmentId: worker-forces
+templateId: worker-react
+templateRevision: 3
+presetGeneration: military@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+capabilityGrantId: grant-example-001
+concurrencyReservationId: concurrency-worker-react-001
+executionStrategy:
+  schemaVersion: 1.0.0
+  strategyId: strategy-worker-react-001
+  provider: deepseek-official
+  model: deepseek-v4-pro
+  reasoningEffort: high
+  paradigm: plan-execute
+  maximumSteps: 8
+  verificationTier: V3
+  parallelism: 1
+  rationale:
+  - Task requires an isolated write workspace and deterministic integration.
+provider: deepseek-official
+model: deepseek-v4-pro
+reasoningEffort: high
+modelCapabilityProfileId: model-deepseek-v4-pro-rc2
+toolProfile:
+  id: tools-worker-web
+  revision: 2
+permissionProfile:
+  id: permissions-worker-web
+  revision: 4
+apiGrants:
+- id: api-frontend-design-read
+  revision: 1
+dataResidencyPolicy:
+  id: residency-internal-jp
+  revision: 1
+redactionPolicy:
+  id: redaction-internal-default
+  revision: 2
+verifierProfiles:
+- id: verifier-react-task
+  revision: 5
+contextPolicy:
+  contextBudgetTokens: 320000
+  compactionTriggerPercent: 90
+  retainedTailTokens: 24000
+  minimumRearmDeltaPercent: 10
+  maxCompactionAttemptsPerTurn: 2
+  onCompactionFailure: PAUSE_AND_ESCALATE
+resourceBudgetPolicy:
+  id: budget-worker-standard
+  revision: 2
+createdAt: '2026-08-19T01:00:00Z'

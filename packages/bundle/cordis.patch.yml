@@ -1,0 +1,17 @@
+# dsh-military host-plane bundle for DeepSeek Harness 0.1.1-rc.2.
+# The fixed military agent preset is installed separately by @dsh-military/installer;
+# this patch never replaces the deployment's agent-presets row or default preset.
+- insert:
+    - id: dsh-military-host
+      name: '@dsh-military/bundle'
+      config:
+        tenantId: local
+        dataRoot: !!js dshHomePath('military')
+        repositoryRoot: !!js process.cwd()
+        presetAssetsRoot: ''
+        strictCompatibility: true
+        subagentProvider: spawn
+        maxRadioAttempts: 5
+        radioLeaseSeconds: 120
+        regressionChecks:
+          - [git, diff, --check]

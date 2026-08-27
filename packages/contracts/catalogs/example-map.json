@@ -1,0 +1,122 @@
+{
+  "preset-generation-manifest.schema.json": [
+    "contracts/preset-generation-manifest.example.yaml"
+  ],
+  "preset-migration-order.schema.json": [
+    "contracts/preset-migration-order.example.yaml"
+  ],
+  "compatibility-report.schema.json": [
+    "contracts/compatibility-report.example.yaml"
+  ],
+  "authority-context.schema.json": [
+    "contracts/authority-context.example.yaml"
+  ],
+  "user-authorization-receipt.schema.json": [
+    "contracts/user-authorization-receipt.example.yaml"
+  ],
+  "tool-profile.schema.json": [
+    "contracts/tool-profile.example.yaml"
+  ],
+  "permission-profile.schema.json": [
+    "contracts/permission-profile.example.yaml"
+  ],
+  "enterprise-api-grant.schema.json": [
+    "contracts/enterprise-api-grant.example.yaml"
+  ],
+  "data-residency-policy.schema.json": [
+    "contracts/data-residency-policy.example.yaml"
+  ],
+  "redaction-policy.schema.json": [
+    "contracts/redaction-policy.example.yaml"
+  ],
+  "verifier-profile.schema.json": [
+    "contracts/verifier-profile.example.yaml"
+  ],
+  "model-capability-profile.schema.json": [
+    "contracts/model-capability-profile.example.yaml"
+  ],
+  "general-execution-policy.schema.json": [
+    "contracts/general-execution-policy.example.yaml"
+  ],
+  "model-selection-receipt.schema.json": [
+    "contracts/model-selection-receipt.example.yaml"
+  ],
+  "workspace-snapshot.schema.json": [
+    "contracts/workspace-snapshot.example.yaml"
+  ],
+  "workspace-lease.schema.json": [
+    "contracts/workspace-lease.example.yaml"
+  ],
+  "candidate-patch.schema.json": [
+    "contracts/candidate-patch.example.yaml"
+  ],
+  "integration-order.schema.json": [
+    "contracts/integration-order.example.yaml"
+  ],
+  "integration-receipt.schema.json": [
+    "contracts/integration-receipt.example.yaml"
+  ],
+  "integration-conflict-report.schema.json": [
+    "contracts/integration-conflict-report.example.yaml"
+  ],
+  "evaluation-dataset-manifest.schema.json": [
+    "contracts/evaluation-dataset-manifest.example.yaml"
+  ],
+  "tactical-source-snapshot.schema.json": [
+    "contracts/tactical-source-snapshot.example.yaml"
+  ],
+  "knowledge-revocation-order.schema.json": [
+    "contracts/knowledge-revocation-order.example.yaml"
+  ],
+  "decision-broker-record.schema.json": [
+    "contracts/decision-broker-record.example.yaml"
+  ],
+  "compaction-attempt.schema.json": [
+    "contracts/compaction-attempt.example.yaml"
+  ],
+  "change-order.schema.json": [
+    "contracts/change-order.example.yaml"
+  ],
+  "resource-budget-policy.schema.json": [
+    "contracts/resource-budget-policy.example.yaml"
+  ],
+  "bundle-lifecycle-receipt.schema.json": [
+    "contracts/bundle-lifecycle-receipt.example.yaml"
+  ],
+  "agent-execution-binding.schema.json": [
+    "contracts/agent-execution-binding.example.yaml"
+  ],
+  "preset-resume-receipt.schema.json": [
+    "contracts/preset-resume-receipt.example.yaml"
+  ],
+  "resource-budget-reservation.schema.json": [
+    "contracts/resource-budget-reservation.example.yaml"
+  ],
+  "resource-usage-receipt.schema.json": [
+    "contracts/resource-usage-receipt.example.yaml"
+  ],
+  "performance-evaluation-appeal.schema.json": [
+    "contracts/performance-evaluation-appeal.example.yaml"
+  ],
+  "military-failure.schema.json": [
+    "contracts/military-failure.example.json"
+  ],
+  "mission-command.schema.json": [
+    "kernel/mission-command.example.yaml"
+  ],
+  "context-manifest.schema.json": [
+    "kernel/context-manifest.example.yaml"
+  ],
+  "claim-evidence-graph.schema.json": [
+    "kernel/claim-evidence-graph.example.yaml"
+  ],
+  "task-capability-profile.schema.json": [
+    "kernel/task-capability-profile.example.yaml"
+  ],
+  "execution-strategy.schema.json": [
+    "kernel/execution-strategy.example.yaml"
+  ],
+  "capability-grant.schema.json": [
+    "kernel/capability-grant.example.yaml"
+  ]
+}

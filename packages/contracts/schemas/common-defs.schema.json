@@ -1,0 +1,420 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "common-defs.schema.json",
+  "title": "dsh-military common definitions",
+  "$defs": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 160,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$"
+    },
+    "semver": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?$"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "classification": {
+      "enum": [
+        "public",
+        "internal",
+        "confidential",
+        "restricted"
+      ]
+    },
+    "dataClassification": {
+      "$ref": "#/$defs/classification"
+    },
+    "reasoningEffort": {
+      "enum": [
+        "low",
+        "high",
+        "max"
+      ]
+    },
+    "role": {
+      "enum": [
+        "general",
+        "advisor",
+        "worker",
+        "engineer",
+        "inspector",
+        "trajectory",
+        "effectiveness",
+        "museum",
+        "chief-of-staff",
+        "evaluation-examiner",
+        "evaluation-chair",
+        "harness"
+      ]
+    },
+    "agentIdentity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "agentId",
+        "sessionId",
+        "role",
+        "displayName",
+        "generation"
+      ],
+      "properties": {
+        "agentId": {
+          "$ref": "#/$defs/id"
+        },
+        "sessionId": {
+          "$ref": "#/$defs/id"
+        },
+        "role": {
+          "$ref": "#/$defs/role"
+        },
+        "displayName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "advisorId": {
+          "$ref": "#/$defs/id"
+        },
+        "generation": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "templateId": {
+          "$ref": "#/$defs/id"
+        },
+        "templateRevision": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "artifactRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "artifactId",
+        "sha256",
+        "mediaType",
+        "byteLength",
+        "classification"
+      ],
+      "properties": {
+        "artifactId": {
+          "$ref": "#/$defs/id"
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "mediaType": {
+          "type": "string",
+          "minLength": 1
+        },
+        "byteLength": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "classification": {
+          "$ref": "#/$defs/classification"
+        },
+        "description": {
+          "type": "string",
+          "maxLength": 2000
+        },
+        "sourceEventId": {
+          "$ref": "#/$defs/id"
+        }
+      }
+    },
+    "eventRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "eventId"
+      ],
+      "properties": {
+        "eventId": {
+          "$ref": "#/$defs/id"
+        },
+        "seq": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "claim": {
+          "type": "string",
+          "maxLength": 2000
+        }
+      }
+    },
+    "skillRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "skillId",
+        "version"
+      ],
+      "properties": {
+        "skillId": {
+          "$ref": "#/$defs/id"
+        },
+        "version": {
+          "$ref": "#/$defs/semver"
+        },
+        "guidanceId": {
+          "$ref": "#/$defs/id"
+        },
+        "usageStage": {
+          "enum": [
+            "assigned",
+            "acknowledged",
+            "attempted",
+            "completed",
+            "accepted",
+            "contributed",
+            "causal"
+          ]
+        }
+      }
+    },
+    "toolEvidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "callId",
+        "toolName",
+        "status"
+      ],
+      "properties": {
+        "callId": {
+          "$ref": "#/$defs/id"
+        },
+        "toolName": {
+          "type": "string",
+          "minLength": 1
+        },
+        "status": {
+          "enum": [
+            "success",
+            "error",
+            "cancelled"
+          ]
+        },
+        "argumentsHash": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "resultArtifact": {
+          "$ref": "#/$defs/artifactRef"
+        },
+        "startedAt": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "endedAt": {
+          "$ref": "#/$defs/timestamp"
+        }
+      }
+    },
+    "evidenceRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "ref",
+        "claim"
+      ],
+      "properties": {
+        "kind": {
+          "enum": [
+            "artifact",
+            "event",
+            "tool-call",
+            "git-commit",
+            "api-receipt",
+            "human-authorization"
+          ]
+        },
+        "ref": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000
+        },
+        "claim": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4000
+        },
+        "clauseIds": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/id"
+          },
+          "uniqueItems": true
+        }
+      }
+    },
+    "pathScope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "readPaths",
+        "writePaths",
+        "forbiddenPaths"
+      ],
+      "properties": {
+        "readPaths": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "uniqueItems": true
+        },
+        "writePaths": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "uniqueItems": true
+        },
+        "forbiddenPaths": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "uniqueItems": true
+        }
+      }
+    },
+    "budget": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "modelSteps": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 64
+        },
+        "toolCalls": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 512
+        },
+        "guidanceRequests": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 32
+        },
+        "wallClockSeconds": {
+          "type": "integer",
+          "minimum": 60,
+          "maximum": 86400
+        },
+        "maxOutputTokens": {
+          "type": "integer",
+          "minimum": 1024,
+          "maximum": 256000
+        }
+      }
+    },
+    "dependencyEdge": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type",
+        "targetTaskId"
+      ],
+      "properties": {
+        "type": {
+          "enum": [
+            "requires",
+            "consumes",
+            "locks",
+            "validates",
+            "speculativeWith",
+            "joinsAt",
+            "supersedes"
+          ]
+        },
+        "targetTaskId": {
+          "$ref": "#/$defs/id"
+        },
+        "artifactId": {
+          "$ref": "#/$defs/id"
+        },
+        "resource": {
+          "type": "string"
+        }
+      }
+    },
+    "apiGrant": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "grantId",
+        "gateway",
+        "methods",
+        "resourcePatterns",
+        "classificationCeiling"
+      ],
+      "properties": {
+        "grantId": {
+          "$ref": "#/$defs/id"
+        },
+        "gateway": {
+          "$ref": "#/$defs/id"
+        },
+        "methods": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "GET",
+              "POST",
+              "PUT",
+              "PATCH",
+              "DELETE"
+            ]
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "resourcePatterns": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1
+        },
+        "classificationCeiling": {
+          "$ref": "#/$defs/classification"
+        },
+        "credentialRef": {
+          "$ref": "#/$defs/id"
+        },
+        "rateLimitPerMinute": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "responseRedactionPolicy": {
+          "$ref": "#/$defs/id"
+        }
+      }
+    },
+    "revision": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "tenantId": {
+      "$ref": "#/$defs/id"
+    },
+    "principalId": {
+      "$ref": "#/$defs/id"
+    }
+  }
+}

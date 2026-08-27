@@ -1,0 +1,124 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "preset-generation-manifest.schema.json",
+  "title": "Military Preset Generation Manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "presetId",
+    "generation",
+    "assetHash",
+    "bundleVersion",
+    "dshBaseline",
+    "publicSelectionId",
+    "hiddenArchiveId",
+    "status",
+    "files",
+    "createdAt",
+    "compatibility"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0.0"
+    },
+    "presetId": {
+      "const": "military"
+    },
+    "generation": {
+      "type": "string",
+      "pattern": "^military@sha256:[a-f0-9]{64}$"
+    },
+    "assetHash": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "bundleVersion": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 80
+    },
+    "dshBaseline": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "release": {
+          "const": "0.1.1-rc.2"
+        },
+        "commit": {
+          "const": "b150a551b8d465e31e418e1b2eaf5e79bbb7d28e"
+        }
+      },
+      "required": [
+        "release",
+        "commit"
+      ]
+    },
+    "publicSelectionId": {
+      "const": "military"
+    },
+    "hiddenArchiveId": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "status": {
+      "enum": [
+        "CURRENT",
+        "ARCHIVED",
+        "DEPRECATED"
+      ]
+    },
+    "files": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "byteLength": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "path",
+          "sha256",
+          "byteLength"
+        ]
+      },
+      "minItems": 2
+    },
+    "createdAt": {
+      "$ref": "common-defs.schema.json#/$defs/timestamp"
+    },
+    "compatibility": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "mode": {
+          "enum": [
+            "EXACT_RC2"
+          ]
+        },
+        "breaking": {
+          "type": "boolean"
+        },
+        "resumeSupported": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "mode",
+        "breaking",
+        "resumeSupported"
+      ]
+    }
+  }
+}

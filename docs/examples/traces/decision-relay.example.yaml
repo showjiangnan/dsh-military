@@ -1,0 +1,25 @@
+schemaVersion: 1.0.0
+dshBaseline:
+  release: 0.1.1-rc.2
+  commit: b150a551b8d465e31e418e1b2eaf5e79bbb7d28e
+traceId: trace-decision-relay
+scenario: decision-relay
+initialState:
+  state: START
+steps:
+- index: 1
+  action: child creates questions
+  eventType: decision/question-set-created
+  expectedState: QUEUED
+- index: 2
+  action: general presents
+  eventType: decision/question-presented
+  expectedState: PRESENTED
+- index: 3
+  action: user answers
+  eventType: decision/answered
+  expectedState: ANSWERED
+finalProjectionHash: '0000000000000000000000000000000000000000000000000000000000000005'
+invariants:
+- delegated child never asks user directly
+- one presentation wins

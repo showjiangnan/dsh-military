@@ -1,0 +1,471 @@
+{
+  "schemaVersion": "1.0.0",
+  "dshBaseline": {
+    "release": "0.1.1-rc.2",
+    "commit": "b150a551b8d465e31e418e1b2eaf5e79bbb7d28e"
+  },
+  "errors": [
+    {
+      "code": "INVALID_ARGUMENT",
+      "category": "common",
+      "defaultRetryable": false,
+      "summary": "Invalid argument.",
+      "recovery": "Stop the attempted state change, preserve evidence, and require an explicit corrective command or policy change."
+    },
+    {
+      "code": "UNAUTHORIZED",
+      "category": "authorization",
+      "defaultRetryable": false,
+      "summary": "Unauthorized.",
+      "recovery": "Resolve a valid Authority Context or obtain explicit user authorization."
+    },
+    {
+      "code": "FORBIDDEN_SCOPE",
+      "category": "authorization",
+      "defaultRetryable": false,
+      "summary": "Forbidden scope.",
+      "recovery": "Reduce the requested resource scope or use a profile that grants it."
+    },
+    {
+      "code": "REVISION_CONFLICT",
+      "category": "common",
+      "defaultRetryable": true,
+      "summary": "Revision conflict.",
+      "recovery": "Follow the owning domain state machine, preserve the original receipt, and retry only after the blocking fact changes."
+    },
+    {
+      "code": "STALE_TASK_VERSION",
+      "category": "common",
+      "defaultRetryable": true,
+      "summary": "Stale task version.",
+      "recovery": "Follow the owning domain state machine, preserve the original receipt, and retry only after the blocking fact changes."
+    },
+    {
+      "code": "IDEMPOTENCY_CONFLICT",
+      "category": "common",
+      "defaultRetryable": false,
+      "summary": "Idempotency conflict.",
+      "recovery": "Stop the attempted state change, preserve evidence, and require an explicit corrective command or policy change."
+    },
+    {
+      "code": "NOT_FOUND",
+      "category": "common",
+      "defaultRetryable": false,
+      "summary": "Not found.",
+      "recovery": "Stop the attempted state change, preserve evidence, and require an explicit corrective command or policy change."
+    },
+    {
+      "code": "CAPACITY_EXHAUSTED",
+      "category": "common",
+      "defaultRetryable": true,
+      "summary": "Capacity exhausted.",
+      "recovery": "Follow the owning domain state machine, preserve the original receipt, and retry only after the blocking fact changes."
+    },
+    {
+      "code": "DEPENDENCY_NOT_READY",
+      "category": "common",
+      "defaultRetryable": true,
+      "summary": "Dependency not ready.",
+      "recovery": "Follow the owning domain state machine, preserve the original receipt, and retry only after the blocking fact changes."
+    },
+    {
+      "code": "RESOURCE_LOCKED",
+      "category": "common",
+      "defaultRetryable": true,
+      "summary": "Resource locked.",
+      "recovery": "Follow the owning domain state machine, preserve the original receipt, and retry only after the blocking fact changes."
+    },
+    {
+      "code": "POLICY_DENIED",
+      "category": "authorization",
+      "defaultRetryable": false,
+      "summary": "Policy denied.",
+      "recovery": "Stop the attempted state change, preserve evidence, and require an explicit corrective command or policy change."
+    },
+    {
+      "code": "PERSISTENCE_FAILED",
+      "category": "persistence",
+      "defaultRetryable": true,
+      "summary": "Persistence failed.",
+      "recovery": "Follow the owning domain state machine, preserve the original receipt, and retry only after the blocking fact changes."
+    },
+    {
+      "code": "MILITARY_PRESET_REQUIRED",
+      "category": "preset",
+      "defaultRetryable": false,
+      "summary": "Military preset required.",
+      "recovery": "Create a new blank session with the fixed military preset."
+    },
+    {
+      "code": "MILITARY_BINDING_MISMATCH",
+      "category": "preset",
+      "defaultRetryable": false,
+      "summary": "Military binding mismatch.",
+      "recovery": "Stop the attempted state change, preserve evidence, and require an explicit corrective command or policy change."
+    },
+    {
+      "code": "MILITARY_PRESET_GENERATION_MISMATCH",
+      "category": "preset",
+      "defaultRetryable": false,
+      "summary": "Military preset generation mismatch.",
+      "recovery": "Rebind the exact archived generation or quarantine and migrate."
+    },
+    {
+      "code": "AGENT_TEMPLATE_INACTIVE",
+      "category": "agent",
+      "defaultRetryable": false,
+      "summary": "Agent template inactive.",
+      "recovery": "Stop the attempted state change, preserve evidence, and require an explicit corrective command or policy change."
+    },
+    {
+      "code": "AGENT_TEMPLATE_CAPABILITY_UNSUPPORTED",
+      "category": "agent",
+      "defaultRetryable": false,
+      "summary": "Agent template capability unsupported.",
+      "recovery": "Stop the attempted state change, preserve evidence, and require an explicit corrective command or policy change."
+    },
+    {
+      "code": "CONTEXT_POLICY_INVALID",
+      "category": "context",
+      "defaultRetryable": false,
+      "summary": "Context policy invalid.",
+      "recovery": "Stop the attempted state change, preserve evidence, and require an explicit corrective command or policy change."
+    },
+    {
+      "code": "COMPACTION_ATTEMPT_FAILED",
+      "category": "context",
+      "defaultRetryable": true,
+      "summary": "Compaction attempt failed.",
+      "recovery": "Follow the owning domain state machine, preserve the original receipt, and retry only after the blocking fact changes."
+    },
+    {
+      "code": "MISSING_EVIDENCE",
+      "category": "verification",
+      "defaultRetryable": true,
+      "summary": "Missing evidence.",
+      "recovery": "Follow the owning domain state machine, preserve the original receipt, and retry only after the blocking fact changes."
+    },
+    {
+      "code": "UNVERIFIED_TOOL_CLAIM",
+      "category": "verification",
+      "defaultRetryable": false,
+      "summary": "Unverified tool claim.",
+      "recovery": "Stop the attempted state change, preserve evidence, and require an explicit corrective command or policy change."
+    },
+    {
+      "code": "ARTIFACT_MISMATCH",
+      "category": "verification",
+      "defaultRetryable": false,
+      "summary": "Artifact mismatch.",
+      "recovery": "Stop the attempted state change, preserve evidence, and require an explicit corrective command or policy change."
+    },
+    {
+      "code": "REGRESSION_FAILED",
+      "category": "verification",
+      "defaultRetryable": false,
+      "summary": "Regression failed.",
+      "recovery": "Stop the attempted state change, preserve evidence, and require an explicit corrective command or policy change."
+    },
+    {
+      "code": "ACCEPTANCE_INCOMPLETE",
+      "category": "verification",
+      "defaultRetryable": false,
+      "summary": "Acceptance incomplete.",
+      "recovery": "Stop the attempted state change, preserve evidence, and require an explicit corrective command or policy change."
+    },
+    {
+      "code": "CANDIDATE_STALE",
+      "category": "verification",
+      "defaultRetryable": true,
+      "summary": "Candidate stale.",
+      "recovery": "Follow the owning domain state machine, preserve the original receipt, and retry only after the blocking fact changes."
+    },
+    {
+      "code": "SELF_VERIFICATION_ONLY",
+      "category": "verification",
+      "defaultRetryable": false,
+      "summary": "Self verification only.",
+      "recovery": "Stop the attempted state change, preserve evidence, and require an explicit corrective command or policy change."
+    },
+    {
+      "code": "HUMAN_REVIEW_REQUIRED",
+      "category": "verification",
+      "defaultRetryable": false,
+      "summary": "Human review required.",
+      "recovery": "Pause authoritative state change and request an authorized human decision."
+    },
+    {
+      "code": "REQUEST_NOT_ADMISSIBLE",
+      "category": "radio",
+      "defaultRetryable": true,
+      "summary": "Request not admissible.",
+      "recovery": "Follow the owning domain state machine, preserve the original receipt, and retry only after the blocking fact changes."
+    },
+    {
+      "code": "DUPLICATE_BLOCKER",
+      "category": "radio",
+      "defaultRetryable": false,
+      "summary": "Duplicate blocker.",
+      "recovery": "Stop the attempted state change, preserve evidence, and require an explicit corrective command or policy change."
+    },
+    {
+      "code": "CHEAP_RETRY_AVAILABLE",
+      "category": "radio",
+      "defaultRetryable": true,
+      "summary": "Cheap retry available.",
+      "recovery": "Follow the owning domain state machine, preserve the original receipt, and retry only after the blocking fact changes."
+    },
+    {
+      "code": "MISSING_REPRODUCTION",
+      "category": "radio",
+      "defaultRetryable": true,
+      "summary": "Missing reproduction.",
+      "recovery": "Follow the owning domain state machine, preserve the original receipt, and retry only after the blocking fact changes."
+    },
+    {
+      "code": "GUIDANCE_STALE",
+      "category": "radio",
+      "defaultRetryable": true,
+      "summary": "Guidance stale.",
+      "recovery": "Follow the owning domain state machine, preserve the original receipt, and retry only after the blocking fact changes."
+    },
+    {
+      "code": "GUIDANCE_EXPIRED",
+      "category": "radio",
+      "defaultRetryable": true,
+      "summary": "Guidance expired.",
+      "recovery": "Follow the owning domain state machine, preserve the original receipt, and retry only after the blocking fact changes."
+    },
+    {
+      "code": "ADVISOR_UNAVAILABLE",
+      "category": "radio",
+      "defaultRetryable": true,
+      "summary": "Advisor unavailable.",
+      "recovery": "Follow the owning domain state machine, preserve the original receipt, and retry only after the blocking fact changes."
+    },
+    {
+      "code": "DEAD_LETTERED",
+      "category": "radio",
+      "defaultRetryable": false,
+      "summary": "Dead lettered.",
+      "recovery": "Stop the attempted state change, preserve evidence, and require an explicit corrective command or policy change."
+    },
+    {
+      "code": "TACTICAL_TAG_INACTIVE",
+      "category": "tactics",
+      "defaultRetryable": false,
+      "summary": "Tactical tag inactive.",
+      "recovery": "Stop the attempted state change, preserve evidence, and require an explicit corrective command or policy change."
+    },
+    {
+      "code": "TACTICAL_TAG_DELETED",
+      "category": "tactics",
+      "defaultRetryable": false,
+      "summary": "Tactical tag deleted.",
+      "recovery": "Stop the attempted state change, preserve evidence, and require an explicit corrective command or policy change."
+    },
+    {
+      "code": "TACTICAL_SOURCE_NOT_AUTHORIZED",
+      "category": "tactics",
+      "defaultRetryable": false,
+      "summary": "Tactical source not authorized.",
+      "recovery": "Stop the attempted state change, preserve evidence, and require an explicit corrective command or policy change."
+    },
+    {
+      "code": "TACTICAL_SOURCE_REDACTION_REQUIRED",
+      "category": "tactics",
+      "defaultRetryable": false,
+      "summary": "Tactical source redaction required.",
+      "recovery": "Stop the attempted state change, preserve evidence, and require an explicit corrective command or policy change."
+    },
+    {
+      "code": "TACTICAL_CANDIDATE_STALE",
+      "category": "tactics",
+      "defaultRetryable": true,
+      "summary": "Tactical candidate stale.",
+      "recovery": "Follow the owning domain state machine, preserve the original receipt, and retry only after the blocking fact changes."
+    },
+    {
+      "code": "TACTICAL_REVIEW_REQUIRED",
+      "category": "tactics",
+      "defaultRetryable": false,
+      "summary": "Tactical review required.",
+      "recovery": "Stop the attempted state change, preserve evidence, and require an explicit corrective command or policy change."
+    },
+    {
+      "code": "TACTICAL_EXTRACTION_FAILED",
+      "category": "tactics",
+      "defaultRetryable": true,
+      "summary": "Tactical extraction failed.",
+      "recovery": "Inspect the durable job and chunk receipt, correct the source or model route, then resume the same request."
+    },
+    {
+      "code": "BRAINSTORM_ALREADY_ACTIVE",
+      "category": "interaction",
+      "defaultRetryable": false,
+      "summary": "Brainstorm already active.",
+      "recovery": "Stop the attempted state change, preserve evidence, and require an explicit corrective command or policy change."
+    },
+    {
+      "code": "BRAINSTORM_NOT_ACTIVE",
+      "category": "interaction",
+      "defaultRetryable": false,
+      "summary": "Brainstorm not active.",
+      "recovery": "Stop the attempted state change, preserve evidence, and require an explicit corrective command or policy change."
+    },
+    {
+      "code": "DECISION_SET_DUPLICATE",
+      "category": "interaction",
+      "defaultRetryable": false,
+      "summary": "Decision set duplicate.",
+      "recovery": "Stop the attempted state change, preserve evidence, and require an explicit corrective command or policy change."
+    },
+    {
+      "code": "DECISION_SET_STALE",
+      "category": "interaction",
+      "defaultRetryable": true,
+      "summary": "Decision set stale.",
+      "recovery": "Follow the owning domain state machine, preserve the original receipt, and retry only after the blocking fact changes."
+    },
+    {
+      "code": "CHIEF_FALLBACK_NOT_ADMISSIBLE",
+      "category": "interaction",
+      "defaultRetryable": false,
+      "summary": "Chief fallback not admissible.",
+      "recovery": "Stop the attempted state change, preserve evidence, and require an explicit corrective command or policy change."
+    },
+    {
+      "code": "EVALUATION_DATASET_INCOMPLETE",
+      "category": "evaluation",
+      "defaultRetryable": true,
+      "summary": "Evaluation dataset incomplete.",
+      "recovery": "Follow the owning domain state machine, preserve the original receipt, and retry only after the blocking fact changes."
+    },
+    {
+      "code": "EVALUATION_INSUFFICIENT_DATA",
+      "category": "evaluation",
+      "defaultRetryable": false,
+      "summary": "Evaluation insufficient data.",
+      "recovery": "Stop the attempted state change, preserve evidence, and require an explicit corrective command or policy change."
+    },
+    {
+      "code": "EVALUATION_REPORT_MISMATCH",
+      "category": "evaluation",
+      "defaultRetryable": false,
+      "summary": "Evaluation report mismatch.",
+      "recovery": "Stop the attempted state change, preserve evidence, and require an explicit corrective command or policy change."
+    },
+    {
+      "code": "GIT_NETWORK_FORBIDDEN",
+      "category": "git",
+      "defaultRetryable": false,
+      "summary": "Git network forbidden.",
+      "recovery": "Stop the attempted state change, preserve evidence, and require an explicit corrective command or policy change."
+    },
+    {
+      "code": "GIT_REMOTE_WRITE_FORBIDDEN",
+      "category": "git",
+      "defaultRetryable": false,
+      "summary": "Git remote write forbidden.",
+      "recovery": "Stop the attempted state change, preserve evidence, and require an explicit corrective command or policy change."
+    },
+    {
+      "code": "GIT_NON_MAIN_FORBIDDEN",
+      "category": "git",
+      "defaultRetryable": false,
+      "summary": "Git non main forbidden.",
+      "recovery": "Stop the attempted state change, preserve evidence, and require an explicit corrective command or policy change."
+    },
+    {
+      "code": "GIT_HISTORY_REWRITE_FORBIDDEN",
+      "category": "git",
+      "defaultRetryable": false,
+      "summary": "Git history rewrite forbidden.",
+      "recovery": "Stop the attempted state change, preserve evidence, and require an explicit corrective command or policy change."
+    },
+    {
+      "code": "GIT_WORKTREE_DIRTY",
+      "category": "git",
+      "defaultRetryable": true,
+      "summary": "Git worktree dirty.",
+      "recovery": "Follow the owning domain state machine, preserve the original receipt, and retry only after the blocking fact changes."
+    },
+    {
+      "code": "GIT_COMMIT_FAILED",
+      "category": "git",
+      "defaultRetryable": true,
+      "summary": "Git commit failed.",
+      "recovery": "Follow the owning domain state machine, preserve the original receipt, and retry only after the blocking fact changes."
+    },
+    {
+      "code": "PROMOTION_ORDER_REQUIRED",
+      "category": "git",
+      "defaultRetryable": false,
+      "summary": "Promotion order required.",
+      "recovery": "Obtain an unexpired user-authorized Promotion Order for remote Git work."
+    },
+    {
+      "code": "AGENT_EXECUTION_BINDING_MISSING",
+      "category": "agent",
+      "defaultRetryable": true,
+      "summary": "Agent execution binding missing.",
+      "recovery": "Follow the owning domain state machine, preserve the original receipt, and retry only after the blocking fact changes."
+    },
+    {
+      "code": "AGENT_EXECUTION_BINDING_MISMATCH",
+      "category": "agent",
+      "defaultRetryable": true,
+      "summary": "Agent execution binding mismatch.",
+      "recovery": "Follow the owning domain state machine, preserve the original receipt, and retry only after the blocking fact changes."
+    },
+    {
+      "code": "PRESET_RESUME_RECEIPT_FAILED",
+      "category": "preset",
+      "defaultRetryable": true,
+      "summary": "Preset resume receipt failed.",
+      "recovery": "Follow the owning domain state machine, preserve the original receipt, and retry only after the blocking fact changes."
+    },
+    {
+      "code": "BUDGET_RESERVATION_REQUIRED",
+      "category": "budget",
+      "defaultRetryable": false,
+      "summary": "Budget reservation required.",
+      "recovery": "Reserve capacity before starting the expensive operation."
+    },
+    {
+      "code": "BUDGET_RESERVATION_EXPIRED",
+      "category": "budget",
+      "defaultRetryable": true,
+      "summary": "Budget reservation expired.",
+      "recovery": "Follow the owning domain state machine, preserve the original receipt, and retry only after the blocking fact changes."
+    },
+    {
+      "code": "BUDGET_SETTLEMENT_CONFLICT",
+      "category": "budget",
+      "defaultRetryable": true,
+      "summary": "Budget settlement conflict.",
+      "recovery": "Follow the owning domain state machine, preserve the original receipt, and retry only after the blocking fact changes."
+    },
+    {
+      "code": "EVALUATION_APPEAL_UNAUTHORIZED",
+      "category": "evaluation",
+      "defaultRetryable": false,
+      "summary": "Evaluation appeal unauthorized.",
+      "recovery": "Resolve report access and evaluation:appeal authorization before submitting."
+    },
+    {
+      "code": "EVALUATION_APPEAL_STALE_REPORT",
+      "category": "evaluation",
+      "defaultRetryable": true,
+      "summary": "Evaluation appeal stale report.",
+      "recovery": "Follow the owning domain state machine, preserve the original receipt, and retry only after the blocking fact changes."
+    },
+    {
+      "code": "EVALUATION_APPEAL_EVIDENCE_REQUIRED",
+      "category": "evaluation",
+      "defaultRetryable": true,
+      "summary": "Evaluation appeal evidence required.",
+      "recovery": "Follow the owning domain state machine, preserve the original receipt, and retry only after the blocking fact changes."
+    }
+  ]
+}

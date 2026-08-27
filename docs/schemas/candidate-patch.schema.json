@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "candidate-patch.schema.json",
+  "title": "Candidate Patch Artifact Contract",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "candidatePatchId",
+    "candidateId",
+    "missionId",
+    "taskId",
+    "taskVersion",
+    "baseWorkspaceSnapshotId",
+    "patchArtifact",
+    "changedPaths",
+    "applyMode",
+    "preconditions",
+    "patchHash",
+    "createdAt"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0.0"
+    },
+    "candidatePatchId": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "candidateId": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "missionId": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "taskId": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "taskVersion": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "baseWorkspaceSnapshotId": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "patchArtifact": {
+      "$ref": "common-defs.schema.json#/$defs/artifactRef"
+    },
+    "changedPaths": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 1024
+      },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "applyMode": {
+      "enum": [
+        "GIT_BINARY_PATCH",
+        "UNIFIED_DIFF",
+        "CONTENT_MANIFEST"
+      ]
+    },
+    "preconditions": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 2000
+      }
+    },
+    "patchHash": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "createdAt": {
+      "$ref": "common-defs.schema.json#/$defs/timestamp"
+    }
+  }
+}

@@ -1,0 +1,14 @@
+schemaVersion: 1.0.0
+revocationOrderId: knowledge-revocation-001
+snapshotId: tactical-source-001
+reason: PROVEN_INCORRECT
+requestedBy: user-example
+authorizedBy: user-example
+authorizationReceiptRef: authorization-revocation-001
+affectedTacticVersions:
+- skill-react-state@1.1.0
+requiredActions:
+- QUARANTINE_TACTIC
+- REVERIFY_TASKS
+- NOTIFY_USERS
+createdAt: '2026-08-19T00:00:00Z'

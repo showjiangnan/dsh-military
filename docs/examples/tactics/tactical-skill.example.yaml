@@ -1,0 +1,119 @@
+schemaVersion: 1.0.0
+skillId: tactic-codebase-auth-recon
+version: 1.2.0
+title: 既有代码库鉴权路径侦察
+description: 在只读范围内定位鉴权中间件、角色定义、调用链和测试夹具，并产出可验收证据。
+lifecycle: STABLE
+scenarios:
+  - 为既有 Web API 增加受保护端点
+  - 需要确认角色与权限边界
+preconditions:
+  - 代码仓库可只读访问
+  - 允许使用文件搜索和测试命令发现功能
+exclusions:
+  - 需要访问生产密钥或在线身份系统
+  - 仓库中没有服务端代码
+compatibility:
+  taskTypes:
+    - repository-reconnaissance
+  models:
+    - deepseek-v4-flash
+    - deepseek-v4-pro
+  tools:
+    - fs_search
+    - fs_read
+    - bash
+  environments:
+    - nodejs
+    - typescript
+  dataClassificationCeiling: confidential
+stateMachine:
+  initial: SEARCH_ENTRYPOINTS
+  states:
+    - SEARCH_ENTRYPOINTS
+    - TRACE_MIDDLEWARE
+    - LOCATE_ROLE_MODEL
+    - LOCATE_TESTS
+    - PACKAGE_EVIDENCE
+    - STOPPED
+  transitions:
+    - from: SEARCH_ENTRYPOINTS
+      to: TRACE_MIDDLEWARE
+      condition: 找到路由或全局中间件注册点
+      actionStepIds:
+        - step-search-auth-symbols
+    - from: TRACE_MIDDLEWARE
+      to: LOCATE_ROLE_MODEL
+      condition: 已确认鉴权中间件真实调用链
+      actionStepIds:
+        - step-trace-middleware
+    - from: LOCATE_ROLE_MODEL
+      to: LOCATE_TESTS
+      condition: 已确认角色或权限声明
+      actionStepIds:
+        - step-locate-roles
+    - from: LOCATE_TESTS
+      to: PACKAGE_EVIDENCE
+      condition: 已确认测试夹具或完成全库不存在检索
+      actionStepIds:
+        - step-locate-tests
+playbook:
+  - stepId: step-search-auth-symbols
+    action: 搜索 auth、permission、role、middleware、guard 等入口，并保存命中清单。
+    tool: fs_search
+    evidenceRequired:
+      - 搜索表达式
+      - 命中文件列表
+    retryLimit: 2
+  - stepId: step-trace-middleware
+    action: 读取路由到中间件的最短调用链，不推断未读取代码。
+    tool: fs_read
+    evidenceRequired:
+      - 路由注册位置
+      - 中间件定义位置
+    retryLimit: 1
+  - stepId: step-locate-roles
+    action: 定位角色/权限枚举或策略，并记录默认拒绝行为。
+    tool: fs_read
+    evidenceRequired:
+      - 角色定义摘录
+    retryLimit: 1
+  - stepId: step-locate-tests
+    action: 搜索现有测试和夹具；若不存在，保存覆盖全库的检索证据。
+    tool: fs_search
+    evidenceRequired:
+      - 测试路径或不存在证明
+    retryLimit: 1
+expectedObservations:
+  - 路由层通常引用一个鉴权中间件或策略函数
+  - 角色定义可能位于共享 domain、policy 或 test fixture 中
+verifierContract:
+  verifierIds:
+    - verifier-file-exists
+    - verifier-reference-consistency
+  successConditions:
+    - 所有引用路径存在
+    - 摘录与 Artifact hash 对应
+  negativeChecks:
+    - 没有读取 .env 或密钥目录
+stopConditions:
+  - 需要读取受限凭据才能继续
+  - 搜索结果显示两个互斥鉴权体系且无法确定主路径
+rollback:
+  - 本战术只读，无文件回滚；删除临时未入账缓存即可
+knownFailureModes:
+  - code: auth-generated-code
+    symptom: 鉴权实现由构建时生成，仓库中只有模板。
+    response: 提交 Blocker 并请求构建系统参谋指导。
+conflictsWith: []
+dependsOn: []
+provenance:
+  - kind: event
+    ref: event-tactic-museum-2026-07
+    claim: 来自 12 次已验收代码库侦察任务的稳定版本。
+metrics:
+  trials: 12
+  acceptedResults: 11
+  firstPassAccepted: 9
+  meanRetries: 0.25
+  lastEvaluatedAt: "2026-08-17T10:00:00Z"

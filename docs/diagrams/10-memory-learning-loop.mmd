@@ -1,0 +1,17 @@
+flowchart LR
+  L[(Mission Ledger)] --> TR[Deterministic Tactical Report]
+  TR --> TA[Trajectory Agent]
+  TR --> EA[Effectiveness Agent]
+  TA --> MV[Memory Verifier]
+  EA --> MV
+  MV --> G[General Memory]
+  EA --> M[Museum Agent]
+  L --> M
+  M --> Draft[DRAFT tactic]
+  Draft --> Sim[SIMULATION]
+  Sim --> Canary[CANARY]
+  Canary --> Test[TESTING]
+  Test --> Stable[STABLE]
+  Canary --> Q[QUARANTINED]
+  Test --> Q
+  Stable --> D[DEPRECATED]

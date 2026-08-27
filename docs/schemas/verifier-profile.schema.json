@@ -1,0 +1,99 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "verifier-profile.schema.json",
+  "title": "Verifier Profile",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "verifierProfileId",
+    "revision",
+    "status",
+    "taskTypes",
+    "checks",
+    "acceptanceRule",
+    "createdAt"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0.0"
+    },
+    "verifierProfileId": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "revision": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "status": {
+      "enum": [
+        "DRAFT",
+        "ACTIVE",
+        "PAUSED",
+        "RETIRED"
+      ]
+    },
+    "taskTypes": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 160
+      },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "checks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "checkId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "kind": {
+            "enum": [
+              "SCHEMA",
+              "COMMAND",
+              "TEST",
+              "LINT",
+              "TYPECHECK",
+              "POLICY",
+              "ARTIFACT",
+              "SEMANTIC_READONLY"
+            ]
+          },
+          "required": {
+            "type": "boolean"
+          },
+          "timeoutSeconds": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "commandTemplate": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          }
+        },
+        "required": [
+          "checkId",
+          "kind",
+          "required",
+          "timeoutSeconds"
+        ]
+      },
+      "minItems": 1
+    },
+    "acceptanceRule": {
+      "enum": [
+        "ALL_REQUIRED",
+        "WEIGHTED_WITH_REQUIRED"
+      ]
+    },
+    "createdAt": {
+      "$ref": "common-defs.schema.json#/$defs/timestamp"
+    }
+  }
+}

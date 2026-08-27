@@ -1,0 +1,11 @@
+flowchart TD
+  U[Authorized source] --> S[Immutable Source Snapshot]
+  S --> Scan[Rights + Secret + Injection + Temporal scans]
+  Scan --> X[Extraction Candidate]
+  X --> Review[User Diff Review]
+  Review --> Draft[DRAFT Tactic]
+  Draft --> Canary[Simulation / Canary / Testing]
+  Canary --> Stable[STABLE]
+  S --> Rev[Revocation Order]
+  Rev --> Impact[Derived Impact Graph]
+  Impact --> Quarantine[Quarantine tactics and reverify tasks]

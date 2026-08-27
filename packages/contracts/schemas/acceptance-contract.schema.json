@@ -1,0 +1,131 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "acceptance-contract.schema.json",
+  "title": "Acceptance Contract",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "contractId",
+    "version",
+    "taskType",
+    "clauses",
+    "regressionChecks",
+    "completionRule"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0.0"
+    },
+    "contractId": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "taskType": {
+      "type": "string"
+    },
+    "clauses": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "clauseId",
+          "description",
+          "severity",
+          "verifierIds",
+          "evidenceKinds",
+          "passCondition"
+        ],
+        "properties": {
+          "clauseId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1
+          },
+          "severity": {
+            "enum": [
+              "required",
+              "critical"
+            ]
+          },
+          "verifierIds": {
+            "type": "array",
+            "items": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "minItems": 1
+          },
+          "evidenceKinds": {
+            "type": "array",
+            "items": {
+              "enum": [
+                "artifact",
+                "event",
+                "tool-call",
+                "git-commit",
+                "api-receipt",
+                "human-authorization"
+              ]
+            },
+            "minItems": 1,
+            "uniqueItems": true
+          },
+          "passCondition": {
+            "type": "string",
+            "minLength": 1
+          },
+          "humanReviewOnAmbiguity": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    "regressionChecks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "verifierId",
+          "description"
+        ],
+        "properties": {
+          "verifierId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "description": {
+            "type": "string"
+          },
+          "blocking": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    "forbiddenEffects": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "completionRule": {
+      "enum": [
+        "all-required",
+        "all-clauses",
+        "manual"
+      ]
+    },
+    "minimumEvidenceCoverage": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    }
+  }
+}

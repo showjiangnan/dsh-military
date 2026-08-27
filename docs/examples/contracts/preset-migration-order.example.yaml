@@ -1,0 +1,12 @@
+schemaVersion: 1.0.0
+migrationOrderId: migration-order-001
+sessionId: session-general
+fromGeneration: military@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+toGeneration: military@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+strategy: EXPORT_IMPORT
+reason: Breaking tool contract change
+authorizedBy: user-example
+authorizationReceiptRef: authorization-migration-001
+expectedSessionRevision: 42
+createdAt: '2026-08-19T00:00:00Z'
+expiresAt: '2026-08-20T00:00:00Z'

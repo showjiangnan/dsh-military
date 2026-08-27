@@ -1,0 +1,18 @@
+schemaVersion: 1.0.0
+toolProfileId: tools-worker-code
+revision: 1
+status: ACTIVE
+allowTools:
+- bash
+- fs_read
+- fs_write
+- military_submit_candidate
+- military_submit_blocker
+denyTools:
+- git_push
+- military_accept_task
+maxParallelCalls: 4
+timeoutOverrides:
+  write: 120000
+  military_submit_candidate: 180000
+createdAt: '2026-08-19T00:00:00Z'

@@ -1,0 +1,22 @@
+sequenceDiagram
+  participant G as General
+  participant H as Harness Staff Router
+  participant A1 as Backend Advisor
+  participant A2 as Security Advisor
+  participant A3 as UX Advisor
+  participant L as Lead Advisor
+  G->>H: StaffCouncilRequest
+  H->>H: deterministic eligibility/permissions
+  par independent opinion
+    H->>A1: bounded context
+    H->>A2: bounded context
+    H->>A3: bounded context
+  end
+  A1-->>H: recommendation + evidence needs
+  A2-->>H: recommendation + risks
+  A3-->>H: recommendation + exclusions
+  H->>H: coverage optimization; select lead
+  H->>L: all structured opinions, dissent preserved
+  L-->>H: synthesized Direction/Wave/Directive
+  H->>H: schema, DAG, permission and acceptance validation
+  H-->>G: council result

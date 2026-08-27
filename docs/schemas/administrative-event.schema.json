@@ -1,0 +1,1367 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "administrative-event.schema.json",
+  "title": "Military Cross-session Administrative Event Envelope",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "eventId",
+    "seq",
+    "aggregateRevision",
+    "type",
+    "timestamp",
+    "payload",
+    "actorId",
+    "tenantId"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "2.0.0"
+    },
+    "eventId": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "seq": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "aggregateRevision": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "type": {
+      "type": "string"
+    },
+    "timestamp": {
+      "$ref": "common-defs.schema.json#/$defs/timestamp"
+    },
+    "causationId": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "correlationId": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "idempotencyKey": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "payload": {
+      "type": "object"
+    },
+    "actorId": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "tenantId": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    }
+  },
+  "oneOf": [
+    {
+      "title": "Tactical tag changed",
+      "properties": {
+        "type": {
+          "const": "tag/changed"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "tagId",
+            "revision",
+            "operation"
+          ],
+          "properties": {
+            "tagId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "revision": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "operation": {
+              "enum": [
+                "created",
+                "renamed",
+                "paused",
+                "resumed",
+                "deleted"
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "title": "Agent template changed",
+      "properties": {
+        "type": {
+          "const": "agent-template/changed"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "templateId",
+            "revision",
+            "operation"
+          ],
+          "properties": {
+            "templateId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "revision": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "operation": {
+              "enum": [
+                "created",
+                "activated",
+                "paused",
+                "retired"
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "title": "Tool profile changed",
+      "properties": {
+        "type": {
+          "const": "tool-profile/changed"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "toolProfileId",
+            "revision",
+            "operation"
+          ],
+          "properties": {
+            "toolProfileId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "revision": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "operation": {
+              "enum": [
+                "created",
+                "activated",
+                "paused",
+                "retired"
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "title": "Permission profile changed",
+      "properties": {
+        "type": {
+          "const": "permission-profile/changed"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "permissionProfileId",
+            "revision",
+            "operation"
+          ],
+          "properties": {
+            "permissionProfileId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "revision": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "operation": {
+              "enum": [
+                "created",
+                "activated",
+                "revoked",
+                "retired"
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "title": "Enterprise API grant changed",
+      "properties": {
+        "type": {
+          "const": "api-grant/changed"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "grantId",
+            "revision",
+            "operation"
+          ],
+          "properties": {
+            "grantId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "revision": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "operation": {
+              "enum": [
+                "created",
+                "activated",
+                "revoked",
+                "expired"
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "title": "Model capability profile changed",
+      "properties": {
+        "type": {
+          "const": "model-capability/changed"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "profileId",
+            "revision",
+            "provider",
+            "model",
+            "operation"
+          ],
+          "properties": {
+            "profileId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "revision": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "provider": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160
+            },
+            "model": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160
+            },
+            "operation": {
+              "enum": [
+                "created",
+                "validated",
+                "deprecated"
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "title": "Context manifest created",
+      "properties": {
+        "type": {
+          "const": "context/manifest-created"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "manifestId",
+            "missionId",
+            "taskId",
+            "taskVersion",
+            "missionRevision",
+            "agentId",
+            "agentGeneration",
+            "sessionId",
+            "turn",
+            "step",
+            "artifactRef",
+            "manifestSha256",
+            "sectionKinds",
+            "omittedEvidenceCount",
+            "tokenBudget"
+          ],
+          "properties": {
+            "manifestId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "missionId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "taskId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "taskVersion": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "missionRevision": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "agentId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "agentGeneration": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "sessionId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "turn": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "step": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "artifactRef": {
+              "$ref": "common-defs.schema.json#/$defs/artifactRef"
+            },
+            "manifestSha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "sectionKinds": {
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": {
+                "enum": [
+                  "CONSTITUTION",
+                  "STATE",
+                  "EVIDENCE",
+                  "WORKING"
+                ]
+              }
+            },
+            "omittedEvidenceCount": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "tokenBudget": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        }
+      }
+    },
+    {
+      "title": "Data residency policy changed",
+      "properties": {
+        "type": {
+          "const": "data-residency-policy/changed"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "policyId",
+            "revision",
+            "status"
+          ],
+          "properties": {
+            "policyId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "revision": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "status": {
+              "enum": [
+                "DRAFT",
+                "ACTIVE",
+                "PAUSED",
+                "REVOKED",
+                "RETIRED"
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "title": "Redaction policy changed",
+      "properties": {
+        "type": {
+          "const": "redaction-policy/changed"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "policyId",
+            "revision",
+            "status"
+          ],
+          "properties": {
+            "policyId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "revision": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "status": {
+              "enum": [
+                "DRAFT",
+                "ACTIVE",
+                "PAUSED",
+                "REVOKED",
+                "RETIRED"
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "title": "Verifier profile changed",
+      "properties": {
+        "type": {
+          "const": "verifier-profile/changed"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "verifierProfileId",
+            "revision",
+            "status"
+          ],
+          "properties": {
+            "verifierProfileId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "revision": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "status": {
+              "enum": [
+                "DRAFT",
+                "ACTIVE",
+                "PAUSED",
+                "REVOKED",
+                "RETIRED"
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "title": "Resource budget policy changed",
+      "properties": {
+        "type": {
+          "const": "resource-budget-policy/changed"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "policyId",
+            "revision",
+            "status"
+          ],
+          "properties": {
+            "policyId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "revision": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "status": {
+              "enum": [
+                "DRAFT",
+                "ACTIVE",
+                "PAUSED",
+                "REVOKED",
+                "RETIRED"
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "title": "Authorization granted",
+      "properties": {
+        "type": {
+          "const": "authorization/granted"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "authorizationId",
+            "principalId",
+            "scope",
+            "expiresAt"
+          ],
+          "properties": {
+            "authorizationId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "principalId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "scope": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 1000
+            },
+            "expiresAt": {
+              "$ref": "common-defs.schema.json#/$defs/timestamp"
+            }
+          }
+        }
+      }
+    },
+    {
+      "title": "Authorization revoked",
+      "properties": {
+        "type": {
+          "const": "authorization/revoked"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "authorizationId",
+            "principalId",
+            "reason"
+          ],
+          "properties": {
+            "authorizationId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "principalId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "reason": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2000
+            }
+          }
+        }
+      }
+    },
+    {
+      "title": "Tactical ingestion requested",
+      "properties": {
+        "type": {
+          "const": "tactical-ingestion/requested"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "requestId",
+            "sourceKind",
+            "requestedTagIds"
+          ],
+          "properties": {
+            "requestId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "sourceKind": {
+              "enum": [
+                "SESSION_RANGE",
+                "DIRECT_TEXT",
+                "ARTIFACT"
+              ]
+            },
+            "requestedTagIds": {
+              "type": "array",
+              "items": {
+                "$ref": "common-defs.schema.json#/$defs/id"
+              },
+              "minItems": 1,
+              "uniqueItems": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "title": "Tactical source snapshotted",
+      "properties": {
+        "type": {
+          "const": "tactical-ingestion/source-snapshotted"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "requestId",
+            "snapshotId",
+            "sourceHash",
+            "classification"
+          ],
+          "properties": {
+            "requestId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "snapshotId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "sourceHash": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "classification": {
+              "$ref": "common-defs.schema.json#/$defs/classification"
+            }
+          }
+        }
+      }
+    },
+    {
+      "title": "Tactical extraction candidate created",
+      "properties": {
+        "type": {
+          "const": "tactical-ingestion/candidate-created"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "requestId",
+            "candidateId",
+            "candidateHash",
+            "operation"
+          ],
+          "properties": {
+            "requestId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "candidateId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "candidateHash": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "operation": {
+              "enum": [
+                "NEW_TACTIC",
+                "SUPPLEMENT"
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "title": "Tactical ingestion reviewed",
+      "properties": {
+        "type": {
+          "const": "tactical-ingestion/reviewed"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "requestId",
+            "candidateId",
+            "disposition",
+            "reviewerId"
+          ],
+          "properties": {
+            "requestId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "candidateId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "disposition": {
+              "enum": [
+                "APPROVED_AS_DRAFT",
+                "RETURNED",
+                "REJECTED"
+              ]
+            },
+            "reviewerId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            }
+          }
+        }
+      }
+    },
+    {
+      "title": "Tactical source revoked",
+      "properties": {
+        "type": {
+          "const": "tactical-source/revoked"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "snapshotId",
+            "reason",
+            "revocationOrderId"
+          ],
+          "properties": {
+            "snapshotId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "reason": {
+              "enum": [
+                "OWNER_REQUEST",
+                "LICENSE_CHANGE",
+                "SECURITY_INCIDENT",
+                "PROVEN_INCORRECT",
+                "RETENTION_EXPIRY"
+              ]
+            },
+            "revocationOrderId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            }
+          }
+        }
+      }
+    },
+    {
+      "title": "Tactical source impact assessed",
+      "properties": {
+        "type": {
+          "const": "tactical-source/impact-assessed"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "revocationOrderId",
+            "impactReportRef",
+            "affectedTacticVersions",
+            "affectedTaskCount"
+          ],
+          "properties": {
+            "revocationOrderId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "impactReportRef": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "affectedTacticVersions": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 240
+              },
+              "uniqueItems": true
+            },
+            "affectedTaskCount": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        }
+      }
+    },
+    {
+      "title": "Tactical source revalidation completed",
+      "properties": {
+        "type": {
+          "const": "tactical-source/revalidation-completed"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "revocationOrderId",
+            "disposition",
+            "reverifiedTaskIds"
+          ],
+          "properties": {
+            "revocationOrderId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "disposition": {
+              "enum": [
+                "CLEARED",
+                "PARTIALLY_CLEARED",
+                "REMAINS_QUARANTINED"
+              ]
+            },
+            "reverifiedTaskIds": {
+              "type": "array",
+              "items": {
+                "$ref": "common-defs.schema.json#/$defs/id"
+              },
+              "uniqueItems": true
+            },
+            "reportRef": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            }
+          }
+        }
+      }
+    },
+    {
+      "title": "Performance evaluation requested",
+      "properties": {
+        "type": {
+          "const": "performance-evaluation/requested"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "evaluationRequestId",
+            "datasetJobId",
+            "requestedBy"
+          ],
+          "properties": {
+            "evaluationRequestId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "datasetJobId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "requestedBy": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            }
+          }
+        }
+      }
+    },
+    {
+      "title": "Performance dataset frozen",
+      "properties": {
+        "type": {
+          "const": "performance-evaluation/dataset-frozen"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "evaluationRequestId",
+            "datasetHash",
+            "datasetArtifact"
+          ],
+          "properties": {
+            "evaluationRequestId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "datasetHash": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "datasetArtifact": {
+              "$ref": "common-defs.schema.json#/$defs/artifactRef"
+            }
+          }
+        }
+      }
+    },
+    {
+      "title": "Template evaluation completed",
+      "properties": {
+        "type": {
+          "const": "performance-evaluation/template-completed"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "evaluationRequestId",
+            "templateId",
+            "templateRevision",
+            "performanceArtifact"
+          ],
+          "properties": {
+            "evaluationRequestId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "templateId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "templateRevision": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "performanceArtifact": {
+              "$ref": "common-defs.schema.json#/$defs/artifactRef"
+            }
+          }
+        }
+      }
+    },
+    {
+      "title": "Performance evaluation completed",
+      "properties": {
+        "type": {
+          "const": "performance-evaluation/completed"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "evaluationRequestId",
+            "reportId",
+            "reportArtifact"
+          ],
+          "properties": {
+            "evaluationRequestId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "reportId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "reportArtifact": {
+              "$ref": "common-defs.schema.json#/$defs/artifactRef"
+            }
+          }
+        }
+      }
+    },
+    {
+      "title": "Performance evaluation cancelled",
+      "properties": {
+        "type": {
+          "const": "performance-evaluation/cancelled"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "evaluationRequestId",
+            "reasonCode"
+          ],
+          "properties": {
+            "evaluationRequestId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "reasonCode": {
+              "enum": [
+                "USER_CANCELLED",
+                "BUDGET_EXHAUSTED",
+                "AUTHORIZATION_REVOKED",
+                "DATASET_INVALID",
+                "BUNDLE_DISABLED"
+              ]
+            },
+            "partialDatasetManifestRef": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            }
+          }
+        }
+      }
+    },
+    {
+      "title": "Performance evaluation reopened",
+      "properties": {
+        "type": {
+          "const": "performance-evaluation/reopened"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "evaluationRequestId",
+            "previousReportId",
+            "reason",
+            "appealRef"
+          ],
+          "properties": {
+            "evaluationRequestId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "previousReportId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "reason": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2000
+            },
+            "appealRef": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            }
+          }
+        }
+      }
+    },
+    {
+      "title": "Performance evaluation appeal resolved",
+      "properties": {
+        "type": {
+          "const": "performance-evaluation/appeal-resolved"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "appealId",
+            "disposition",
+            "resolvedBy"
+          ],
+          "properties": {
+            "appealId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "disposition": {
+              "enum": [
+                "UPHELD",
+                "PARTIALLY_UPHELD",
+                "DENIED"
+              ]
+            },
+            "resolvedBy": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "supersedingReportId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            }
+          }
+        }
+      }
+    },
+    {
+      "title": "Performance evaluation appeal submitted",
+      "properties": {
+        "type": {
+          "const": "performance-evaluation/appeal-submitted"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "appealId",
+            "reportId",
+            "reportRevision",
+            "submittedBy",
+            "grounds"
+          ],
+          "properties": {
+            "appealId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "reportId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "reportRevision": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "submittedBy": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "grounds": {
+              "enum": [
+                "DATASET_ERROR",
+                "RUBRIC_ERROR",
+                "ATTRIBUTION_ERROR",
+                "MISSING_CONTEXT",
+                "OTHER"
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "title": "Preset generation installed",
+      "properties": {
+        "type": {
+          "const": "preset-generation/installed"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "presetId",
+            "generation",
+            "manifestHash",
+            "compatibility"
+          ],
+          "properties": {
+            "presetId": {
+              "const": "military"
+            },
+            "generation": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 4000
+            },
+            "manifestHash": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "compatibility": {
+              "enum": [
+                "RC2_CURRENT",
+                "RC2_ARCHIVED"
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "title": "Preset generation deprecated",
+      "properties": {
+        "type": {
+          "const": "preset-generation/deprecated"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "presetId",
+            "generation",
+            "replacementGeneration"
+          ],
+          "properties": {
+            "presetId": {
+              "const": "military"
+            },
+            "generation": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 4000
+            },
+            "replacementGeneration": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 4000
+            }
+          }
+        }
+      }
+    },
+    {
+      "title": "Compatibility probe completed",
+      "properties": {
+        "type": {
+          "const": "compatibility/probed"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "reportId",
+            "dshCommit",
+            "disposition"
+          ],
+          "properties": {
+            "reportId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "dshCommit": {
+              "type": "string",
+              "minLength": 40,
+              "maxLength": 40
+            },
+            "disposition": {
+              "enum": [
+                "READY",
+                "DEGRADED_READ_ONLY",
+                "MIGRATION_REQUIRED",
+                "UNSUPPORTED"
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "title": "Bundle installed",
+      "properties": {
+        "type": {
+          "const": "bundle/installed"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "operationId",
+            "bundleVersion",
+            "receiptRef"
+          ],
+          "properties": {
+            "operationId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "bundleVersion": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 80
+            },
+            "receiptRef": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            }
+          }
+        }
+      }
+    },
+    {
+      "title": "Bundle upgraded",
+      "properties": {
+        "type": {
+          "const": "bundle/upgraded"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "operationId",
+            "fromVersion",
+            "toVersion",
+            "receiptRef"
+          ],
+          "properties": {
+            "operationId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "fromVersion": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 80
+            },
+            "toVersion": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 80
+            },
+            "receiptRef": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            }
+          }
+        }
+      }
+    },
+    {
+      "title": "Bundle rolled back",
+      "properties": {
+        "type": {
+          "const": "bundle/rolled-back"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "operationId",
+            "fromVersion",
+            "toVersion",
+            "receiptRef"
+          ],
+          "properties": {
+            "operationId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "fromVersion": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 80
+            },
+            "toVersion": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 80
+            },
+            "receiptRef": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            }
+          }
+        }
+      }
+    },
+    {
+      "title": "Bundle disabled",
+      "properties": {
+        "type": {
+          "const": "bundle/disabled"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "operationId",
+            "receiptRef"
+          ],
+          "properties": {
+            "operationId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "receiptRef": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "existingSessionDisposition": {
+              "enum": [
+                "ALLOW_CONVERGENCE",
+                "READ_ONLY",
+                "PAUSE"
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "title": "Bundle uninstalled",
+      "properties": {
+        "type": {
+          "const": "bundle/uninstalled"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "operationId",
+            "bundleVersion",
+            "dataDisposition",
+            "receiptRef"
+          ],
+          "properties": {
+            "operationId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "bundleVersion": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 80
+            },
+            "dataDisposition": {
+              "enum": [
+                "RETAINED",
+                "EXPORTED_AND_REMOVED",
+                "REMOVED"
+              ]
+            },
+            "receiptRef": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            }
+          }
+        }
+      }
+    }
+  ]
+}

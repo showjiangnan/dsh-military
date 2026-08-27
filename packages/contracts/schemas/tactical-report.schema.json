@@ -1,0 +1,129 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "tactical-report.schema.json",
+  "title": "Deterministic Tactical Report",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "reportId",
+    "missionId",
+    "boundary",
+    "acceptedTasks",
+    "openBlockers",
+    "skillUsage",
+    "metrics",
+    "sourceEventIds",
+    "createdAt"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0.0"
+    },
+    "reportId": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "missionId": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "boundary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "ref"
+      ],
+      "properties": {
+        "kind": {
+          "enum": [
+            "wave",
+            "direction",
+            "compaction",
+            "mission"
+          ]
+        },
+        "ref": {
+          "$ref": "common-defs.schema.json#/$defs/id"
+        }
+      }
+    },
+    "acceptedTasks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "taskId",
+          "taskVersion",
+          "candidateId",
+          "artifactRefs"
+        ],
+        "properties": {
+          "taskId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "taskVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "candidateId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "artifactRefs": {
+            "type": "array",
+            "items": {
+              "$ref": "common-defs.schema.json#/$defs/artifactRef"
+            }
+          }
+        }
+      }
+    },
+    "openBlockers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "taskId",
+          "statement"
+        ],
+        "properties": {
+          "taskId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "statement": {
+            "type": "string"
+          },
+          "requestId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          }
+        }
+      }
+    },
+    "decisions": {
+      "type": "array",
+      "items": {
+        "$ref": "common-defs.schema.json#/$defs/eventRef"
+      }
+    },
+    "skillUsage": {
+      "type": "array",
+      "items": {
+        "$ref": "common-defs.schema.json#/$defs/skillRef"
+      }
+    },
+    "metrics": {
+      "type": "object"
+    },
+    "sourceEventIds": {
+      "type": "array",
+      "items": {
+        "$ref": "common-defs.schema.json#/$defs/id"
+      },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "createdAt": {
+      "$ref": "common-defs.schema.json#/$defs/timestamp"
+    }
+  }
+}

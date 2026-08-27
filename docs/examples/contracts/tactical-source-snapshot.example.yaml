@@ -1,0 +1,39 @@
+schemaVersion: 1.0.0
+snapshotId: tactical-source-001
+requestId: ingestion-request-001
+sourceKind: SESSION_RANGE
+sourceOwnerId: user-example
+sourceLicense: USER_OWNED
+allowedUse:
+- PRIVATE_TACTIC
+allowedAudience:
+- user:user-example
+derivativeWorkAllowed: true
+externalModelProcessingAllowed: true
+retentionPolicyRef: retention-user-private
+revocationPolicyRef: revocation-user-controlled
+sourceArtifact:
+  artifactId: artifact-tactical-source
+  sha256: dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd
+  mediaType: application/json
+  byteLength: 16000
+  classification: confidential
+sourceHash: dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd
+classification: confidential
+redactionReceipt:
+  artifactId: artifact-redaction-receipt
+  sha256: eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee
+  mediaType: application/json
+  byteLength: 1024
+  classification: confidential
+promptInjectionScan:
+  status: WARN
+  findings:
+  - One quoted system prompt was isolated from instructions.
+temporalValidity:
+  validFrom: '2026-01-01T00:00:00Z'
+  validUntil: '2027-01-01T00:00:00Z'
+  dependencyVersions:
+  - react@19
+sourcePresetId: military
+createdAt: '2026-08-19T00:00:00Z'

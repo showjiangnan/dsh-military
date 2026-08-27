@@ -1,0 +1,20 @@
+schemaVersion: 1.0.0
+grantId: grant-architecture-read
+revision: 1
+status: ACTIVE
+gateway: enterprise-api-gateway
+methods:
+- GET
+resourcePatterns:
+- /internal/architecture/**
+requestSchemaRef: schemas/internal-architecture-request.json
+responseSchemaRef: schemas/internal-architecture-response.json
+classificationCeiling: confidential
+dataResidencyPolicyRef: residency-enterprise
+credentialRef: credential-architecture-read
+redactionPolicyRef: redaction-architecture
+rateLimitPerMinute: 30
+principalScopes:
+- advisor:backend
+createdAt: '2026-08-19T00:00:00Z'
+expiresAt: '2027-08-19T00:00:00Z'

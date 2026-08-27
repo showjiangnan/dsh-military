@@ -1,0 +1,33 @@
+schemaVersion: 1.0.0
+receiptId: budget-usage-task-001
+reservationId: budget-reservation-task-001
+scopeType: TASK
+scopeId: task-react-filter
+actual:
+  modelRequests: 8
+  reasoningTokens: 112000
+  wallClockSeconds: 890
+  toolCalls: 54
+  apiCalls: 5
+  concurrentAgents: 1
+  radioRounds: 1
+  reworkAttempts: 1
+  storageBytes: 52428800
+overages:
+  modelRequests: 0
+  reasoningTokens: 0
+  wallClockSeconds: 0
+  toolCalls: 0
+  apiCalls: 0
+  concurrentAgents: 0
+  radioRounds: 0
+  reworkAttempts: 0
+  storageBytes: 0
+disposition: SETTLED
+sourceEventIds:
+- event-budget-reserved
+- event-task-accepted
+- event-budget-settled
+idempotencyKey: budget-reservation-task-001:settlement
+startedAt: '2026-08-19T01:02:00Z'
+completedAt: '2026-08-19T01:16:50Z'

@@ -1,0 +1,30 @@
+schemaVersion: 1.0.0
+dshBaseline:
+  release: 0.1.1-rc.2
+  commit: b150a551b8d465e31e418e1b2eaf5e79bbb7d28e
+traceId: trace-general-model-switch
+scenario: general-model-switch
+initialState:
+  state: PRESET_DEFAULT_ACTIVE
+steps:
+- index: 1
+  action: bind military session
+  eventType: military/session-bound
+  expectedState: PRESET_DEFAULT_ACTIVE
+- index: 2
+  action: select compatible General model in session UI
+  eventType: model/selection-changed
+  expectedState: USER_OVERRIDE_ACTIVE
+- index: 3
+  action: instantiate child from frozen template
+  eventType: agent-template/instantiated
+  expectedState: CHILD_TEMPLATE_ROUTE
+- index: 4
+  action: reject unsupported subsequent model request
+  eventType: model/selection-rejected
+  expectedState: USER_OVERRIDE_ACTIVE
+finalProjectionHash: '000000000000000000000000000000000000000000000000000000000000000e'
+invariants:
+- General switch affects only future General requests
+- child template route does not follow General override
+- rejected switch preserves previous route

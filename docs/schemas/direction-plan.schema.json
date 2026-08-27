@@ -1,0 +1,159 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "direction-plan.schema.json",
+  "title": "Direction Plan",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "missionId",
+    "directionId",
+    "version",
+    "title",
+    "outcome",
+    "scope",
+    "interfaces",
+    "risks",
+    "completionCriteria",
+    "status"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0.0"
+    },
+    "missionId": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "directionId": {
+      "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1
+    },
+    "outcome": {
+      "type": "string",
+      "minLength": 1
+    },
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "included",
+        "excluded"
+      ],
+      "properties": {
+        "included": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "excluded": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "interfaces": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "contract"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "contract": {
+            "type": "string"
+          },
+          "ownerDirectionId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          }
+        }
+      }
+    },
+    "dependencies": {
+      "type": "array",
+      "items": {
+        "$ref": "common-defs.schema.json#/$defs/id"
+      },
+      "uniqueItems": true
+    },
+    "risks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "statement",
+          "severity"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "statement": {
+            "type": "string"
+          },
+          "severity": {
+            "enum": [
+              "low",
+              "medium",
+              "high",
+              "critical"
+            ]
+          },
+          "mitigation": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "assumptions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "completionCriteria": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1
+    },
+    "waveIds": {
+      "type": "array",
+      "items": {
+        "$ref": "common-defs.schema.json#/$defs/id"
+      },
+      "uniqueItems": true
+    },
+    "priority": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 100
+    },
+    "status": {
+      "enum": [
+        "DRAFT",
+        "RATIFIED",
+        "ACTIVE",
+        "COMPLETED",
+        "CANCELLED"
+      ]
+    }
+  }
+}

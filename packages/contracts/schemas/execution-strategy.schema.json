@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "execution-strategy.schema.json",
+  "title": "Execution Strategy",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "strategyId", "provider", "model", "reasoningEffort", "paradigm", "maximumSteps", "verificationTier", "parallelism", "rationale"],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "strategyId": { "$ref": "common-defs.schema.json#/$defs/id" },
+    "provider": { "type": "string", "minLength": 1 },
+    "model": { "type": "string", "minLength": 1 },
+    "reasoningEffort": { "enum": ["low", "high", "max"] },
+    "paradigm": { "enum": ["direct", "react", "plan-execute", "reflection", "multi-agent"] },
+    "maximumSteps": { "type": "integer", "minimum": 1 },
+    "verificationTier": { "enum": ["V0", "V1", "V2", "V3", "V4"] },
+    "parallelism": { "type": "integer", "minimum": 1, "maximum": 5 },
+    "rationale": { "type": "array", "items": { "type": "string", "minLength": 1 } }
+  }
+}
