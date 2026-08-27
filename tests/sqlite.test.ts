@@ -1,6 +1,11 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { brand, missionEvent, type AgentExecutionBinding } from '@dsh-military/contracts'
+import {
+  MilitaryError,
+  brand,
+  missionEvent,
+  type AgentExecutionBinding,
+} from '@dsh-military/contracts'
 import {
   LedgerMissionCommandHandler,
   InMemoryMilitaryBrainstorm,
@@ -44,7 +49,217 @@ test('SQLite migrations, CAS ledger and idempotency survive reopen', async () =>
   } finally { await temp.dispose() }
 })
 
-test('Mission command admission, domain events, receipt and outbox commit atomically across restart', async () => {
+test('SQLite transaction API rejects asynchronous callbacks and rolls back their synchronous prefix', async () => {
+  const database = new SqliteMilitaryDatabase({ path: ':memory:' })
+  try {
+    database.db.exec('CREATE TABLE synchronous_transaction_probe(value TEXT NOT NULL)')
+    assert.throws(
+      () => database.transaction(async () => {
+        database.db.prepare(
+          'INSERT INTO synchronous_transaction_probe(value) VALUES (?)',
+        ).run('must-roll-back')
+        await Promise.resolve()
+      }),
+      /transaction callbacks must be synchronous/u,
+    )
+    const row = database.db.prepare(`
+      SELECT COUNT(*) AS count FROM synchronous_transaction_probe
+    `).get() as { readonly count: number }
+    assert.equal(row.count, 0)
+
+    assert.throws(
+      () => database.transaction(() => {
+        database.transaction(async () => {
+          database.db.prepare(
+            'INSERT INTO synchronous_transaction_probe(value) VALUES (?)',
+          ).run('nested-must-roll-back')
+          await Promise.resolve()
+        })
+        return 'outer-result'
+      }),
+      /transaction callbacks must be synchronous/u,
+      'a nested callback cannot hide a thenable from the outer transaction',
+    )
+    assert.equal(
+      (database.db.prepare(`
+        SELECT COUNT(*) AS count FROM synchronous_transaction_probe
+      `).get() as { readonly count: number }).count,
+      0,
+    )
+
+    let lateContinuation: Promise<void> | undefined
+    assert.throws(
+      () => database.transaction(() => {
+        lateContinuation = (async () => {
+          await Promise.resolve()
+          database.transaction(() => {
+            database.db.prepare(
+              'INSERT INTO synchronous_transaction_probe(value) VALUES (?)',
+            ).run('late-write-must-not-escape')
+          })
+        })()
+        return lateContinuation
+      }),
+      /transaction callbacks must be synchronous/u,
+    )
+    assert.ok(lateContinuation)
+    await assert.rejects(
+      lateContinuation,
+      /transaction context expired/u,
+    )
+    assert.equal(
+      (database.db.prepare(`
+        SELECT COUNT(*) AS count FROM synchronous_transaction_probe
+      `).get() as { readonly count: number }).count,
+      0,
+    )
+
+    let directLateContinuation: Promise<void> | undefined
+    assert.throws(
+      () => database.transaction(() => {
+        const statement = database.db.prepare(
+          'INSERT INTO synchronous_transaction_probe(value) VALUES (?)',
+        )
+        directLateContinuation = (async () => {
+          await Promise.resolve()
+          statement.run('direct-late-write-must-not-escape')
+        })()
+        return directLateContinuation
+      }),
+      /transaction callbacks must be synchronous/u,
+    )
+    assert.ok(directLateContinuation)
+    await assert.rejects(
+      directLateContinuation,
+      /write attempted from an expired asynchronous transaction context/u,
+    )
+    assert.equal(
+      (database.db.prepare(`
+        SELECT COUNT(*) AS count FROM synchronous_transaction_probe
+      `).get() as { readonly count: number }).count,
+      0,
+    )
+
+    assert.throws(
+      () => database.db.exec('BEGIN IMMEDIATE'),
+      /direct SQLite transaction control is forbidden/u,
+    )
+    assert.throws(
+      () => database.maintenance(() => {
+        database.db.prepare(
+          'INSERT INTO synchronous_transaction_probe(value) VALUES (?)',
+        ).run('maintenance-must-not-bypass-writer')
+      }),
+      /maintenance only permits VACUUM INTO writes/u,
+    )
+    assert.throws(
+      () => database.maintenance(() => {
+        database.db.exec(`
+          INSERT INTO synchronous_transaction_probe(value)
+          VALUES ('maintenance-exec-must-not-bypass-writer')
+        `)
+      }),
+      /maintenance only permits startup PRAGMA or VACUUM INTO/u,
+    )
+    assert.equal(
+      (database.db.prepare(`
+        SELECT COUNT(*) AS count FROM synchronous_transaction_probe
+      `).get() as { readonly count: number }).count,
+      0,
+    )
+  } finally {
+    database.close()
+  }
+})
+
+test('Mission Command Saga fences concurrent in-flight effects across independent kernels', async () => {
+  const database = new SqliteMilitaryDatabase({ path: ':memory:' })
+  try {
+    const mission = missionId('saga-concurrent-mission')
+    const actor = identity('general')
+    const firstLedger = new SqliteMilitaryLedger(database, 'tenant-1')
+    const secondLedger = new SqliteMilitaryLedger(database, 'tenant-1')
+    const firstKernel = new SingleWriterMissionKernel(
+      new LedgerMissionCommandHandler(firstLedger),
+    )
+    const secondKernel = new SingleWriterMissionKernel(
+      new LedgerMissionCommandHandler(secondLedger),
+    )
+    const firstCommand = createMissionCommand({
+      tenantId: 'tenant-1',
+      missionId: mission,
+      expectedRevision: brand<number, 'Revision'>(0),
+      actor,
+      actorAuthorityRef: 'authority:saga-concurrency',
+      type: 'mission.first',
+      payload: { sequence: 1 },
+      idempotencyKey: 'saga-concurrency:first',
+    })
+    const duplicateCommand = createMissionCommand({
+      tenantId: 'tenant-1',
+      missionId: mission,
+      expectedRevision: brand<number, 'Revision'>(0),
+      actor,
+      actorAuthorityRef: 'authority:saga-concurrency',
+      type: 'mission.first',
+      payload: { sequence: 1 },
+      idempotencyKey: 'saga-concurrency:first',
+    })
+    const secondCommand = createMissionCommand({
+      tenantId: 'tenant-1',
+      missionId: mission,
+      expectedRevision: brand<number, 'Revision'>(1),
+      actor,
+      actorAuthorityRef: 'authority:saga-concurrency',
+      type: 'mission.second',
+      payload: { sequence: 2 },
+      idempotencyKey: 'saga-concurrency:second',
+    })
+    let releaseEffect!: () => void
+    const effectBlocked = new Promise<void>(resolve => {
+      releaseEffect = resolve
+    })
+    let enteredEffect!: () => void
+    const effectEntered = new Promise<void>(resolve => {
+      enteredEffect = resolve
+    })
+    let firstEffects = 0
+    const first = firstKernel.execute(firstCommand, async () => {
+      firstEffects += 1
+      enteredEffect()
+      await effectBlocked
+      return 'first-result'
+    })
+    await effectEntered
+
+    let duplicateEffects = 0
+    await assert.rejects(
+      secondKernel.execute(duplicateCommand, async () => {
+        duplicateEffects += 1
+        return 'duplicate-result'
+      }),
+      militaryFailure('RESOURCE_LOCKED'),
+      'the same unexpired operation lease must not execute twice',
+    )
+    await assert.rejects(
+      secondKernel.execute(secondCommand, async () => 'second-result'),
+      militaryFailure('RESOURCE_LOCKED'),
+      'a different command cannot interleave its events into an active Mission command',
+    )
+    assert.equal(firstEffects, 1)
+    assert.equal(duplicateEffects, 0)
+
+    releaseEffect()
+    const committed = await first
+    assert.equal(committed.value, 'first-result')
+    assert.equal(committed.receipt.eventIds.length, 1)
+    assert.equal((await firstLedger.readEvents(mission)).length, 1)
+  } finally {
+    database.close()
+  }
+})
+
+test('Mission command Saga checkpoints intent, recovers an applied effect and finalizes once across restart', async () => {
   const temp = await temporaryDirectory('military-command-uow-')
   const path = `${temp.path}/military.sqlite`
   try {
@@ -60,40 +275,52 @@ test('Mission command admission, domain events, receipt and outbox commit atomic
       actor,
       actorAuthorityRef: 'authority:test',
       type: 'mission.start',
-      payload: { title: 'must roll back' },
-      idempotencyKey: 'mission-failed',
+      payload: { title: 'recoverable mission' },
+      idempotencyKey: 'mission-recovery',
     })
     await assert.rejects(kernel.execute(failed, async () => {
       await ledger.append(missionEvent({
         type: 'mission/started',
         missionId: mission,
         actor,
-        payload: { title: 'must roll back', rootSessionId: 'atomic-root', authorityContextRef: 'authority:test' },
-        metadata: { idempotencyKey: 'domain-failed' },
+        payload: { title: 'recoverable mission', rootSessionId: 'atomic-root', authorityContextRef: 'authority:test' },
+        metadata: { idempotencyKey: 'domain-recovery' },
       }))
       throw new Error('fault injection after domain append')
     }))
-    assert.equal((await ledger.readEvents(mission)).length, 0)
+    assert.equal((await ledger.readEvents(mission)).length, 2)
     assert.equal((database.db.prepare('SELECT count(*) AS count FROM mission_command_receipts').get() as { count: number }).count, 0)
     assert.equal((database.db.prepare('SELECT count(*) AS count FROM transactional_outbox').get() as { count: number }).count, 0)
+    const operationCheckpoint = database.db.prepare(`
+        SELECT state, lease_owner, result_json
+        FROM mission_command_operations
+        WHERE tenant_id = ? AND mission_id = ? AND idempotency_key = ?
+      `).get(
+      'tenant-1',
+      String(mission),
+      'mission-recovery',
+    ) as {
+      readonly state: string
+      readonly lease_owner: string | null
+      readonly result_json: string | null
+    }
+    assert.equal(operationCheckpoint.state, 'RETRYABLE')
+    assert.equal(operationCheckpoint.lease_owner, null)
+    assert.equal(operationCheckpoint.result_json, null)
+    database.close()
 
-    const command = createMissionCommand({
-      tenantId: 'tenant-1',
-      missionId: mission,
-      expectedRevision: brand<number, 'Revision'>(0),
-      actor,
-      actorAuthorityRef: 'authority:test',
-      type: 'mission.start',
-      payload: { title: 'atomic mission' },
-      idempotencyKey: 'mission-success',
-    })
-    const committed = await kernel.execute(command, async () => {
+    database = new SqliteMilitaryDatabase({ path })
+    ledger = new SqliteMilitaryLedger(database, 'tenant-1')
+    kernel = new SingleWriterMissionKernel(
+      new LedgerMissionCommandHandler(ledger),
+    )
+    const committed = await kernel.execute(failed, async () => {
       await ledger.append(missionEvent({
         type: 'mission/started',
         missionId: mission,
         actor,
-        payload: { title: 'atomic mission', rootSessionId: 'atomic-root', authorityContextRef: 'authority:test' },
-        metadata: { idempotencyKey: 'domain-success' },
+        payload: { title: 'recoverable mission', rootSessionId: 'atomic-root', authorityContextRef: 'authority:test' },
+        metadata: { idempotencyKey: 'domain-recovery' },
       }))
       return 'committed'
     })
@@ -102,13 +329,8 @@ test('Mission command admission, domain events, receipt and outbox commit atomic
     assert.equal(committed.receipt.revision, 2)
     assert.equal(committed.receipt.eventIds.length, 2)
     assert.equal(committed.receipt.activityIds.length, 1)
-    database.close()
-
-    database = new SqliteMilitaryDatabase({ path })
-    ledger = new SqliteMilitaryLedger(database, 'tenant-1')
-    kernel = new SingleWriterMissionKernel(new LedgerMissionCommandHandler(ledger))
     let repeated = false
-    const duplicate = await kernel.execute(command, async () => {
+    const duplicate = await kernel.execute(failed, async () => {
       repeated = true
       return 'repeated'
     })
@@ -118,6 +340,17 @@ test('Mission command admission, domain events, receipt and outbox commit atomic
     assert.equal((await ledger.readEvents(mission)).length, 2)
     assert.equal((database.db.prepare('SELECT count(*) AS count FROM mission_command_receipts').get() as { count: number }).count, 1)
     assert.equal((database.db.prepare('SELECT count(*) AS count FROM transactional_outbox').get() as { count: number }).count, 1)
+    assert.equal(
+      (database.db.prepare(`
+        SELECT state FROM mission_command_operations
+        WHERE tenant_id = ? AND mission_id = ? AND idempotency_key = ?
+      `).get(
+        'tenant-1',
+        String(mission),
+        'mission-recovery',
+      ) as { readonly state: string }).state,
+      'COMMITTED',
+    )
     database.close()
   } finally {
     await temp.dispose()
@@ -271,3 +504,9 @@ test('SQLite session and immutable execution bindings enforce exact identity', a
     database.close()
   } finally { await temp.dispose() }
 })
+
+function militaryFailure(code: string): (error: unknown) => boolean {
+  return error =>
+    error instanceof MilitaryError
+    && error.failure.code === code
+}

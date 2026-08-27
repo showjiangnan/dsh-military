@@ -1,7 +1,6 @@
 import {
   createElement,
   useCallback,
-  useEffect,
   useMemo,
   useState,
   type CSSProperties,
@@ -17,6 +16,10 @@ import type {
   MilitaryWorkspaceSnapshot,
   MilitaryWorkspaceStatus,
 } from '@dsh-military/contracts/workspace-control'
+import {
+  callMilitaryRpc,
+  useMilitaryRefreshLoop,
+} from './query-client.js'
 
 export function MilitaryWorkspaceCenter(props: {
   readonly connection: Pick<ConnectionHandle, 'rpc'>
@@ -31,7 +34,7 @@ export function MilitaryWorkspaceCenter(props: {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
 
-  const refresh = useCallback(async (signal?: AbortSignal): Promise<void> => {
+  const refresh = useCallback(async (signal?: AbortSignal): Promise<boolean> => {
     try {
       const next = await fetchWorkspaceSnapshot(props.connection, signal)
       setSnapshot(next)
@@ -40,18 +43,20 @@ export function MilitaryWorkspaceCenter(props: {
         ? current
         : next.workspaces[0]?.workspaceId ?? '')
       setError('')
+      return true
     } catch (value) {
       if (signal?.aborted !== true) {
         setError(value instanceof Error ? value.message : String(value))
       }
+      return false
     }
   }, [props.connection])
 
-  useEffect(() => {
-    const controller = new AbortController()
-    void refresh(controller.signal)
-    return () => { controller.abort() }
-  }, [refresh])
+  useMilitaryRefreshLoop({
+    key: 'military-workspace-snapshot',
+    refresh,
+    intervalMs: 15_000,
+  })
 
   const inspect = async (): Promise<void> => {
     if (selectedId === '' || busy) return
@@ -246,27 +251,26 @@ async function fetchWorkspaceSnapshot(
   connection: Pick<ConnectionHandle, 'rpc'>,
   signal?: AbortSignal,
 ): Promise<MilitaryWorkspaceSnapshot> {
-  const response = await connection.rpc.call(
-    '/api',
-    'militaryWorkspace/snapshot',
-    { args: {} },
-    signal,
+  return await callMilitaryRpc<MilitaryWorkspaceSnapshot>(
+    connection,
+    'militaryWorkspace',
+    'snapshot',
+    {},
+    { signal, key: 'military-workspace-snapshot' },
   )
-  if (!response.ok) throw new Error(response.error.message)
-  return response.value as MilitaryWorkspaceSnapshot
 }
 
 async function inspectWorkspace(
   connection: Pick<ConnectionHandle, 'rpc'>,
   workspaceId: string,
 ): Promise<MilitaryWorkspaceStatus> {
-  const response = await connection.rpc.call(
-    '/api',
-    'militaryWorkspace/execute',
-    { args: { action: { type: 'INSPECT_WORKSPACE', workspaceId } } },
+  return await callMilitaryRpc<MilitaryWorkspaceStatus>(
+    connection,
+    'militaryWorkspace',
+    'execute',
+    { action: { type: 'INSPECT_WORKSPACE', workspaceId } },
+    { dedupe: false },
   )
-  if (!response.ok) throw new Error(response.error.message)
-  return response.value as MilitaryWorkspaceStatus
 }
 
 function Filter(props: {

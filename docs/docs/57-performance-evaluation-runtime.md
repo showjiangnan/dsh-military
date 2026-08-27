@@ -61,8 +61,10 @@ evaluation_reports
 evaluation_appeals
 ```
 
-Job 使用 revision、lease owner、lease expiry 和 fence token 防止两个执行者同时
-完成同一运行。合法状态遵循：
+Job 使用 revision、lease owner、lease expiry、heartbeat 和 fence token 防止两个
+执行者同时完成同一运行。长时间的 Dataset 构建、Provider narrative 或分片计算必须
+在独立短事务中续租；续租失败或 fence 变化时，旧执行者立即停止发布结果。合法状态
+遵循：
 
 ```text
 QUEUED
@@ -209,7 +211,9 @@ UNKNOWN
 
 ## 8. 指标与阶段化失败归因
 
-每项率都公开 numerator、denominator、事件来源和缺失规则。核心定义如下：
+每项率都公开 numerator、denominator、事件来源、缺失规则和计算状态。分母为零时
+状态是 `N/A`；权威事件链不完整时状态是 `INCOMPLETE`。这两种情况都不得序列化成
+数值 `0`，也不得进入配置排序或非劣比较。核心定义如下：
 
 | 指标 | 分子 / 分母 | 权威事件 |
 |---|---|---|
@@ -278,8 +282,10 @@ REGRESSION_ALERT
 ```
 
 达到用户填写的 `minimumSamples` 只是条件之一；exact route、独立 Mission、
-区间宽度、任务覆盖、难度平衡和安全硬门也必须满足。小样本只生成继续采样建议，
-不输出伪精确全局排行。
+区间宽度、任务覆盖、难度平衡、权威事件完整性和安全硬门也必须满足。小样本只生成
+继续采样建议，不输出伪精确全局排行。Mission completion、Specs coverage、
+Integration outcome 和 parent wakeup 只有在各自完整 receipt/event 链存在时才进入
+分母；缺链样本保留在 missingness 中，不被静默当作失败或成功。
 
 ## 10. Flash/Pro 受控比较
 
@@ -332,9 +338,11 @@ Accepted Outcome，再累计该结果之前的全部代价：
 p50 / p95 accepted-outcome latency
 ```
 
-Token、latency 和可用 cost 都显示 Mission-cluster bootstrap 区间。价格目录未知时
-成本状态为 `PROVIDER_PRICING_UNAVAILABLE`，字段显示 unavailable，绝不以 0 美元
-参与比较。Pareto 视图先通过质量与安全门，再比较 Token、延迟和可用成本。
+Token、latency 和可用 cost 都显示 Mission-cluster bootstrap 区间。成本只使用
+实际 observed provider/model/route/version 对应的不可变 price snapshot；当前目录
+价格、别名价格或其他 Provider 的近似价格不能反向改写历史成本。价格快照未知时成本
+状态为 `PROVIDER_PRICING_UNAVAILABLE`，字段显示 unavailable，绝不以 0 美元参与
+比较。Pareto 视图先通过质量与安全门，再比较 Token、延迟和可用成本。
 
 ## 12. 确定性报告与可选委员会叙述
 
@@ -431,11 +439,18 @@ datasetId + sessionId + scenarioId
 
 解析器 revision 或重复评估不会增加 N。`schemaFirstPass` 只验证首个必需工具调用；
 每个场景继续验证完整工具序列、receipt-bound path、多文件 distinct path、终态和
-恢复链。真实 Provider 稳定性至少需要 10 个独立 Session，并报告区间。
+恢复链。发布级真实 Flash Provider 验收按 exact configuration × scenario 至少需要
+50 个独立 Session；首次工具命中点估计必须不低于 95% 且 95% Wilson 下界不低于
+85%，E2E 完成点估计必须不低于 90% 且下界不低于 80%，确定性失败、越权成功写、
+假完成和重复终态必须全部为 0。少于 50 个独立样本只能报告
+`INSUFFICIENT_SAMPLE`，不能晋升能力状态。
 
 固定工作台和跨 Session 委员会评估可以互相引用 run/sample id，但不能合并样本量，
 也不能把 deterministic Host case 当成 Provider response。真实 Provider 回归仍是
-显式付费的外部证据，不由本地 deterministic 测试伪造。
+显式付费的外部证据，不由本地 deterministic 测试伪造。WebUI 导出的 Evidence 包可
+由 `npm run acceptance:flash -- --input <export.json>` 离线重算；校验器会重新验证
+dataset/sample hash、exact route、去重键、Wilson 下界和四项安全硬门，任何场景未
+达到 `PASSED` 都以非零状态退出。
 
 ## 17. 运行与验收证据
 

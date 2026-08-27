@@ -44,6 +44,7 @@ test('model execution is authority-gated, reserved and settled from observed usa
     }
     const host = {
       tenantId: 'tenant-1',
+      database,
       application: {
         authorization: {
           async resolve() { return authorityContext },

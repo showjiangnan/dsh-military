@@ -73,7 +73,7 @@
 | R-66 | 绩效报告支持结构化申诉和新 revision | `docs/48` | Performance Evaluation Appeal Schema | 不改写旧报告；证据化 challenge；独立评审；生成 superseding report |
 | R-67 | General 模型规则保持 preset 默认并服从会话页面显式切换 | `docs/43`、`reference/preset/` | General Policy、Model Selection Receipt | 仅影响 General 后续请求；不传播至现有或新模板路由子代理 |
 
-| R-68 | Mission 使用单写者 Command Bus | `docs/60`、ADR-0033 | Command/Event/Activity contracts | tenant+mission 串行化、同事务 Event+Outbox、幂等 payload hash |
+| R-68 | Mission 使用单写者 Command Bus | `docs/60`、ADR-0033、ADR-0040 | Command/Event/Activity contracts | tenant+mission 串行化、短事务 Saga checkpoint、receipt+outbox finalization、幂等 payload hash |
 | R-69 | 上下文由 Context Compiler 生成并可审计 | `docs/61`、ADR-0034 | Context Manifest + Artifact + `context/manifest-created` | Constitution/State/Evidence/Working；摘要覆盖与遗漏；请求前内容寻址持久化和 Admin Ledger 留痕 |
 | R-70 | Candidate 使用 Claim–Evidence 和 V0–V4 验收 | `docs/61`、ADR-0034 | Acceptance/Evidence | V4 不可独立接受，至少一项 V0–V3 独立证据 |
 | R-71 | 模型、Thinking、范式与并行度自适应路由 | `docs/62`、ADR-0035 | Execution Strategy | Capability 交集、Plan IR、Parallelism Score、默认单 Worker |
@@ -102,7 +102,7 @@
 - **绩效评估不等于主观打分。** Harness 计算数据，委员会解释并给出有置信边界的建议。
 
 
-## 源码实现追踪（0.9.0-alpha.24）
+## 源码实现追踪（0.9.0-alpha.25）
 
 | 需求 | 源码实现 | 自动证据 |
 |---|---|---|
@@ -127,7 +127,7 @@
 
 | ID | Requirement | Implementation | Gate |
 |---|---|---|---|
-| R-90 | Command failure does not advance Mission revision | atomic Unit of Work | command rollback fault test |
+| R-90 | 外部 Command failure 可恢复且不持有长事务 | short-transaction Command Saga | intent/effect/finalization crash-window tests |
 | R-91 | Duplicate command returns the persisted original result after restart | durable Command Receipt | restart idempotency test |
 | R-92 | Worktree absolute paths are canonicalized before grant checks | Agent plane canonical resource pipeline | absolute-path tool-hook test |
 | R-93 | Candidate evidence is Harness-observed | Observed Evidence Store | spoofed evidence rejection test |
@@ -148,7 +148,7 @@
 | R-108 | 模型下拉由 DSH live catalog 与能力证据驱动 | `docs/29`、`docs/67`、`docs/68` | `MilitaryModelCatalogEntry` | 所有 live exact route 默认可选；status/绩效不充当权限；仅目录缺失路线拒绝 |
 | R-109 | 成本和预算对普通用户可理解且不削弱治理 | `docs/50`、`docs/67` | `RoleBudgetPreset`、metrics | token/中文字符/observed usage、未知价格显式、权限不变 |
 | R-110 | Specs Workspace 不接受浏览器任意路径 | `docs/41`、`docs/67` | `MilitaryWorkspaceStatus` | opaque ID、canonical/Git/lease/integration、unknown ID 拒绝 |
-| R-111 | Flash 基准使用固定数据集并分离 Provider 样本 | `quality/MODEL-BENCHMARK`、`docs/67` | `MilitaryBenchmarkSnapshot` | 九场景 hash、exact route、N<10/宽区间 insufficient |
+| R-111 | Flash 基准使用固定数据集并分离 Provider 样本 | `quality/MODEL-BENCHMARK`、`docs/67`、`docs/69` | `MilitaryBenchmarkSnapshot` | 九场景 hash、exact route、趋势 N<10 insufficient、发行 N≥50/Wilson/零安全失败 |
 | R-112 | 简体中文检查必须由用户确认且跳过代码路径 | `docs/67` | `SimplifiedChineseReviewReceipt` | UTF-16 位置、Host hash/recompute、伪造拒绝、undo |
 | R-113 | 知识透明度和模拟召回与真实规则一致 | `docs/47`、`docs/67` | `MilitaryKnowledgeCenterProjection` | sanitized lineage、shared resolver/renderer、no Task/model |
 | R-114 | 控制中心具备键盘、IME、zoom 和高对比度合同 | `docs/51`、`docs/67` | Web ARIA/CSS contract | tabs/listbox/dialog、focus trap/return、forced-colors |
@@ -170,3 +170,18 @@
 | R-130 | General 项目执行不能以正文代码绕过部门流程 | `docs/06`、`docs/68` | General workflow obligation | intent→Mission→Task→status→spawn 单阶段门、stop interlock、71fe fixture |
 | R-131 | DSH 已接入的官方和第三方模型默认可用于 Military | `docs/29`、`docs/43`、`docs/68` | catalog-derived capability、adapter effort translation | no-reasoning/custom effort/DEPRECATED route、General/部门/私有技能回归 |
 | R-132 | 部门模型和参数保存后必须即时且持久生效 | `docs/51`、`docs/67`、`docs/68` | Settings CAS、multiline prompt validator、serialized runtime projection、authoritative readback | CR/LF/TAB draft、NUL 拒绝、watcher/save race、stale poll、third-party route、budget clamp、React reload |
+| R-133 | 每条执行请求与任意 open Task 精确区分 | `docs/69`、ADR-0039 | WorkflowObligation | request hash、stage、nextTool、wake cursor、多 open Task regression |
+| R-134 | Task Version 与执行 Attempt/Activation/Dispatch 分离 | `docs/69`、ADR-0039 | execution lifecycle contracts | 三次 Rework、start/heartbeat/settlement、no false RUNNING |
+| R-135 | Stop、Task/Mission Cancel、Freeze 与 Identity termination 语义独立 | `docs/24`、`docs/69` | lifecycle coordinator + Operations `CANCEL_MISSION` | target/reason、preview/CAS/expiry、Kernel command、late/duplicate/out-of-order settlement、child resource cleanup |
+| R-136 | Radio/Decision continuation 绑定 exact Task/Attempt | `docs/11`、`docs/44`、`docs/69` | Radio/Decision records | delivery/ack、TTL、dead-letter、resume tests |
+| R-137 | Verification 不得绕过 Integration 宣布 Task 完成 | `docs/14`、`docs/41`、`docs/69` | Candidate/Verification/Integration state machines | accepted/conflict/stale/regression/completion tests |
+| R-138 | SQLite 写锁不得跨外部异步工作且 repository 不得绕过 writer | `docs/30`、`docs/42`、ADR-0040 | `mission_command_operations` + guarded database handle | async callback rejection、standalone `run/exec` short transaction、maintenance boundary、Saga restart/finalization tests |
+| R-139 | Workspace 与 Outbox 在崩溃后保持唯一真源 | `docs/41`、`docs/42`、`docs/69` | workspace state + transactional outbox | adopt/quarantine、ordering/retry/dead-letter/offset tests |
+| R-140 | Direction/Wave/DAG barrier 真正控制派遣 | `docs/05`、`docs/69` | Mission Scheduler | unknown dependency/cycle/write conflict/Wave barrier tests |
+| R-141 | 轻量模型只提交 Task 相对路径和浅层 draft，并获得唯一可执行纠错动作 | `docs/58`、`docs/69` | Task-rooted workspace tools + unified error envelope | path/symlink/operation-status/schema/terminal-latch、nextTool/correctedShape、secret/host-path redaction tests |
+| R-142 | 模型能力四轴分离且 exact adapter Dispatch 可审计 | `docs/29`、`docs/69` | capability bridge + dispatch receipt | native/bridge/canary/catalog/policy tests |
+| R-143 | 角色设置区分 Desired 与 Applied | `docs/51`、`docs/69` | workbench reconcile state | partial apply failure、retry、rollback、multi-tab fence tests |
+| R-144 | Runtime Center 和所有 Web feature 使用统一 query 真值层 | `docs/17`、`docs/69`、ADR-0042 | Runtime snapshot/query client | hierarchy parent links、staleness、abort/dedupe/revision/multi-tab tests |
+| R-145 | Artifact hash 不等于读取授权 | `docs/18`、`docs/40`、`docs/69` | Artifact Reference ACL | tenant/workflow/audience/classification/retention/legal hold/key rotation/GC tests |
+| R-146 | 真实 Flash acceptance 不得由确定性门冒充 | `docs/57`、`docs/67`、`docs/69`、ADR-0042 | Provider sample/acceptance export | N=50、Wilson、零安全失败、offline verifier tests |
+| R-147 | 本地和分布式 Production Plane 不得互相冒充 | `docs/42`、`docs/69`、ADR-0041 | provider descriptors/readiness | queue ordering、topology rejection、capacity/telemetry/signed backup tests |

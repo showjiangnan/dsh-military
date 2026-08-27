@@ -40,6 +40,24 @@ interface EventRow {
   readonly occurred_at: string
 }
 
+interface MissionCommandOperationRow {
+  readonly payload_sha256: string
+  readonly command_fingerprint: string
+  readonly command_id: string
+  readonly expected_revision: number
+  readonly previous_seq: number
+  readonly state:
+    | 'PENDING_EFFECT'
+    | 'RETRYABLE'
+    | 'EFFECT_APPLIED'
+    | 'COMMITTED'
+  readonly lease_owner: string | null
+  readonly lease_version: number
+  readonly lease_until: string | null
+  readonly result_json: string | null
+  readonly created_at: string
+}
+
 export class SqliteMilitaryLedger implements MilitaryLedger {
   readonly #database: SqliteMilitaryDatabase
   readonly #tenantId: string
@@ -51,63 +69,8 @@ export class SqliteMilitaryLedger implements MilitaryLedger {
   }
 
   async append(event: MissionEvent, expectedRevision?: Revision): Promise<AppendReceipt> {
-    const stored = await this.#database.transactionAsync(async () => {
-      const missionId = String(event.missionId)
-      this.#database.db.prepare(`
-        INSERT INTO mission_streams(tenant_id, mission_id, aggregate_revision, last_seq, status, created_at, updated_at)
-        VALUES (?, ?, 0, 0, 'ACTIVE', ?, ?)
-        ON CONFLICT(tenant_id, mission_id) DO NOTHING
-      `).run(this.#tenantId, missionId, event.timestamp, event.timestamp)
-      const stream = this.#database.db.prepare(
-        'SELECT aggregate_revision, last_seq FROM mission_streams WHERE tenant_id = ? AND mission_id = ?',
-      ).get(this.#tenantId, missionId) as StreamRow | undefined
-      if (stream === undefined) throw new MilitaryError('PERSISTENCE_FAILED', 'mission stream missing after insert')
-      const fingerprint = sha256(stableJson({ type: event.type, actor: event.actor, payload: event.payload }))
-      if (event.idempotencyKey !== undefined) {
-        const existing = this.#database.db.prepare(`
-          SELECT seq, aggregate_revision, event_id, event_hash FROM mission_events
-          WHERE tenant_id = ? AND mission_id = ? AND idempotency_key = ?
-        `).get(this.#tenantId, missionId, event.idempotencyKey) as {
-          seq: number; aggregate_revision: number; event_id: string; event_hash: string
-        } | undefined
-        if (existing !== undefined) {
-          if (existing.event_hash !== fingerprint) throw new MilitaryError('IDEMPOTENCY_CONFLICT')
-          return { event: null, receipt: receipt(existing.event_id, existing.seq, existing.aggregate_revision) }
-        }
-      }
-      if (expectedRevision !== undefined && stream.aggregate_revision !== Number(expectedRevision)) {
-        throw new MilitaryError('REVISION_CONFLICT', 'mission revision conflict', {
-          expectedRevision: Number(expectedRevision), actualRevision: stream.aggregate_revision,
-        })
-      }
-      const revision = stream.aggregate_revision + 1
-      const seq = stream.last_seq + 1
-      const stamped = cloneFrozen({ ...event, seq, aggregateRevision: revision })
-      this.#database.db.prepare(`
-        INSERT INTO mission_events(
-          tenant_id, mission_id, seq, aggregate_revision, event_id, event_type,
-          schema_version, actor_json, payload_json, causation_id, correlation_id,
-          idempotency_key, occurred_at, event_hash
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(
-        this.#tenantId, missionId, seq, revision, stamped.eventId, stamped.type,
-        stamped.schemaVersion, stableJson(stamped.actor), stableJson(stamped.payload),
-        stamped.causationId ?? null, stamped.correlationId ?? null, stamped.idempotencyKey ?? null,
-        stamped.timestamp, fingerprint,
-      )
-      const update = this.#database.db.prepare(`
-        UPDATE mission_streams SET aggregate_revision = ?, last_seq = ?, updated_at = ?
-        WHERE tenant_id = ? AND mission_id = ? AND aggregate_revision = ?
-      `).run(revision, seq, stamped.timestamp, this.#tenantId, missionId, stream.aggregate_revision)
-      if (Number(update.changes) !== 1) throw new MilitaryError('REVISION_CONFLICT', 'mission stream CAS failed')
-      return { event: stamped as MissionEvent, receipt: receipt(stamped.eventId, seq, revision) }
-    })
-    if (stored.event !== null) {
-      this.#database.afterCommit(() => {
-        for (const listener of [...(this.#listeners.get(String(event.missionId)) ?? [])]) listener(stored.event as MissionEvent)
-      })
-    }
-    return stored.receipt
+    return this.#database.transaction(() =>
+      this.#appendSync(event, expectedRevision).receipt)
   }
 
   async transactCommand<T>(
@@ -121,68 +84,322 @@ export class SqliteMilitaryLedger implements MilitaryLedger {
     if (String(admissionEvent.missionId) !== String(command.missionId)) {
       throw new MilitaryError('INVALID_ARGUMENT', 'command admission event belongs to another mission')
     }
-    return await this.#database.transactionAsync(async () => {
-      const missionId = String(command.missionId)
-      const existing = this.#database.db.prepare(`
-        SELECT payload_sha256, receipt_json, result_json
-        FROM mission_command_receipts
-        WHERE tenant_id = ? AND mission_id = ? AND idempotency_key = ?
-      `).get(this.#tenantId, missionId, command.idempotencyKey) as {
-        payload_sha256: string
-        receipt_json: string
-        result_json: string | null
-      } | undefined
-      if (existing !== undefined) {
-        if (existing.payload_sha256 !== String(command.payloadSha256)) {
-          throw new MilitaryError('IDEMPOTENCY_CONFLICT', 'idempotency key was reused with a different payload')
+    const missionId = String(command.missionId)
+    const fingerprint = commandFingerprint(command)
+    const admission = this.#database.transaction(() => {
+      const receiptRow = this.#receiptRow(
+        missionId,
+        command.idempotencyKey,
+      )
+      if (receiptRow !== undefined) {
+        this.#assertCommandPayload(receiptRow.payload_sha256, command)
+        const operationRow = this.#operationRow(
+          missionId,
+          command.idempotencyKey,
+        )
+        if (operationRow !== undefined) {
+          this.#assertCommandOperation(operationRow, command, fingerprint)
         }
-        const prior = JSON.parse(existing.receipt_json) as MissionCommandReceipt
         return {
-          receipt: cloneFrozen({ ...prior, duplicate: true }),
-          value: decodeCommandResult<T>(existing.result_json),
+          receipt: {
+            receipt: cloneFrozen({
+              ...JSON.parse(receiptRow.receipt_json) as MissionCommandReceipt,
+              duplicate: true,
+            }),
+            value: decodeCommandResult<T>(receiptRow.result_json),
+          },
+          operation: undefined,
+          effectRequired: false,
         }
       }
 
-      const before = this.#database.db.prepare(`
-        SELECT aggregate_revision, last_seq
-        FROM mission_streams
-        WHERE tenant_id = ? AND mission_id = ?
-      `).get(this.#tenantId, missionId) as StreamRow | undefined
-      const previousRevision = before?.aggregate_revision ?? 0
-      const previousSeq = before?.last_seq ?? 0
-      if (previousRevision !== Number(command.expectedRevision)) {
-        throw new MilitaryError('REVISION_CONFLICT', 'mission command revision conflict', {
-          expectedRevision: Number(command.expectedRevision),
-          actualRevision: previousRevision,
-        })
+      const now = new Date()
+      const leaseUntil = new Date(now.getTime() + 30_000).toISOString()
+      let stored = this.#operationRow(missionId, command.idempotencyKey)
+      if (stored === undefined) {
+        const activeCommand = this.#database.db.prepare(`
+          SELECT idempotency_key, state, lease_until
+          FROM mission_command_operations
+          WHERE tenant_id = ? AND mission_id = ?
+            AND idempotency_key <> ?
+            AND state <> 'COMMITTED'
+          ORDER BY created_at, idempotency_key
+          LIMIT 1
+        `).get(
+          this.#tenantId,
+          missionId,
+          command.idempotencyKey,
+        ) as {
+          readonly idempotency_key: string
+          readonly state: string
+          readonly lease_until: string | null
+        } | undefined
+        if (activeCommand !== undefined) {
+          throw new MilitaryError(
+            'RESOURCE_LOCKED',
+            'another durable command must settle before this mission can advance',
+            {
+              blockingIdempotencyKey: activeCommand.idempotency_key,
+              blockingState: activeCommand.state,
+              retryAfter: activeCommand.lease_until,
+            },
+          )
+        }
+        const before = this.#database.db.prepare(`
+          SELECT aggregate_revision, last_seq
+          FROM mission_streams
+          WHERE tenant_id = ? AND mission_id = ?
+        `).get(this.#tenantId, missionId) as StreamRow | undefined
+        const previousRevision = before?.aggregate_revision ?? 0
+        const previousSeq = before?.last_seq ?? 0
+        if (previousRevision !== Number(command.expectedRevision)) {
+          throw new MilitaryError(
+            'REVISION_CONFLICT',
+            'mission command revision conflict',
+            {
+              expectedRevision: Number(command.expectedRevision),
+              actualRevision: previousRevision,
+            },
+          )
+        }
+        this.#appendSync(admissionEvent, command.expectedRevision)
+        this.#database.db.prepare(`
+          INSERT INTO mission_command_operations(
+            tenant_id, mission_id, idempotency_key, payload_sha256,
+            command_fingerprint, command_id, expected_revision, previous_seq,
+            state, lease_owner, lease_version, lease_until, result_json,
+            last_error, created_at, updated_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'PENDING_EFFECT', ?, 1, ?,
+            NULL, NULL, ?, ?)
+        `).run(
+          this.#tenantId,
+          missionId,
+          command.idempotencyKey,
+          String(command.payloadSha256),
+          fingerprint,
+          String(command.commandId),
+          previousRevision,
+          previousSeq,
+          String(command.commandId),
+          leaseUntil,
+          String(command.createdAt),
+          now.toISOString(),
+        )
+        stored = this.#operationRow(missionId, command.idempotencyKey)
+      } else {
+        this.#assertCommandOperation(stored, command, fingerprint)
+        if (stored.state === 'COMMITTED') {
+          throw new MilitaryError(
+            'PERSISTENCE_FAILED',
+            'command operation is COMMITTED without its canonical receipt',
+          )
+        }
+        if (stored.state === 'PENDING_EFFECT') {
+          const held = stored.lease_owner !== null
+            && stored.lease_until !== null
+            && Date.parse(stored.lease_until) > now.getTime()
+          if (held) {
+            throw new MilitaryError(
+              'RESOURCE_LOCKED',
+              'mission command effect is leased by another recovery worker',
+              { retryAfter: stored.lease_until },
+            )
+          }
+        }
+        if (
+          stored.state === 'RETRYABLE'
+          || stored.state === 'PENDING_EFFECT'
+        ) {
+          const changed = this.#database.db.prepare(`
+            UPDATE mission_command_operations
+            SET state = 'PENDING_EFFECT', lease_owner = ?,
+              lease_version = lease_version + 1, lease_until = ?,
+              last_error = NULL, updated_at = ?
+            WHERE tenant_id = ? AND mission_id = ? AND idempotency_key = ?
+              AND lease_version = ?
+          `).run(
+            String(command.commandId),
+            leaseUntil,
+            now.toISOString(),
+            this.#tenantId,
+            missionId,
+            command.idempotencyKey,
+            stored.lease_version,
+          )
+          if (Number(changed.changes) !== 1) {
+            throw new MilitaryError('REVISION_CONFLICT')
+          }
+          stored = this.#operationRow(missionId, command.idempotencyKey)
+        }
       }
+      if (stored === undefined) {
+        throw new MilitaryError(
+          'PERSISTENCE_FAILED',
+          'mission command operation was not persisted',
+        )
+      }
+      return {
+        receipt: undefined,
+        operation: stored,
+        effectRequired: stored.state !== 'EFFECT_APPLIED',
+      }
+    })
+    if (admission.receipt !== undefined) return admission.receipt
+    let stored = admission.operation
+    if (stored === undefined) {
+      throw new MilitaryError('PERSISTENCE_FAILED')
+    }
 
-      await this.append(admissionEvent, command.expectedRevision)
-      const value = await operation()
+    if (admission.effectRequired) {
+      try {
+        const value = await operation()
+        const encoded = encodeCommandResult(value)
+        stored = this.#database.transaction(() => {
+          const current = this.#operationRow(
+            missionId,
+            command.idempotencyKey,
+          )
+          if (
+            current === undefined
+            || current.state !== 'PENDING_EFFECT'
+            || current.lease_owner !== String(command.commandId)
+          ) {
+            throw new MilitaryError(
+              'REVISION_CONFLICT',
+              'mission command effect lease was lost before checkpoint',
+            )
+          }
+          const changed = this.#database.db.prepare(`
+            UPDATE mission_command_operations
+            SET state = 'EFFECT_APPLIED', result_json = ?,
+              lease_owner = NULL, lease_until = NULL, updated_at = ?
+            WHERE tenant_id = ? AND mission_id = ? AND idempotency_key = ?
+              AND state = 'PENDING_EFFECT' AND lease_owner = ?
+              AND lease_version = ?
+          `).run(
+            encoded,
+            new Date().toISOString(),
+            this.#tenantId,
+            missionId,
+            command.idempotencyKey,
+            String(command.commandId),
+            current.lease_version,
+          )
+          if (Number(changed.changes) !== 1) {
+            throw new MilitaryError('REVISION_CONFLICT')
+          }
+          return this.#operationRow(
+            missionId,
+            command.idempotencyKey,
+          )!
+        })
+      } catch (error) {
+        this.#database.transaction(() => {
+          const current = this.#operationRow(
+            missionId,
+            command.idempotencyKey,
+          )
+          if (
+            current?.state === 'PENDING_EFFECT'
+            && current.lease_owner === String(command.commandId)
+          ) {
+            this.#database.db.prepare(`
+              UPDATE mission_command_operations
+              SET state = 'RETRYABLE', lease_owner = NULL,
+                lease_until = NULL, last_error = ?, updated_at = ?
+              WHERE tenant_id = ? AND mission_id = ? AND idempotency_key = ?
+                AND state = 'PENDING_EFFECT' AND lease_owner = ?
+            `).run(
+              boundedError(error),
+              new Date().toISOString(),
+              this.#tenantId,
+              missionId,
+              command.idempotencyKey,
+              String(command.commandId),
+            )
+          }
+        })
+        throw error
+      }
+    }
+
+    return this.#database.transaction(() => {
+      const receiptRow = this.#receiptRow(
+        missionId,
+        command.idempotencyKey,
+      )
+      if (receiptRow !== undefined) {
+        this.#assertCommandPayload(receiptRow.payload_sha256, command)
+        const operationRow = this.#operationRow(
+          missionId,
+          command.idempotencyKey,
+        )
+        if (operationRow !== undefined) {
+          this.#assertCommandOperation(operationRow, command, fingerprint)
+        }
+        return {
+          receipt: cloneFrozen({
+            ...JSON.parse(receiptRow.receipt_json) as MissionCommandReceipt,
+            duplicate: true,
+          }),
+          value: decodeCommandResult<T>(receiptRow.result_json),
+        }
+      }
+      const current = this.#operationRow(
+        missionId,
+        command.idempotencyKey,
+      )
+      if (current === undefined || current.state !== 'EFFECT_APPLIED') {
+        throw new MilitaryError(
+          'PERSISTENCE_FAILED',
+          'mission command effect has no durable completion checkpoint',
+        )
+      }
+      if (current.result_json === null) {
+        throw new MilitaryError(
+          'PERSISTENCE_FAILED',
+          'mission command effect checkpoint is missing its result envelope',
+        )
+      }
       const after = this.#database.db.prepare(`
         SELECT aggregate_revision, last_seq
         FROM mission_streams
         WHERE tenant_id = ? AND mission_id = ?
       `).get(this.#tenantId, missionId) as StreamRow | undefined
-      if (after === undefined) throw new MilitaryError('PERSISTENCE_FAILED', 'mission stream disappeared during command transaction')
+      if (after === undefined) {
+        throw new MilitaryError(
+          'PERSISTENCE_FAILED',
+          'mission stream disappeared before command finalization',
+        )
+      }
       const eventRows = this.#database.db.prepare(`
         SELECT event_id
         FROM mission_events
         WHERE tenant_id = ? AND mission_id = ? AND seq > ? AND seq <= ?
         ORDER BY seq
-      `).all(this.#tenantId, missionId, previousSeq, after.last_seq) as unknown as Array<{ event_id: string }>
-
+      `).all(
+        this.#tenantId,
+        missionId,
+        current.previous_seq,
+        after.last_seq,
+      ) as unknown as Array<{ readonly event_id: string }>
       const outbox = this.#database.db.prepare(`
         INSERT INTO transactional_outbox(
-          tenant_id, topic, partition_key, event_id, payload_json, available_at,
-          claimed_by, claimed_until, delivered_at, attempts
-        ) VALUES (?, 'mission-command.committed', ?, ?, '{}', ?, NULL, NULL, NULL, 0)
-      `).run(this.#tenantId, missionId, command.commandId, String(command.createdAt))
+          tenant_id, topic, partition_key, event_id, payload_json,
+          available_at, claimed_by, claimed_until, delivered_at, attempts
+        ) VALUES (?, 'mission-command.committed', ?, ?, '{}', ?, NULL, NULL,
+          NULL, 0)
+      `).run(
+        this.#tenantId,
+        missionId,
+        current.command_id,
+        new Date().toISOString(),
+      )
       const activityId = `outbox:${String(outbox.lastInsertRowid)}`
       const receiptValue: MissionCommandReceipt = cloneFrozen({
-        commandId: command.commandId,
+        commandId: current.command_id,
         missionId: command.missionId,
-        previousRevision: asRevision(previousRevision),
+        previousRevision: asRevision(current.expected_revision),
         revision: asRevision(after.aggregate_revision),
         eventIds: eventRows.map(row => row.event_id),
         activityIds: [activityId],
@@ -197,25 +414,241 @@ export class SqliteMilitaryLedger implements MilitaryLedger {
         this.#tenantId,
         missionId,
         command.idempotencyKey,
-        String(command.payloadSha256),
-        command.commandId,
-        previousRevision,
+        current.payload_sha256,
+        current.command_id,
+        current.expected_revision,
         after.aggregate_revision,
         stableJson(receiptValue),
-        encodeCommandResult(value),
-        String(command.createdAt),
+        current.result_json,
+        current.created_at,
       )
-      this.#database.db.prepare(
-        'UPDATE transactional_outbox SET payload_json = ? WHERE outbox_id = ?',
-      ).run(stableJson({
-        commandId: command.commandId,
+      this.#database.db.prepare(`
+        UPDATE transactional_outbox SET payload_json = ? WHERE outbox_id = ?
+      `).run(stableJson({
+        commandId: current.command_id,
         missionId,
         idempotencyKey: command.idempotencyKey,
-        payloadSha256: String(command.payloadSha256),
+        payloadSha256: current.payload_sha256,
         receipt: receiptValue,
       }), outbox.lastInsertRowid)
-      return { receipt: receiptValue, value }
+      const committed = this.#database.db.prepare(`
+        UPDATE mission_command_operations
+        SET state = 'COMMITTED', updated_at = ?
+        WHERE tenant_id = ? AND mission_id = ? AND idempotency_key = ?
+          AND state = 'EFFECT_APPLIED'
+      `).run(
+        new Date().toISOString(),
+        this.#tenantId,
+        missionId,
+        command.idempotencyKey,
+      )
+      if (Number(committed.changes) !== 1) {
+        throw new MilitaryError(
+          'REVISION_CONFLICT',
+          'mission command operation lost its finalization fence',
+        )
+      }
+      return {
+        receipt: receiptValue,
+        value: decodeCommandResult<T>(current.result_json),
+      }
     })
+  }
+
+  #appendSync(
+    event: MissionEvent,
+    expectedRevision?: Revision,
+  ): {
+    readonly event: MissionEvent | null
+    readonly receipt: AppendReceipt
+  } {
+    const missionId = String(event.missionId)
+    this.#database.db.prepare(`
+      INSERT INTO mission_streams(
+        tenant_id, mission_id, aggregate_revision, last_seq, status,
+        created_at, updated_at
+      ) VALUES (?, ?, 0, 0, 'ACTIVE', ?, ?)
+      ON CONFLICT(tenant_id, mission_id) DO NOTHING
+    `).run(this.#tenantId, missionId, event.timestamp, event.timestamp)
+    const stream = this.#database.db.prepare(`
+      SELECT aggregate_revision, last_seq
+      FROM mission_streams WHERE tenant_id = ? AND mission_id = ?
+    `).get(this.#tenantId, missionId) as StreamRow | undefined
+    if (stream === undefined) {
+      throw new MilitaryError(
+        'PERSISTENCE_FAILED',
+        'mission stream missing after insert',
+      )
+    }
+    const fingerprint = sha256(stableJson({
+      type: event.type,
+      actor: event.actor,
+      payload: event.payload,
+    }))
+    if (event.idempotencyKey !== undefined) {
+      const existing = this.#database.db.prepare(`
+        SELECT seq, aggregate_revision, event_id, event_hash
+        FROM mission_events
+        WHERE tenant_id = ? AND mission_id = ? AND idempotency_key = ?
+      `).get(
+        this.#tenantId,
+        missionId,
+        event.idempotencyKey,
+      ) as {
+        readonly seq: number
+        readonly aggregate_revision: number
+        readonly event_id: string
+        readonly event_hash: string
+      } | undefined
+      if (existing !== undefined) {
+        if (existing.event_hash !== fingerprint) {
+          throw new MilitaryError('IDEMPOTENCY_CONFLICT')
+        }
+        return {
+          event: null,
+          receipt: receipt(
+            existing.event_id,
+            existing.seq,
+            existing.aggregate_revision,
+          ),
+        }
+      }
+    }
+    if (
+      expectedRevision !== undefined
+      && stream.aggregate_revision !== Number(expectedRevision)
+    ) {
+      throw new MilitaryError(
+        'REVISION_CONFLICT',
+        'mission revision conflict',
+        {
+          expectedRevision: Number(expectedRevision),
+          actualRevision: stream.aggregate_revision,
+        },
+      )
+    }
+    const revision = stream.aggregate_revision + 1
+    const seq = stream.last_seq + 1
+    const stamped = cloneFrozen({
+      ...event,
+      seq,
+      aggregateRevision: revision,
+    }) as MissionEvent
+    this.#database.db.prepare(`
+      INSERT INTO mission_events(
+        tenant_id, mission_id, seq, aggregate_revision, event_id, event_type,
+        schema_version, actor_json, payload_json, causation_id, correlation_id,
+        idempotency_key, occurred_at, event_hash
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      this.#tenantId,
+      missionId,
+      seq,
+      revision,
+      stamped.eventId,
+      stamped.type,
+      stamped.schemaVersion,
+      stableJson(stamped.actor),
+      stableJson(stamped.payload),
+      stamped.causationId ?? null,
+      stamped.correlationId ?? null,
+      stamped.idempotencyKey ?? null,
+      stamped.timestamp,
+      fingerprint,
+    )
+    const update = this.#database.db.prepare(`
+      UPDATE mission_streams
+      SET aggregate_revision = ?, last_seq = ?, updated_at = ?
+      WHERE tenant_id = ? AND mission_id = ? AND aggregate_revision = ?
+    `).run(
+      revision,
+      seq,
+      stamped.timestamp,
+      this.#tenantId,
+      missionId,
+      stream.aggregate_revision,
+    )
+    if (Number(update.changes) !== 1) {
+      throw new MilitaryError(
+        'REVISION_CONFLICT',
+        'mission stream CAS failed',
+      )
+    }
+    this.#database.afterCommit(() => {
+      for (const listener of [
+        ...(this.#listeners.get(missionId) ?? []),
+      ]) listener(stamped)
+    })
+    return {
+      event: stamped,
+      receipt: receipt(stamped.eventId, seq, revision),
+    }
+  }
+
+  #receiptRow(
+    missionId: string,
+    idempotencyKey: string,
+  ): {
+    readonly payload_sha256: string
+    readonly receipt_json: string
+    readonly result_json: string | null
+  } | undefined {
+    return this.#database.db.prepare(`
+      SELECT payload_sha256, receipt_json, result_json
+      FROM mission_command_receipts
+      WHERE tenant_id = ? AND mission_id = ? AND idempotency_key = ?
+    `).get(
+      this.#tenantId,
+      missionId,
+      idempotencyKey,
+    ) as {
+      readonly payload_sha256: string
+      readonly receipt_json: string
+      readonly result_json: string | null
+    } | undefined
+  }
+
+  #operationRow(
+    missionId: string,
+    idempotencyKey: string,
+  ): MissionCommandOperationRow | undefined {
+    return this.#database.db.prepare(`
+      SELECT payload_sha256, command_fingerprint, command_id,
+        expected_revision, previous_seq, state, lease_owner, lease_version,
+        lease_until, result_json, created_at
+      FROM mission_command_operations
+      WHERE tenant_id = ? AND mission_id = ? AND idempotency_key = ?
+    `).get(
+      this.#tenantId,
+      missionId,
+      idempotencyKey,
+    ) as MissionCommandOperationRow | undefined
+  }
+
+  #assertCommandPayload(
+    payloadSha256: string,
+    command: MissionCommand,
+  ): void {
+    if (payloadSha256 !== String(command.payloadSha256)) {
+      throw new MilitaryError(
+        'IDEMPOTENCY_CONFLICT',
+        'idempotency key was reused with a different payload',
+      )
+    }
+  }
+
+  #assertCommandOperation(
+    stored: MissionCommandOperationRow,
+    command: MissionCommand,
+    fingerprint: string,
+  ): void {
+    this.#assertCommandPayload(stored.payload_sha256, command)
+    if (stored.command_fingerprint !== fingerprint) {
+      throw new MilitaryError(
+        'IDEMPOTENCY_CONFLICT',
+        'idempotent command authority or semantic fields changed',
+      )
+    }
   }
 
   async readMission(missionId: MissionId): Promise<MissionSnapshot> {
@@ -293,6 +726,33 @@ function decodeCommandResult<T>(source: string | null): T {
   return cloneFrozen(envelope.present ? envelope.value : undefined) as T
 }
 
+function commandFingerprint(command: MissionCommand): string {
+  const {
+    commandId: _commandId,
+    expectedRevision: _expectedRevision,
+    createdAt: _createdAt,
+    deadlineAt: _deadlineAt,
+    ...semantic
+  } = command
+  return sha256(stableJson(semantic))
+}
+
+function boundedError(error: unknown): string {
+  const privateDetail = error instanceof MilitaryError
+    ? error.failure.message
+    : error instanceof Error
+      ? error.message
+      : String(error)
+  const category = error instanceof MilitaryError
+    ? `MILITARY_${error.failure.code}`
+    : error instanceof Error
+      ? error.name.replaceAll(/[^A-Za-z0-9_-]/gu, '_').slice(0, 80)
+      : 'UNKNOWN'
+  // Provider errors can contain credentials, request bodies, and absolute
+  // paths. Persist only a stable diagnostic category and fingerprint.
+  return `${category};fingerprint=${sha256(privateDetail).slice(0, 24)}`
+}
+
 export class SqliteAdministrativeLedger implements MilitaryAdministrativeLedger {
   readonly #database: SqliteMilitaryDatabase
   readonly #tenantId: string
@@ -304,7 +764,7 @@ export class SqliteAdministrativeLedger implements MilitaryAdministrativeLedger 
   }
 
   async append(event: MilitaryAdministrativeEvent, expectedRevision?: Revision): Promise<AppendReceipt> {
-    const stored = await this.#database.transactionAsync(async () => {
+    return this.#database.transaction(() => {
       this.#database.db.prepare(`
         INSERT INTO administrative_streams(tenant_id, aggregate_revision, last_seq, updated_at)
         VALUES (?, 0, 0, ?) ON CONFLICT(tenant_id) DO NOTHING
@@ -321,7 +781,11 @@ export class SqliteAdministrativeLedger implements MilitaryAdministrativeLedger 
         `).get(this.#tenantId, event.idempotencyKey) as { seq: number; aggregate_revision: number; event_id: string; event_hash: string } | undefined
         if (existing !== undefined) {
           if (existing.event_hash !== fingerprint) throw new MilitaryError('IDEMPOTENCY_CONFLICT')
-          return { event: null, receipt: receipt(existing.event_id, existing.seq, existing.aggregate_revision) }
+          return receipt(
+            existing.event_id,
+            existing.seq,
+            existing.aggregate_revision,
+          )
         }
       }
       if (expectedRevision !== undefined && stream.aggregate_revision !== Number(expectedRevision)) throw new MilitaryError('REVISION_CONFLICT')
@@ -340,14 +804,15 @@ export class SqliteAdministrativeLedger implements MilitaryAdministrativeLedger 
         WHERE tenant_id = ? AND aggregate_revision = ?
       `).run(revision, seq, stamped.timestamp, this.#tenantId, stream.aggregate_revision)
       if (Number(update.changes) !== 1) throw new MilitaryError('REVISION_CONFLICT', 'administrative stream CAS failed')
-      return { event: stamped as MilitaryAdministrativeEvent, receipt: receipt(stamped.eventId, seq, revision) }
-    })
-    if (stored.event !== null) {
+      const stored = {
+        event: stamped as MilitaryAdministrativeEvent,
+        receipt: receipt(stamped.eventId, seq, revision),
+      }
       this.#database.afterCommit(() => {
-        for (const listener of [...this.#listeners]) listener(stored.event as MilitaryAdministrativeEvent)
+        for (const listener of [...this.#listeners]) listener(stored.event)
       })
-    }
-    return stored.receipt
+      return stored.receipt
+    })
   }
 
   async read(afterSeq = 0): Promise<readonly MilitaryAdministrativeEvent[]> {

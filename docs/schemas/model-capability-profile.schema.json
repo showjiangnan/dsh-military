@@ -18,8 +18,7 @@
     "inputModalities",
     "reasoningPassback",
     "dataResidencyPolicyRefs",
-    "benchmarks",
-    "validatedAt"
+    "benchmarks"
   ],
   "properties": {
     "schemaVersion": {
@@ -39,6 +38,29 @@
         "VALIDATED",
         "DEPRECATED"
       ]
+    },
+    "catalogPresence": {
+      "enum": ["PRESENT", "ABSENT", "UNKNOWN"]
+    },
+    "protocolCompatibility": {
+      "enum": [
+        "DSH_TOOL_REQUEST_AVAILABLE",
+        "NATIVE_TOOL_CALLING_VERIFIED",
+        "BRIDGED_TOOL_CALLING_VERIFIED",
+        "TEXT_ONLY",
+        "UNKNOWN"
+      ]
+    },
+    "policyEligibility": {
+      "enum": [
+        "ELIGIBLE",
+        "ELIGIBLE_UNVERIFIED",
+        "CANARY_ONLY",
+        "INELIGIBLE"
+      ]
+    },
+    "performanceEvidence": {
+      "enum": ["UNASSESSED", "CANARY", "VALIDATED"]
     },
     "provider": {
       "type": "string",
@@ -82,7 +104,7 @@
       "items": {
         "$ref": "common-defs.schema.json#/$defs/id"
       },
-      "minItems": 1,
+      "minItems": 0,
       "uniqueItems": true
     },
     "benchmarks": {
@@ -130,6 +152,9 @@
     "validatedAt": {
       "$ref": "common-defs.schema.json#/$defs/timestamp"
     },
+    "observedAt": {
+      "$ref": "common-defs.schema.json#/$defs/timestamp"
+    },
     "inputModalities": {
       "type": "array",
       "items": {
@@ -138,18 +163,61 @@
           "image"
         ]
       },
-      "minItems": 1,
-      "uniqueItems": true,
-      "contains": {
-        "const": "text"
-      }
+      "minItems": 0,
+      "uniqueItems": true
     },
     "reasoningPassback": {
-      "const": "all-reasoning-turns"
+      "enum": [
+        "all-reasoning-turns",
+        "provider-defined",
+        "none",
+        "unknown"
+      ]
+    },
+    "capabilityEvidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "contextWindow",
+        "maxOutput",
+        "toolCalling",
+        "reasoning",
+        "inputModalities",
+        "residency"
+      ],
+      "properties": {
+        "contextWindow": {
+          "enum": ["ADAPTER_DECLARED", "CONSERVATIVE_FALLBACK"]
+        },
+        "maxOutput": {
+          "enum": ["ADAPTER_DECLARED", "CONSERVATIVE_FALLBACK"]
+        },
+        "toolCalling": {
+          "enum": ["BUILT_IN_VERIFIED", "LIVE_CANARY", "UNVERIFIED"]
+        },
+        "reasoning": {
+          "enum": ["ADAPTER_DECLARED", "UNDECLARED"]
+        },
+        "inputModalities": {
+          "enum": ["ADAPTER_DECLARED", "UNDECLARED"]
+        },
+        "residency": {
+          "enum": ["POLICY_BOUND", "UNDECLARED"]
+        }
+      }
     },
     "maximumRequestImageBytes": {
       "type": "integer",
       "minimum": 1
     }
-  }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": { "status": { "const": "VALIDATED" } },
+        "required": ["status"]
+      },
+      "then": { "required": ["validatedAt"] }
+    }
+  ]
 }

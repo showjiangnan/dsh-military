@@ -15,7 +15,37 @@ import {
   type TacticalRequest,
   type TaskOrder,
 } from '@dsh-military/contracts'
-import { zeroCounters } from '@dsh-military/core'
+import {
+  ComposedMilitaryProductionPlane,
+  CorrelatedMilitaryTelemetry,
+  EphemeralAssetSigner,
+  InMemoryTenantCapacityControl,
+  InMemoryDurableQueue,
+  StaticResidencyControl,
+  UnsupportedBackupControl,
+  embeddedProductionProviders,
+  zeroCounters,
+} from '@dsh-military/core'
+
+export function testProductionPlane(tenantId: string) {
+  return new ComposedMilitaryProductionPlane({
+    providers: embeddedProductionProviders(),
+    telemetry: new CorrelatedMilitaryTelemetry(),
+    capacity: new InMemoryTenantCapacityControl([{
+      tenantId,
+      revision: 1,
+      activeTasks: 100,
+      activeAgents: 100,
+      modelConcurrency: 100,
+      pendingOutbox: 10_000,
+      storageBytes: 1_000_000_000,
+    }]),
+    queue: new InMemoryDurableQueue(tenantId),
+    backups: new UnsupportedBackupControl(),
+    signer: new EphemeralAssetSigner(),
+    residency: new StaticResidencyControl(),
+  })
+}
 
 export const stamp = (): ReturnType<typeof isoNow> => isoNow()
 export const missionId = (value = 'mission-1'): MissionId => brand<string, 'MissionId'>(value)

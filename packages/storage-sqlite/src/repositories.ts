@@ -28,25 +28,27 @@ export class SqliteMilitarySessionGate implements MilitarySessionGate {
 
   async bind(binding: MilitarySessionBinding): Promise<void> {
     if (binding.presetId !== 'military') throw new MilitaryError('MILITARY_PRESET_REQUIRED')
-    const existing = this.#database.db.prepare(
-      'SELECT binding_json FROM military_session_bindings WHERE tenant_id = ? AND session_id = ?',
-    ).get(this.#tenantId, String(binding.sessionId)) as { binding_json: string } | undefined
-    if (existing !== undefined) {
-      if (stableJson(JSON.parse(existing.binding_json)) !== stableJson(binding)) throw new MilitaryError('MILITARY_BINDING_MISMATCH')
-      return
-    }
-    const rootSessionId = binding.parentSessionId === undefined
-      ? String(binding.sessionId)
-      : this.#rootSessionId(binding.parentSessionId)
-    this.#database.db.prepare(`
-      INSERT INTO military_session_bindings(
-        tenant_id, session_id, root_session_id, generation, capability_fingerprint,
-        binding_json, created_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?)
-    `).run(
-      this.#tenantId, String(binding.sessionId), rootSessionId,
-      binding.presetGeneration, String(binding.capabilityFingerprint), stableJson(binding), String(binding.activatedAt),
-    )
+    this.#database.transaction(() => {
+      const existing = this.#database.db.prepare(
+        'SELECT binding_json FROM military_session_bindings WHERE tenant_id = ? AND session_id = ?',
+      ).get(this.#tenantId, String(binding.sessionId)) as { binding_json: string } | undefined
+      if (existing !== undefined) {
+        if (stableJson(JSON.parse(existing.binding_json)) !== stableJson(binding)) throw new MilitaryError('MILITARY_BINDING_MISMATCH')
+        return
+      }
+      const rootSessionId = binding.parentSessionId === undefined
+        ? String(binding.sessionId)
+        : this.#rootSessionId(binding.parentSessionId)
+      this.#database.db.prepare(`
+        INSERT INTO military_session_bindings(
+          tenant_id, session_id, root_session_id, generation, capability_fingerprint,
+          binding_json, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?)
+      `).run(
+        this.#tenantId, String(binding.sessionId), rootSessionId,
+        binding.presetGeneration, String(binding.capabilityFingerprint), stableJson(binding), String(binding.activatedAt),
+      )
+    })
   }
 
   #rootSessionId(parentSessionId: SessionId): string {
@@ -75,36 +77,40 @@ export class SqliteAgentExecutionBindings implements MilitaryAgentExecutionBindi
   constructor(database: SqliteMilitaryDatabase, tenantId: string) { this.#database = database; this.#tenantId = tenantId }
 
   async create(binding: AgentExecutionBinding): Promise<void> {
-    const existing = this.#database.db.prepare(
-      'SELECT binding_json FROM agent_execution_bindings WHERE tenant_id = ? AND binding_id = ?',
-    ).get(this.#tenantId, binding.bindingId) as { binding_json: string } | undefined
-    if (existing !== undefined) {
-      if (stableJson(JSON.parse(existing.binding_json)) !== stableJson(binding)) throw new MilitaryError('AGENT_EXECUTION_BINDING_MISMATCH')
-      return
-    }
     try {
-      this.#database.db.prepare(`
-        INSERT INTO agent_execution_bindings(
-          tenant_id, binding_id, root_session_id, mission_id, agent_id,
-          agent_generation, template_id, template_revision, preset_generation,
-          provider, model, reasoning_effort, binding_json, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(
-        this.#tenantId, binding.bindingId, binding.rootSessionId, binding.missionId,
-        String(binding.agent.agentId), binding.agent.generation, binding.templateId,
-        Number(binding.templateRevision), binding.presetGeneration, binding.provider,
-        binding.model, binding.reasoningEffort, stableJson(binding), String(binding.createdAt),
-      )
+      this.#database.transaction(() => {
+        const existing = this.#database.db.prepare(
+          'SELECT binding_json FROM agent_execution_bindings WHERE tenant_id = ? AND binding_id = ?',
+        ).get(this.#tenantId, binding.bindingId) as { binding_json: string } | undefined
+        if (existing !== undefined) {
+          if (stableJson(JSON.parse(existing.binding_json)) !== stableJson(binding)) throw new MilitaryError('AGENT_EXECUTION_BINDING_MISMATCH')
+          return
+        }
+        this.#database.db.prepare(`
+          INSERT INTO agent_execution_bindings(
+            tenant_id, binding_id, root_session_id, mission_id, agent_id,
+            agent_generation, template_id, template_revision, preset_generation,
+            provider, model, reasoning_effort, binding_json, created_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `).run(
+          this.#tenantId, binding.bindingId, binding.rootSessionId, binding.missionId,
+          String(binding.agent.agentId), binding.agent.generation, binding.templateId,
+          Number(binding.templateRevision), binding.presetGeneration, binding.provider,
+          binding.model, binding.reasoningEffort, stableJson(binding), String(binding.createdAt),
+        )
+      })
     } catch (error) {
       throw new MilitaryError('AGENT_EXECUTION_BINDING_MISMATCH', 'binding uniqueness violation', undefined, { cause: error })
     }
   }
 
   async discard(bindingId: string): Promise<void> {
-    this.#database.db.prepare(`
-      DELETE FROM agent_execution_bindings
-      WHERE tenant_id = ? AND binding_id = ?
-    `).run(this.#tenantId, bindingId)
+    this.#database.transaction(() => {
+      this.#database.db.prepare(`
+        DELETE FROM agent_execution_bindings
+        WHERE tenant_id = ? AND binding_id = ?
+      `).run(this.#tenantId, bindingId)
+    })
   }
 
   async get(bindingId: string): Promise<AgentExecutionBinding> {

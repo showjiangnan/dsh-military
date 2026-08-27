@@ -34,28 +34,30 @@ export class SqliteMilitaryRuntimeStateStore implements MilitaryRuntimeStateStor
 
   async putMission(mission: RuntimeMissionRecord): Promise<void> {
     const encoded = stableJson(mission)
-    const current = this.#database.db.prepare(`
-      SELECT state_json
-      FROM mission_runtime_missions
-      WHERE tenant_id = ? AND root_session_id = ?
-    `).get(this.#tenantId, String(mission.rootSessionId)) as { state_json: string } | undefined
-    if (current !== undefined) {
-      if (stableJson(JSON.parse(current.state_json)) !== encoded) {
-        throw new MilitaryError('REVISION_CONFLICT', 'root Session is already bound to another Mission runtime projection')
+    this.#database.transaction(() => {
+      const current = this.#database.db.prepare(`
+        SELECT state_json
+        FROM mission_runtime_missions
+        WHERE tenant_id = ? AND root_session_id = ?
+      `).get(this.#tenantId, String(mission.rootSessionId)) as { state_json: string } | undefined
+      if (current !== undefined) {
+        if (stableJson(JSON.parse(current.state_json)) !== encoded) {
+          throw new MilitaryError('REVISION_CONFLICT', 'root Session is already bound to another Mission runtime projection')
+        }
+        return
       }
-      return
-    }
-    this.#database.db.prepare(`
-      INSERT INTO mission_runtime_missions(
-        tenant_id, root_session_id, mission_id, state_json, updated_at
-      ) VALUES (?, ?, ?, ?, ?)
-    `).run(
-      this.#tenantId,
-      String(mission.rootSessionId),
-      String(mission.missionId),
-      encoded,
-      new Date().toISOString(),
-    )
+      this.#database.db.prepare(`
+        INSERT INTO mission_runtime_missions(
+          tenant_id, root_session_id, mission_id, state_json, updated_at
+        ) VALUES (?, ?, ?, ?, ?)
+      `).run(
+        this.#tenantId,
+        String(mission.rootSessionId),
+        String(mission.missionId),
+        encoded,
+        new Date().toISOString(),
+      )
+    })
   }
 
   async getTask(taskId: TaskId): Promise<RuntimeTaskRecord | null> {
@@ -69,41 +71,45 @@ export class SqliteMilitaryRuntimeStateStore implements MilitaryRuntimeStateStor
 
   async createTask(task: RuntimeTaskRecord): Promise<void> {
     try {
-      this.#database.db.prepare(`
-        INSERT INTO mission_runtime_tasks(
-          tenant_id, task_id, mission_id, task_version, state, state_json, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?)
-      `).run(
-        this.#tenantId,
-        String(task.order.taskId),
-        String(task.order.missionId),
-        Number(task.order.taskVersion),
-        task.state,
-        stableJson(task),
-        new Date().toISOString(),
-      )
+      this.#database.transaction(() => {
+        this.#database.db.prepare(`
+          INSERT INTO mission_runtime_tasks(
+            tenant_id, task_id, mission_id, task_version, state, state_json, updated_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?)
+        `).run(
+          this.#tenantId,
+          String(task.order.taskId),
+          String(task.order.missionId),
+          Number(task.order.taskVersion),
+          task.state,
+          stableJson(task),
+          new Date().toISOString(),
+        )
+      })
     } catch (error) {
       throw new MilitaryError('REVISION_CONFLICT', `task ${String(task.order.taskId)} already exists`, undefined, { cause: error })
     }
   }
 
   async putTask(task: RuntimeTaskRecord): Promise<void> {
-    const updated = this.#database.db.prepare(`
-      UPDATE mission_runtime_tasks
-      SET mission_id = ?, task_version = ?, state = ?, state_json = ?, updated_at = ?
-      WHERE tenant_id = ? AND task_id = ?
-    `).run(
-      String(task.order.missionId),
-      Number(task.order.taskVersion),
-      task.state,
-      stableJson(task),
-      new Date().toISOString(),
-      this.#tenantId,
-      String(task.order.taskId),
-    )
-    if (Number(updated.changes) !== 1) {
-      throw new MilitaryError('NOT_FOUND', `unknown task ${String(task.order.taskId)}`)
-    }
+    this.#database.transaction(() => {
+      const updated = this.#database.db.prepare(`
+        UPDATE mission_runtime_tasks
+        SET mission_id = ?, task_version = ?, state = ?, state_json = ?, updated_at = ?
+        WHERE tenant_id = ? AND task_id = ?
+      `).run(
+        String(task.order.missionId),
+        Number(task.order.taskVersion),
+        task.state,
+        stableJson(task),
+        new Date().toISOString(),
+        this.#tenantId,
+        String(task.order.taskId),
+      )
+      if (Number(updated.changes) !== 1) {
+        throw new MilitaryError('NOT_FOUND', `unknown task ${String(task.order.taskId)}`)
+      }
+    })
   }
 
   async listTasks(): Promise<readonly RuntimeTaskRecord[]> {

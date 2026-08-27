@@ -45,7 +45,7 @@ individualPerformance:
         id: worker-permissions
         revision: 4
       presetGeneration: military-generation-example
-      bundleVersion: 0.9.0-alpha.24
+      bundleVersion: 0.9.0-alpha.25
       dshRelease: 0.1.1-rc.2
       dshCommit: b150a551b8d465e31e418e1b2eaf5e79bbb7d28e
     period:
@@ -73,6 +73,7 @@ individualPerformance:
       regressionEscapeRate: 0.0
       intervals:
         firstPassAcceptance:
+          status: AVAILABLE
           estimate: 0.833333
           low: 0.641526
           high: 0.933185
@@ -80,6 +81,7 @@ individualPerformance:
           numerator: 20
           denominator: 24
         finalAcceptance:
+          status: AVAILABLE
           estimate: 0.958333
           low: 0.797579
           high: 0.992645
@@ -87,6 +89,7 @@ individualPerformance:
           numerator: 23
           denominator: 24
         falseCompletion:
+          status: AVAILABLE
           estimate: 0.0
           low: 0.0
           high: 0.13798
@@ -113,6 +116,49 @@ individualPerformance:
       recoverySuccessRate: 1.0
       terminalDuplicateRate: 0.0
       recoveryDriftRate: 0.0
+    metricTruth:
+      participation.rate:
+        status: AVAILABLE
+        numerator: 24
+        denominator: 24
+        eligiblePopulation: 24
+        value: 1.0
+      accuracy.firstPassAcceptanceRate:
+        status: AVAILABLE
+        numerator: 20
+        denominator: 24
+        eligiblePopulation: 24
+        value: 0.833333
+      accuracy.finalAcceptanceRate:
+        status: AVAILABLE
+        numerator: 23
+        denominator: 24
+        eligiblePopulation: 24
+        value: 0.958333
+      accuracy.falseCompletionRate:
+        status: AVAILABLE
+        numerator: 0
+        denominator: 24
+        eligiblePopulation: 24
+        value: 0.0
+      completion.parentWakeupRate:
+        status: AVAILABLE
+        numerator: 24
+        denominator: 24
+        eligiblePopulation: 24
+        value: 1.0
+      reliability.permissionViolationRate:
+        status: AVAILABLE
+        numerator: 0
+        denominator: 24
+        eligiblePopulation: 24
+        value: 0.0
+      reliability.terminalDuplicateRate:
+        status: AVAILABLE
+        numerator: 0
+        denominator: 24
+        eligiblePopulation: 24
+        value: 0.0
     efficiency:
       acceptedOutcomeCount: 12
       meanTokensPerAcceptedOutcome: 28300

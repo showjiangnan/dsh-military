@@ -17,11 +17,13 @@ import { cloneFrozen, sha256, stableJson } from '@dsh-military/core'
 export class LocalPrivateSkillBundleStore implements MilitaryPrivateSkillBundles {
   readonly #root: string
   readonly #artifacts: MilitaryArtifacts
+  readonly #tenantId: string
   readonly #writes = new Map<string, Promise<void>>()
 
-  constructor(root: string, artifacts: MilitaryArtifacts) {
+  constructor(root: string, artifacts: MilitaryArtifacts, tenantId = 'local') {
     this.#root = resolve(root)
     this.#artifacts = artifacts
+    this.#tenantId = tenantId
   }
 
   async write(input: Parameters<MilitaryPrivateSkillBundles['write']>[0]): Promise<PrivateSkillBundleSnapshot> {
@@ -61,6 +63,10 @@ export class LocalPrivateSkillBundleStore implements MilitaryPrivateSkillBundles
           mediaType: file.path.endsWith('.json') ? 'application/json' : file.path.endsWith('.mjs') ? 'text/javascript' : 'text/markdown',
           classification: 'confidential',
           description: `${input.name}@${String(input.skill.version)} ${file.path}`,
+          tenantId: this.#tenantId,
+          ownerPrincipalId: 'military-private-skill-compiler',
+          audiencePrincipalIds: ['military-host'],
+          audienceScopes: ['artifact:read', 'military:private-skill-bundle'],
         })
         const path = this.#insideRoot(join(temporary, ...file.path.split('/')))
         await mkdir(dirname(path), { recursive: true, mode: 0o700 })

@@ -3,23 +3,23 @@
 本清单由 `scripts/validate_artifacts.py --write-manifest` 生成。
 `MANIFEST.sha256` 不包含清单自身和验证报告，避免自引用哈希。
 
-- 文件数：424
-- 总字节数：2144347
+- 文件数：429
+- 总字节数：2277160
 
 ## `./`
 
 | 文件 | 字节 |
 |---|---:|
-| `CHANGELOG.md` | 37332 |
+| `CHANGELOG.md` | 40905 |
 | `CONTRIBUTING_DOCS.md` | 5677 |
 | `GLOSSARY.md` | 8482 |
-| `IMPLEMENTATION-READINESS.md` | 4154 |
+| `IMPLEMENTATION-READINESS.md` | 5213 |
 | `LICENSE-NOTICE.md` | 721 |
-| `README.md` | 15270 |
-| `REQUIREMENTS-TRACEABILITY.md` | 26220 |
-| `VERSION.json` | 231 |
-| `VERSION.md` | 3618 |
-| `dsh-military-design-specification.md` | 466323 |
+| `README.md` | 15597 |
+| `REQUIREMENTS-TRACEABILITY.md` | 29544 |
+| `VERSION.json` | 275 |
+| `VERSION.md` | 4093 |
+| `dsh-military-design-specification.md` | 504839 |
 
 ## `adr/`
 
@@ -64,6 +64,10 @@
 | `adr/0036-agentic-zero-trust-short-lived-grants.md` | 256 |
 | `adr/0037-rc2-exact-baseline-and-thin-adapter.md` | 623 |
 | `adr/0038-agent-team-is-non-authoritative.md` | 263 |
+| `adr/0039-execution-obligation-attempt-activation-dispatch.md` | 1542 |
+| `adr/0040-short-transaction-command-saga.md` | 2278 |
+| `adr/0041-production-plane-provider-topology.md` | 1518 |
+| `adr/0042-runtime-query-and-flash-acceptance-truth.md` | 1583 |
 
 ## `checklists/`
 
@@ -97,10 +101,10 @@
 | 文件 | 字节 |
 |---|---:|
 | `contracts/ERROR-CATALOG.md` | 10685 |
-| `contracts/EVENT-CATALOG.md` | 12461 |
+| `contracts/EVENT-CATALOG.md` | 13602 |
 | `contracts/README.md` | 1307 |
 | `contracts/error-catalog.json` | 19279 |
-| `contracts/event-catalog.json` | 112232 |
+| `contracts/event-catalog.json` | 122080 |
 | `contracts/example-map.json` | 3819 |
 | `contracts/parity-map.json` | 5447 |
 
@@ -139,7 +143,7 @@
 | `docs/02-system-context.md` | 5384 |
 | `docs/03-organizational-model.md` | 4918 |
 | `docs/04-mission-lifecycle.md` | 4591 |
-| `docs/05-direction-wave-task-planning.md` | 8829 |
+| `docs/05-direction-wave-task-planning.md` | 9376 |
 | `docs/06-general-agent.md` | 6146 |
 | `docs/07-staff-department.md` | 6993 |
 | `docs/08-worker-forces.md` | 4763 |
@@ -151,20 +155,20 @@
 | `docs/14-verification-and-acceptance.md` | 4481 |
 | `docs/15-event-sourcing-and-state.md` | 5048 |
 | `docs/16-dsh-integration.md` | 9741 |
-| `docs/17-webui.md` | 15150 |
-| `docs/18-security-and-permissions.md` | 7536 |
-| `docs/19-observability-and-metrics.md` | 4574 |
+| `docs/17-webui.md` | 15905 |
+| `docs/18-security-and-permissions.md` | 9098 |
+| `docs/19-observability-and-metrics.md` | 5504 |
 | `docs/20-testing-and-evaluation.md` | 5188 |
 | `docs/21-package-topology.md` | 14133 |
 | `docs/22-implementation-roadmap.md` | 7101 |
 | `docs/23-risk-register.md` | 8154 |
-| `docs/24-operations-runbook.md` | 12680 |
+| `docs/24-operations-runbook.md` | 15427 |
 | `docs/25-reference-sources.md` | 4275 |
 | `docs/26-historical-design-abstraction.md` | 4024 |
-| `docs/27-api-and-data-contracts.md` | 14253 |
+| `docs/27-api-and-data-contracts.md` | 15357 |
 | `docs/28-governance-and-change-control.md` | 4426 |
-| `docs/29-model-routing-and-reasoning-policy.md` | 7005 |
-| `docs/30-failure-recovery-and-chaos.md` | 8518 |
+| `docs/29-model-routing-and-reasoning-policy.md` | 7891 |
+| `docs/30-failure-recovery-and-chaos.md` | 9873 |
 | `docs/31-implementation-blueprint.md` | 8681 |
 | `docs/32-military-preset-and-session-isolation.md` | 12323 |
 | `docs/33-tactical-ingestion-and-tag-governance.md` | 15161 |
@@ -174,9 +178,9 @@
 | `docs/37-military-evaluation-committee.md` | 13074 |
 | `docs/38-preset-generation-upgrade-and-resume.md` | 6176 |
 | `docs/39-contract-source-of-truth-and-code-generation.md` | 4833 |
-| `docs/40-principal-tenant-authorization-model.md` | 3586 |
+| `docs/40-principal-tenant-authorization-model.md` | 4154 |
 | `docs/41-workspace-integration-and-merge-protocol.md` | 5252 |
-| `docs/42-physical-storage-and-migration-design.md` | 5048 |
+| `docs/42-physical-storage-and-migration-design.md` | 6246 |
 | `docs/43-general-model-and-session-policy-precedence.md` | 5235 |
 | `docs/44-decision-broker-state-machine.md` | 3315 |
 | `docs/45-compatibility-probe-and-feature-matrix.md` | 2959 |
@@ -185,25 +189,26 @@
 | `docs/48-evaluation-statistics-and-fairness.md` | 14163 |
 | `docs/49-conformance-and-model-checking.md` | 4020 |
 | `docs/50-resource-budget-and-admission-control.md` | 5951 |
-| `docs/51-webui-interaction-and-conflict-ux.md` | 8853 |
+| `docs/51-webui-interaction-and-conflict-ux.md` | 9157 |
 | `docs/52-product-terminology-and-safety-boundary.md` | 4036 |
-| `docs/53-source-code-architecture-and-package-reference.md` | 5398 |
-| `docs/54-build-test-install-and-operations.md` | 5537 |
-| `docs/55-code-review-security-and-rc2-conformance.md` | 3276 |
-| `docs/56-known-rc2-limitations-and-migration-boundary.md` | 2132 |
-| `docs/57-performance-evaluation-runtime.md` | 17639 |
-| `docs/58-worker-workspace-and-child-spawn-runtime.md` | 2555 |
-| `docs/59-web-client-packaging-and-surfaces.md` | 5352 |
-| `docs/60-mission-kernel-2-and-command-bus.md` | 2295 |
+| `docs/53-source-code-architecture-and-package-reference.md` | 6794 |
+| `docs/54-build-test-install-and-operations.md` | 6192 |
+| `docs/55-code-review-security-and-rc2-conformance.md` | 3413 |
+| `docs/56-known-rc2-limitations-and-migration-boundary.md` | 3269 |
+| `docs/57-performance-evaluation-runtime.md` | 19084 |
+| `docs/58-worker-workspace-and-child-spawn-runtime.md` | 3606 |
+| `docs/59-web-client-packaging-and-surfaces.md` | 5740 |
+| `docs/60-mission-kernel-2-and-command-bus.md` | 3467 |
 | `docs/61-context-compiler-and-evidence-graph.md` | 2548 |
 | `docs/62-adaptive-execution-router-and-parallelism.md` | 1572 |
 | `docs/63-agentic-zero-trust-and-capability-grants.md` | 1212 |
-| `docs/64-observability-and-decision-chain-evaluation.md` | 1033 |
-| `docs/65-rc2-compatibility-and-adapter-migration.md` | 2784 |
+| `docs/64-observability-and-decision-chain-evaluation.md` | 1913 |
+| `docs/65-rc2-compatibility-and-adapter-migration.md` | 2932 |
 | `docs/66-legacy-to-rc2-upgrade-runbook.md` | 1424 |
-| `docs/67-military-control-center-flash-workbench-and-accessibility.md` | 13048 |
-| `docs/68-general-workflow-live-models-and-settings-persistence.md` | 6760 |
-| `docs/INDEX.md` | 8842 |
+| `docs/67-military-control-center-flash-workbench-and-accessibility.md` | 13439 |
+| `docs/68-general-workflow-live-models-and-settings-persistence.md` | 7543 |
+| `docs/69-execution-liveness-flash-and-production-readiness.md` | 16761 |
+| `docs/INDEX.md` | 9051 |
 
 ## `examples/`
 
@@ -271,9 +276,9 @@
 |---|---:|
 | `examples/evaluation/evaluation-attempt-record.example.yaml` | 2476 |
 | `examples/evaluation/frozen-evaluation-dataset.example.yaml` | 1077 |
-| `examples/evaluation/military-performance-report.example.yaml` | 7825 |
+| `examples/evaluation/military-performance-report.example.yaml` | 9044 |
 | `examples/evaluation/performance-evaluation-request.example.yaml` | 727 |
-| `examples/evaluation/worker-template-performance.example.yaml` | 4755 |
+| `examples/evaluation/worker-template-performance.example.yaml` | 5790 |
 
 ## `examples/events/`
 
@@ -281,7 +286,7 @@
 |---|---:|
 | `examples/events/administrative-ledger.example.jsonl` | 17050 |
 | `examples/events/inspection-report.example.yaml` | 1086 |
-| `examples/events/mission-ledger.example.jsonl` | 32242 |
+| `examples/events/mission-ledger.example.jsonl` | 36360 |
 
 ## `examples/git/`
 
@@ -414,15 +419,15 @@
 | `quality/DATA-RETENTION.md` | 4188 |
 | `quality/EVALUATION-PROTOCOL.md` | 1792 |
 | `quality/EVALUATION-STATISTICS-PROTOCOL.md` | 5973 |
-| `quality/MODEL-BENCHMARK.md` | 5820 |
+| `quality/MODEL-BENCHMARK.md` | 6419 |
 | `quality/PERFORMANCE-METRICS-CATALOG.md` | 2049 |
 | `quality/RC2-FULL-REPAIR-CLOSURE.md` | 3810 |
 | `quality/SLO.md` | 3766 |
 | `quality/SOURCE-CODE-REVIEW.md` | 1086 |
 | `quality/SOURCE-TEST-REPORT.md` | 959 |
 | `quality/TACTICAL-INGESTION-QUALITY.md` | 1109 |
-| `quality/TEST-MATRIX.md` | 11122 |
-| `quality/THREAT-MODEL.md` | 7534 |
+| `quality/TEST-MATRIX.md` | 14032 |
+| `quality/THREAT-MODEL.md` | 7571 |
 
 ## `reference/dsh-rc2/`
 
@@ -503,13 +508,13 @@
 |---|---:|
 | `reference/types/README.md` | 2165 |
 | `reference/types/config.ts` | 4869 |
-| `reference/types/domain.ts` | 45608 |
+| `reference/types/domain.ts` | 47435 |
 | `reference/types/errors.ts` | 130 |
 | `reference/types/events.ts` | 2460 |
 | `reference/types/failure.ts` | 1312 |
 | `reference/types/generated-error-catalog.ts` | 19666 |
-| `reference/types/generated-event-catalog.ts` | 31798 |
-| `reference/types/governance.ts` | 28071 |
+| `reference/types/generated-event-catalog.ts` | 34497 |
+| `reference/types/governance.ts` | 29735 |
 | `reference/types/ids.ts` | 1353 |
 | `reference/types/index.ts` | 384 |
 | `reference/types/kernel.ts` | 5093 |
@@ -527,8 +532,8 @@
 | `schemas/INDEX.md` | 11015 |
 | `schemas/acceptance-contract.schema.json` | 2878 |
 | `schemas/administrative-event.schema.json` | 34449 |
-| `schemas/agent-execution-binding.schema.json` | 6985 |
-| `schemas/agent-template-performance.schema.json` | 14932 |
+| `schemas/agent-execution-binding.schema.json` | 7892 |
+| `schemas/agent-template-performance.schema.json` | 16004 |
 | `schemas/agent-template-profile.schema.json` | 6192 |
 | `schemas/authority-context.schema.json` | 1940 |
 | `schemas/brainstorm-order.schema.json` | 3725 |
@@ -539,18 +544,18 @@
 | `schemas/change-order.schema.json` | 3029 |
 | `schemas/chief-of-staff-advice.schema.json` | 3956 |
 | `schemas/claim-evidence-graph.schema.json` | 1870 |
-| `schemas/common-defs.schema.json` | 8899 |
+| `schemas/common-defs.schema.json` | 9157 |
 | `schemas/compaction-attempt.schema.json` | 2494 |
 | `schemas/compatibility-report.schema.json` | 6902 |
 | `schemas/conformance-trace.schema.json` | 2006 |
 | `schemas/context-manifest.schema.json` | 2405 |
 | `schemas/data-residency-policy.schema.json` | 1462 |
-| `schemas/decision-broker-record.schema.json` | 1922 |
+| `schemas/decision-broker-record.schema.json` | 1998 |
 | `schemas/decision-question-set.schema.json` | 2654 |
 | `schemas/direction-plan.schema.json` | 3139 |
 | `schemas/effectiveness-assessment.schema.json` | 2841 |
 | `schemas/enterprise-api-grant.schema.json` | 2438 |
-| `schemas/evaluation-attempt-record.schema.json` | 11087 |
+| `schemas/evaluation-attempt-record.schema.json` | 11764 |
 | `schemas/evaluation-dataset-manifest.schema.json` | 7516 |
 | `schemas/execution-strategy.schema.json` | 1026 |
 | `schemas/frozen-evaluation-dataset.schema.json` | 1570 |
@@ -565,9 +570,9 @@
 | `schemas/military-session-binding.schema.json` | 1726 |
 | `schemas/military-settings.schema.json` | 10449 |
 | `schemas/mission-command.schema.json` | 1699 |
-| `schemas/mission-event.schema.json` | 59476 |
+| `schemas/mission-event.schema.json` | 67773 |
 | `schemas/mission-intent.schema.json` | 3715 |
-| `schemas/model-capability-profile.schema.json` | 3174 |
+| `schemas/model-capability-profile.schema.json` | 4857 |
 | `schemas/model-selection-receipt.schema.json` | 1620 |
 | `schemas/performance-evaluation-appeal.schema.json` | 2813 |
 | `schemas/performance-evaluation-request.schema.json` | 3697 |
@@ -604,7 +609,7 @@
 
 | 文件 | 字节 |
 |---|---:|
-| `scripts/build_single_spec.py` | 5913 |
+| `scripts/build_single_spec.py` | 5911 |
 | `scripts/compute_preset_generation.py` | 2574 |
 | `scripts/generate_contract_artifacts.py` | 12475 |
 | `scripts/generate_error_artifacts.py` | 3680 |

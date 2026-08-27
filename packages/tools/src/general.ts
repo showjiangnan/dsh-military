@@ -1,4 +1,4 @@
-import type {} from '@dsh-military/plugin-host'
+import type {} from '@dsh-military/runtime'
 import type { Context } from '@deepseek-ai/cordis'
 import type { ToolDefinition } from '@deepseek-ai/dsh-tools'
 import {
@@ -91,7 +91,7 @@ export function generalTools(ctx: Context): readonly ToolDefinition[] {
     }),
     defineJsonTool({
       name: 'military_task_create',
-      description: 'General only, after military_get_context confirms an active Mission. Submit one shallow semantic Task draft; the Host derives all Mission/Direction/Wave/Task IDs, version fences, complexity, acceptance contract and environment snapshot.',
+      description: 'General only, after military_mission_start succeeds. Submit objective, role, exact write paths and acceptance criteria. The Host derives Task key, Direction/Wave, read/forbidden scope, budgets, stop/escalation policy, identities, fences and environment snapshot.',
       parameters: taskCreateParameters,
       output: { schema: { type: 'json' }, render: (_args, value) => text(value) },
       async execute(args, exec) {
@@ -186,7 +186,7 @@ export function generalTools(ctx: Context): readonly ToolDefinition[] {
       async execute(args, exec) {
         const agent = requireCallingAgent(exec.agent); requireRole(identityFor(ctx, agent), ['general'])
         if (ctx.militaryHost === undefined) throw new MilitaryError('ADVISOR_UNAVAILABLE', 'department agent transport is unavailable')
-        await ctx.militaryDepartmentAgents.spawn({
+        await ctx.militaryHost.departmentAgents.spawn({
           parent: agent,
           templateId: brand<string, 'AgentTemplateId'>(String(args.templateId)),
           prompt: String(args.prompt),
@@ -243,7 +243,22 @@ export function generalTools(ctx: Context): readonly ToolDefinition[] {
           },
           operation: async () => {
             await ctx.militaryHost.application.radio.issue(value)
-            return { guidanceId: String(value.guidanceId), state: 'READY' as const }
+            const delivered = await ctx.militaryHost.application.radio.guidance(
+              String(value.guidanceId),
+            )
+            await ctx.militaryHost.application.runtime.applyGuidance({
+              taskId: request.location.taskId,
+              taskVersion: request.location.taskVersion,
+              guidance: delivered,
+              actor: identity,
+            })
+            return {
+              guidanceId: String(value.guidanceId),
+              state: 'DELIVERED_TO_TASK' as const,
+              taskId: String(request.location.taskId),
+              taskVersion: Number(request.location.taskVersion),
+              nextAction: 'REDISPATCH_TASK_WITH_HOST_INJECTED_GUIDANCE' as const,
+            }
           },
         })
         const parentReport = await reportTerminalOutcome(ctx, agent, {
@@ -295,24 +310,48 @@ export function generalTools(ctx: Context): readonly ToolDefinition[] {
         if (missionId === null) throw new MilitaryError('NOT_FOUND', 'General session has no active Mission')
         const decisionSetId = String(args.decisionSetId)
         const answersHash = sha256(stableJson(args.answers))
+        const receipt = await ctx.militaryHost.application.artifacts.put({
+          bytes: new TextEncoder().encode(JSON.stringify({
+            decisionSetId,
+            answers: args.answers,
+            answersHash,
+          }, null, 2)),
+          mediaType: 'application/json',
+          classification: 'confidential',
+          description: 'Decision Broker answer receipt',
+          tenantId: ctx.militaryHost.tenantId,
+          missionId: String(missionId),
+          ownerPrincipalId: String(identity.agentId),
+          audiencePrincipalIds: ['military-host', String(identity.agentId)],
+          idempotencyKey: `decision-answer:${decisionSetId}:${answersHash}`,
+          audienceScopes: ['artifact:read', 'military:decision-answer'],
+        })
         return await runMissionCommand(ctx, {
           identity, missionId, type: 'decision.answer',
           payload: { decisionSetId, answersHash },
           idempotencyKey: `decision-answer:${decisionSetId}:${answersHash}`,
           operation: async () => {
-            const receipt = await ctx.militaryHost.application.artifacts.put({
-              bytes: new TextEncoder().encode(JSON.stringify({ decisionSetId, answers: args.answers, answeredAt: now() }, null, 2)),
-              mediaType: 'application/json', classification: 'confidential', description: 'Decision Broker answer receipt',
-            })
             await ctx.militaryHost.application.decisionBroker.recordAnswers({
               rootSessionId: identity.sessionId, decisionSetId, answerReceiptRef: String(receipt.artifactId),
+            })
+            const resumedTaskId = await ctx.militaryHost.application.runtime.resolveDecision({
+              decisionSetId,
+              answerReceiptRef: String(receipt.artifactId),
+              actor: identity,
             })
             await ctx.militaryHost.application.runtime.recordEvent({
               missionId, actor: identity, type: 'decision/answered',
               payload: { decisionSetId, answerReceiptRef: String(receipt.artifactId), answeredBy: String(identity.agentId) },
               idempotencyKey: `decision-answered:${decisionSetId}:${answersHash}`,
             })
-            return { decisionSetId, state: 'ANSWERED' as const, answerReceipt: receipt }
+            return {
+              decisionSetId,
+              state: 'ANSWERED' as const,
+              answerReceipt: receipt,
+              resumedTaskId: resumedTaskId === null
+                ? null
+                : String(resumedTaskId),
+            }
           },
         })
       },
@@ -683,6 +722,4 @@ export const name = 'dsh-military-tools-general'
 export const inject = [
   'tools',
   'militaryHost',
-  'militaryAgentIdentities',
-  'militaryDepartmentAgents',
 ]

@@ -103,9 +103,41 @@ export interface MilitaryArtifacts {
     readonly mediaType: string
     readonly classification: 'public' | 'internal' | 'confidential' | 'restricted'
     readonly description?: string
+    readonly tenantId?: string
+    readonly missionId?: string
+    readonly taskId?: string
+    readonly ownerPrincipalId?: string
+    readonly audiencePrincipalIds?: readonly string[]
+    readonly audienceScopes?: readonly string[]
+    readonly grantId?: string
+    readonly residencyPolicyRef?: string
+    readonly retentionUntil?: import('./domain.js').IsoDateTime
+    readonly expiresAt?: import('./domain.js').IsoDateTime
+    readonly legalHoldIds?: readonly string[]
+    readonly lineageReferenceIds?: readonly string[]
+    /** Stable Host operation key; reuse with different content/authority fails. */
+    readonly idempotencyKey?: string
   }): Promise<ArtifactRef>
   get(id: ArtifactId): Promise<Uint8Array>
   verify(ref: ArtifactRef): Promise<boolean>
+  reference(referenceId: string): Promise<import('./artifact-control.js').ArtifactAccessReference>
+  read(
+    referenceId: string,
+    context: import('./artifact-control.js').ArtifactAccessContext,
+  ): Promise<Uint8Array>
+  deleteReference(input: {
+    readonly referenceId: string
+    readonly context: import('./artifact-control.js').ArtifactAccessContext
+    readonly reason: string
+  }): Promise<import('./artifact-control.js').ArtifactDeletionReceipt>
+  setLegalHold(input: {
+    readonly referenceId: string
+    readonly holdId: string
+    readonly active: boolean
+    readonly context: import('./artifact-control.js').ArtifactAccessContext
+  }): Promise<import('./artifact-control.js').ArtifactAccessReference>
+  garbageCollect(operationId: string): Promise<import('./artifact-control.js').ArtifactGarbageCollectionReceipt>
+  rotateEncryptionKey(operationId: string): Promise<import('./artifact-control.js').ArtifactKeyRotationReceipt>
 }
 
 /** Filesystem materializer for immutable, versioned private Skill snapshots. */
@@ -175,8 +207,16 @@ export interface MilitaryRadio {
   /** Resolve only the exact live request leased by this advisor identity. */
   leased(requestId: TacticalRequestId, advisor: AgentIdentity): Promise<TacticalRequest>
   issue(guidance: TacticalGuidance): Promise<void>
-  acknowledge(guidanceId: string, worker: AgentIdentity): Promise<void>
+  acknowledge(
+    guidanceId: string,
+    worker: AgentIdentity,
+    task?: { readonly taskId: TaskId; readonly taskVersion: TaskVersion },
+  ): Promise<void>
   guidance(guidanceId: string): Promise<TacticalGuidance>
+  /** Terminally dead-letter one exact Task request during cancellation/recovery. */
+  expire(requestId: TacticalRequestId, reason: string): Promise<void>
+  /** Advance TTL/lease retry policy and return only newly dead-lettered requests. */
+  reconcileDeadLetters(): Promise<readonly TacticalRequest[]>
 }
 
 export interface MilitaryAgentTemplates {
@@ -188,6 +228,13 @@ export interface MilitaryAgentTemplates {
   get(templateId: AgentTemplateId, revision?: Revision): Promise<AgentTemplateProfile>
   create(profile: AgentTemplateProfile): Promise<void>
   revise(profile: AgentTemplateProfile, expectedRevision: Revision): Promise<void>
+  /** Validate every revision first, then publish the complete set atomically. */
+  reviseBatch(
+    revisions: readonly {
+      readonly profile: AgentTemplateProfile
+      readonly expectedRevision: Revision
+    }[],
+  ): Promise<void>
   setStatus(templateId: AgentTemplateId, status: 'DRAFT' | 'CANARY' | 'ACTIVE' | 'PAUSED' | 'RETIRED'): Promise<void>
   /** Freeze the effective profile used to construct one child Agent. */
   resolveForInstantiation(templateId: AgentTemplateId): Promise<AgentTemplateProfile>
@@ -274,7 +321,12 @@ export interface MilitaryIngestion {
 }
 
 export interface MilitaryDecisionBroker {
-  submit(questionSet: DecisionQuestionSet): Promise<void>
+  submit(questionSet: DecisionQuestionSet, context?: {
+    readonly missionId: MissionId
+    readonly taskId?: TaskId
+    readonly taskVersion?: TaskVersion
+    readonly attemptId?: string
+  }): Promise<void>
   pending(rootSessionId: SessionId): Promise<readonly DecisionQuestionSet[]>
   recordAnswers(input: {
     readonly rootSessionId: SessionId
@@ -336,6 +388,13 @@ export interface MilitaryRuntime {
     readonly authorityContextRef: string
   }): Promise<void>
   registerTask(order: TaskOrder, actor: AgentIdentity): Promise<void>
+  completeMission(missionId: MissionId, actor: AgentIdentity): Promise<void>
+  cancelMission(input: {
+    readonly missionId: MissionId
+    readonly actor: AgentIdentity
+    readonly reason: string
+    readonly cancellationReceiptRef: string
+  }): Promise<void>
   missionForSession(rootSessionId: SessionId): Promise<MissionId | null>
   recordEvent<T extends MissionEventType>(input: {
     readonly missionId: MissionId
@@ -352,11 +411,74 @@ export interface MilitaryRuntime {
     readonly evidenceRefs: readonly string[]
     readonly requestId?: string
   }): Promise<void>
+  applyGuidance(input: {
+    readonly taskId: TaskId
+    readonly taskVersion: TaskVersion
+    readonly guidance: TacticalGuidance
+    readonly actor: AgentIdentity
+  }): Promise<void>
+  pendingGuidance(taskId: TaskId): Promise<TacticalGuidance | null>
+  acknowledgeGuidance(
+    taskId: TaskId,
+    guidanceId: string,
+    worker: AgentIdentity,
+  ): Promise<void>
+  waitForDecision(input: {
+    readonly taskId: TaskId
+    readonly taskVersion: TaskVersion
+    readonly decisionSetId: string
+    readonly actor: AgentIdentity
+  }): Promise<void>
+  resolveDecision(input: {
+    readonly decisionSetId: string
+    readonly answerReceiptRef: string
+    readonly actor: AgentIdentity
+  }): Promise<TaskId | null>
+  pendingDecisionAnswer(taskId: TaskId): Promise<{
+    readonly decisionSetId: string
+    readonly answerReceiptRef: string
+    readonly resolvedAt: import('./domain.js').IsoDateTime
+  } | null>
+  acknowledgeDecisionAnswer(
+    taskId: TaskId,
+    decisionSetId: string,
+    worker: AgentIdentity,
+  ): Promise<void>
+  expireDecisionWait(input: {
+    readonly decisionSetId: string
+    readonly reason: 'TTL' | 'TASK_VERSION_CHANGED' | 'MISSION_CANCELLED'
+      | 'SUPERSEDED' | 'ORIGIN_AGENT_GONE'
+    readonly actor: AgentIdentity
+  }): Promise<TaskId | null>
+  deadLetterGuidanceWait(input: {
+    readonly requestId: string
+    readonly reason: 'REQUEST_EXPIRED' | 'LEASE_ATTEMPTS_EXHAUSTED'
+    readonly actor: AgentIdentity
+  }): Promise<TaskId | null>
   getTask(taskId: TaskId): Promise<TaskOrder>
   leaseTask(taskId: TaskId, worker: AgentIdentity, workspaceLeaseId: string): Promise<void>
-  releaseTaskLease(taskId: TaskId, worker: AgentIdentity, reason: string): Promise<void>
+  /**
+   * Settle one Agent Activation and release its lease without assuming that
+   * child teardown means Task rework or readiness.
+   */
+  releaseTaskLease(taskId: TaskId, worker: AgentIdentity, reason: string): Promise<TaskState>
   /** Converge one leased Task to a terminal state after user or policy cancellation. */
   cancelTask(taskId: TaskId, worker: AgentIdentity, reason: string): Promise<void>
+  submitCandidate(candidate: CandidateSubmission): Promise<void>
+  recordCandidateVerification(
+    candidate: CandidateSubmission,
+    verification: VerificationReceipt,
+  ): Promise<{ readonly acceptedForVerification: boolean; readonly verification: VerificationReceipt }>
+  recordCandidateVerificationFailure(
+    candidate: CandidateSubmission,
+    failureCode: string,
+  ): Promise<void>
+  candidateProgress(taskId: TaskId): Promise<{
+    readonly state: TaskState
+    readonly candidateId?: string
+    readonly verification?: VerificationReceipt
+    readonly integration?: IntegrationReceipt
+  }>
   proposeCandidate(candidate: CandidateSubmission): Promise<{ readonly acceptedForVerification: boolean; readonly verification: VerificationReceipt }>
   recordIntegration(taskId: TaskId, receipt: IntegrationReceipt): Promise<void>
   recordSpecsCommit(taskId: TaskId, receipt: { readonly commit: string; readonly treeHash: string; readonly changedPaths: readonly string[] }): Promise<void>
@@ -433,7 +555,11 @@ export interface MilitaryAuthorization {
 export interface MilitaryPolicyRegistry {
   toolProfile(id: string, revision?: number): Promise<ToolProfile>
   permissionProfile(id: string, revision?: number): Promise<PermissionProfile>
-  modelCapability(provider: string, model: string): Promise<ModelCapabilityProfile>
+  modelCapability(
+    provider: string,
+    model: string,
+    revision?: number,
+  ): Promise<ModelCapabilityProfile>
   verifierProfile(id: string, revision?: number): Promise<VerifierProfile>
   resourceBudgetPolicy(id: string, revision?: number): Promise<ResourceBudgetPolicy>
 }
@@ -493,6 +619,8 @@ export interface MilitaryDecisionBrokerV2 extends MilitaryDecisionBroker {
   presentNext(rootSessionId: SessionId): Promise<DecisionBrokerRecord | null>
   expire(decisionSetId: string, reason: string): Promise<void>
   supersede(decisionSetId: string, replacementId: string): Promise<void>
+  /** Atomically expire due sets and return only the newly terminal records. */
+  reconcileExpired(): Promise<readonly DecisionBrokerRecord[]>
 }
 
 export interface MilitaryKnowledgeSupplyChain {

@@ -16,6 +16,7 @@
     "completion",
     "capability",
     "reliability",
+    "metricTruth",
     "efficiency",
     "dataQuality",
     "failureAttribution",
@@ -232,6 +233,11 @@
         "recoveryDriftRate": { "$ref": "#/$defs/rate" }
       }
     },
+    "metricTruth": {
+      "type": "object",
+      "description": "Lossless truth for every reported ratio. Consumers use status to distinguish measured zero, N/A and incomplete authoritative evidence.",
+      "additionalProperties": { "$ref": "#/$defs/evaluationRatio" }
+    },
     "efficiency": {
       "type": "object",
       "additionalProperties": false,
@@ -401,6 +407,24 @@
   },
   "$defs": {
     "rate": { "type": "number", "minimum": 0, "maximum": 1 },
+    "evaluationRatio": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "numerator", "denominator"],
+      "properties": {
+        "status": {
+          "enum": ["AVAILABLE", "NOT_APPLICABLE", "INCOMPLETE_EVIDENCE"]
+        },
+        "numerator": { "type": "number", "minimum": 0 },
+        "denominator": { "type": "number", "minimum": 0 },
+        "eligiblePopulation": { "type": "number", "minimum": 0 },
+        "value": { "$ref": "#/$defs/rate" },
+        "missingReasons": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1, "maxLength": 2000 }
+        }
+      }
+    },
     "profileRef": {
       "type": "object",
       "additionalProperties": false,
@@ -414,6 +438,7 @@
       "type": "object",
       "additionalProperties": false,
       "required": [
+        "status",
         "estimate",
         "low",
         "high",
@@ -422,6 +447,9 @@
         "denominator"
       ],
       "properties": {
+        "status": {
+          "enum": ["AVAILABLE", "NOT_APPLICABLE", "INCOMPLETE_EVIDENCE"]
+        },
         "estimate": { "$ref": "#/$defs/rate" },
         "low": { "$ref": "#/$defs/rate" },
         "high": { "$ref": "#/$defs/rate" },

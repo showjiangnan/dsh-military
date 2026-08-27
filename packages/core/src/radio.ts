@@ -15,6 +15,7 @@ interface RadioEntry {
   leaseUntil?: number
   attempts: number
   guidance?: TacticalGuidance
+  deadLetterReason?: string
 }
 
 export class InMemoryMilitaryRadio implements MilitaryRadio {
@@ -109,24 +110,77 @@ export class InMemoryMilitaryRadio implements MilitaryRadio {
     const entry = [...this.#entries.values()].find(item => String(item.guidance?.guidanceId) === guidanceId)
     if (entry?.guidance === undefined) throw new MilitaryError('NOT_FOUND', `unknown guidance ${guidanceId}`)
     if (isExpired(entry.guidance.expiresAt, this.#clock)) throw new MilitaryError('GUIDANCE_EXPIRED')
+    if (entry.state === 'GUIDANCE_READY') entry.state = 'DELIVERED'
     return cloneFrozen(entry.guidance)
   }
 
-  async acknowledge(guidanceId: string, worker: AgentIdentity): Promise<void> {
+  async acknowledge(
+    guidanceId: string,
+    worker: AgentIdentity,
+    task?: { readonly taskId: import('@dsh-military/contracts').TaskId; readonly taskVersion: import('@dsh-military/contracts').TaskVersion },
+  ): Promise<void> {
     const entry = [...this.#entries.values()].find(item => item.guidance?.guidanceId === guidanceId)
     if (entry === undefined || entry.state !== 'DELIVERED') throw new MilitaryError('NOT_FOUND')
-    if (String(entry.request.identity.agentId) !== String(worker.agentId)) throw new MilitaryError('UNAUTHORIZED')
+    const originalWorker = String(entry.request.identity.agentId) === String(worker.agentId)
+      && entry.request.identity.generation === worker.generation
+    const replacementForExactTask = task !== undefined
+      && String(entry.request.location.taskId) === String(task.taskId)
+      && Number(entry.request.location.taskVersion) === Number(task.taskVersion)
+    if (!originalWorker && !replacementForExactTask) {
+      throw new MilitaryError('UNAUTHORIZED')
+    }
     entry.state = 'ACKNOWLEDGED'
+  }
+
+  async expire(requestId: TacticalRequestId, reason: string): Promise<void> {
+    const entry = this.#entries.get(String(requestId))
+    if (entry === undefined) return
+    if (entry.state === 'ACKNOWLEDGED') return
+    if (entry.state === 'DEAD_LETTERED') {
+      if (
+        entry.deadLetterReason !== undefined
+        && entry.deadLetterReason !== reason
+      ) {
+        throw new MilitaryError(
+          'IDEMPOTENCY_CONFLICT',
+          'radio request already has another terminal reason',
+        )
+      }
+      return
+    }
+    entry.state = 'DEAD_LETTERED'
+    entry.deadLetterReason = reason
+    delete entry.leaseOwner
+    delete entry.leaseUntil
   }
 
   recoverExpiredLeases(): void {
     const nowMs = this.#clock().getTime()
     for (const entry of this.#entries.values()) {
+      if (
+        entry.state === 'QUEUED'
+        && entry.request.expiresAt !== undefined
+        && Date.parse(entry.request.expiresAt) <= nowMs
+      ) {
+        entry.state = 'DEAD_LETTERED'
+        continue
+      }
       if (entry.state !== 'LEASED' || entry.leaseUntil === undefined || entry.leaseUntil > nowMs) continue
       delete entry.leaseOwner
       delete entry.leaseUntil
       entry.state = entry.attempts >= this.#maxAttempts ? 'DEAD_LETTERED' : 'QUEUED'
     }
+  }
+
+  async reconcileDeadLetters(): Promise<readonly TacticalRequest[]> {
+    const before = new Set([...this.#entries.entries()]
+      .filter(([, value]) => value.state === 'DEAD_LETTERED')
+      .map(([id]) => id))
+    this.recoverExpiredLeases()
+    return cloneFrozen([...this.#entries.entries()]
+      .filter(([id, value]) =>
+        value.state === 'DEAD_LETTERED' && !before.has(id))
+      .map(([, value]) => value.request))
   }
 
   snapshot(): readonly Readonly<RadioEntry>[] { return cloneFrozen([...this.#entries.values()]) }

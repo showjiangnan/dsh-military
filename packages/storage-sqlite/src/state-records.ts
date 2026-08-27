@@ -42,35 +42,40 @@ export class SqliteStateRecords {
   }
 
   putSync<T>(namespace: string, key: string, value: T, options?: { readonly createOnly?: boolean }): void {
-    const current = this.#row(namespace, key)
-    if (options?.createOnly === true && current !== undefined) {
-      if (stableJson(JSON.parse(current.value_json)) === stableJson(value)) return
-      throw new MilitaryError('REVISION_CONFLICT', `${namespace}/${key} already exists`)
-    }
-    const revision = (current?.storage_revision ?? 0) + 1
-    this.#database.db.prepare(`
-      INSERT INTO durable_state_records(
-        tenant_id, namespace, record_key, storage_revision, value_json, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?)
-      ON CONFLICT(tenant_id, namespace, record_key) DO UPDATE SET
-        storage_revision = excluded.storage_revision,
-        value_json = excluded.value_json,
-        updated_at = excluded.updated_at
-    `).run(
-      this.#tenantId,
-      namespace,
-      key,
-      revision,
-      stableJson(value),
-      new Date().toISOString(),
-    )
+    this.#database.transaction(() => {
+      const current = this.#row(namespace, key)
+      if (options?.createOnly === true && current !== undefined) {
+        if (stableJson(JSON.parse(current.value_json)) === stableJson(value)) return
+        throw new MilitaryError('REVISION_CONFLICT', `${namespace}/${key} already exists`)
+      }
+      const revision = (current?.storage_revision ?? 0) + 1
+      this.#database.db.prepare(`
+        INSERT INTO durable_state_records(
+          tenant_id, namespace, record_key, storage_revision, value_json,
+          updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?)
+        ON CONFLICT(tenant_id, namespace, record_key) DO UPDATE SET
+          storage_revision = excluded.storage_revision,
+          value_json = excluded.value_json,
+          updated_at = excluded.updated_at
+      `).run(
+        this.#tenantId,
+        namespace,
+        key,
+        revision,
+        stableJson(value),
+        new Date().toISOString(),
+      )
+    })
   }
 
   deleteSync(namespace: string, key: string): void {
-    this.#database.db.prepare(`
-      DELETE FROM durable_state_records
-      WHERE tenant_id = ? AND namespace = ? AND record_key = ?
-    `).run(this.#tenantId, namespace, key)
+    this.#database.transaction(() => {
+      this.#database.db.prepare(`
+        DELETE FROM durable_state_records
+        WHERE tenant_id = ? AND namespace = ? AND record_key = ?
+      `).run(this.#tenantId, namespace, key)
+    })
   }
 
   async update<T, R>(
@@ -79,10 +84,20 @@ export class SqliteStateRecords {
     initial: () => T,
     mutate: (current: T) => Promise<{ readonly next: T; readonly result: R }> | { readonly next: T; readonly result: R },
   ): Promise<R> {
-    return await this.#database.transactionAsync(async () => {
-      const row = this.#row(namespace, key)
-      const current = row === undefined ? initial() : JSON.parse(row.value_json) as T
-      const changed = await mutate(structuredClone(current))
+    // Compute the pure domain transition before opening SQLite. This keeps the
+    // write lock bounded even when a caller's transition function is async.
+    // The final short transaction fences the originally observed revision.
+    const row = this.#row(namespace, key)
+    const current = row === undefined ? initial() : JSON.parse(row.value_json) as T
+    const changed = await mutate(structuredClone(current))
+    return this.#database.transaction(() => {
+      const observed = this.#row(namespace, key)
+      if ((observed?.storage_revision ?? 0) !== (row?.storage_revision ?? 0)) {
+        throw new MilitaryError(
+          'REVISION_CONFLICT',
+          `${namespace}/${key} changed while its transition was computed`,
+        )
+      }
       const revision = (row?.storage_revision ?? 0) + 1
       const write = this.#database.db.prepare(`
         INSERT INTO durable_state_records(
@@ -104,6 +119,56 @@ export class SqliteStateRecords {
       )
       if (Number(write.changes) !== 1) {
         throw new MilitaryError('REVISION_CONFLICT', `${namespace}/${key} storage CAS failed`)
+      }
+      return cloneFrozen(changed.result)
+    })
+  }
+
+  /**
+   * Atomic transition for repository-only work. The callback is deliberately
+   * synchronous so a SQLite lock can never span Git, filesystem, model or
+   * provider I/O.
+   */
+  updateSync<T, R>(
+    namespace: string,
+    key: string,
+    initial: () => T,
+    mutate: (current: T) => {
+      readonly next: T
+      readonly result: R
+    },
+  ): R {
+    return this.#database.transaction(() => {
+      const row = this.#row(namespace, key)
+      const current = row === undefined
+        ? initial()
+        : JSON.parse(row.value_json) as T
+      const changed = mutate(structuredClone(current))
+      const revision = (row?.storage_revision ?? 0) + 1
+      const write = this.#database.db.prepare(`
+        INSERT INTO durable_state_records(
+          tenant_id, namespace, record_key, storage_revision, value_json,
+          updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?)
+        ON CONFLICT(tenant_id, namespace, record_key) DO UPDATE SET
+          storage_revision = excluded.storage_revision,
+          value_json = excluded.value_json,
+          updated_at = excluded.updated_at
+        WHERE durable_state_records.storage_revision = ?
+      `).run(
+        this.#tenantId,
+        namespace,
+        key,
+        revision,
+        stableJson(changed.next),
+        new Date().toISOString(),
+        row?.storage_revision ?? 0,
+      )
+      if (Number(write.changes) !== 1) {
+        throw new MilitaryError(
+          'REVISION_CONFLICT',
+          `${namespace}/${key} storage CAS failed`,
+        )
       }
       return cloneFrozen(changed.result)
     })

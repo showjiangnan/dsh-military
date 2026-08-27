@@ -1,7 +1,7 @@
 # 版本信息
 
 - 文档工程版本：`0.9.0-draft`
-- 源码实现版本：`0.9.0-alpha.24`
+- 源码实现版本：`0.9.0-alpha.25`
 - 领域事件 Envelope：`2.0.0`
 - 其余领域 Schema：各自按 SemVer 演进，当前主要基线为 `1.0.0`
 - 文档同步日期：`2026-08-27`
@@ -11,6 +11,7 @@
 - 固定公开 preset id：`military`
 - 当前 preset generation：
   `military@sha256:054486e73b1b1f8385782497cda79e9a887897fbc338dd9bc6ca80d01a1e8146`
+- 最终 RC.2 发行门验证时间：`2026-08-27T14:59:52.680Z`
 
 Preset generation 由
 `reference/preset/agent-presets/military/generation-manifest.json` 计算并与源码
@@ -18,7 +19,7 @@ package 镜像校验，不手写。任何其他 DSH release、commit、回移植
 组合都不属于本版本支持范围；Compatibility Probe 通过也不会自动扩大正式支持
 矩阵。
 
-## alpha.21 绩效评估与控制面版本
+## alpha.25 执行、控制面与评测版本
 
 本版本新增并冻结以下 Web/Host 契约版本：
 
@@ -29,20 +30,26 @@ Military workspace schema       1.0.0
 Military benchmark schema       1.0.0
 Military knowledge schema       1.0.0
 Military evaluation schema      1.0.0
+Military runtime schema         1.0.0
+Military production schema      1.0.0
 Benchmark dataset               military-flash-core-v1
 Benchmark dataset SHA-256       76ea0817a8daab513ed9661b61965e0524e5aa15007ddcc1c16797b17d8a50d0
+SQLite migration                0010-command-saga.sql
 ```
 
 Web 交付包含 12 角色工作台、六层有效 Prompt、Flash readiness/模拟、提示词
-revision/回滚、能力模型目录、成本、诊断/恢复、Specs workspace、固定评测、
-简体中文辅助检查、知识透明度/模拟召回、绩效七视图决策中心以及
-键盘/IME/高对比度合同。
+Desired/Applied revision、能力模型目录、成本、诊断/恢复、Specs workspace、
+Request→Integration Runtime Center、固定评测、简体中文辅助检查、知识透明度/
+模拟召回、绩效七视图决策中心以及键盘/IME/高对比度合同。
 
 绩效 v2 冻结 canonical Dataset、精确 Attempt/配置/路线、预执行难度、缺失与失败
 阶段、Wilson/Mission-cluster 区间、Flash/Pro 非劣硬门、Accepted Outcome
-经济性、可恢复 SQLite 分片和 immutable Appeal lineage。Provider 工作台按
-dataset + Session + scenario 去重，至少 10 个 exact-route 独立 Session 且区间
-足够窄才形成稳定结论。确定性门和真实 Provider 样本是两个独立证据维度。
+经济性、可恢复 SQLite 分片和 immutable Appeal lineage。Provider 趋势仍可在
+至少 10 个 exact-route 独立 Session 且区间足够窄时显示；发行 acceptance 是更
+严格的独立门：每个 exact configuration × scenario 至少 50 个独立 Session，
+首次工具命中点估计 ≥95%/Wilson 下界 ≥85%，E2E ≥90%/下界 ≥80%，意外确定性
+错误、越权写入、假完成和重复终态全为 0。确定性门和真实 Provider 样本是两个
+独立证据维度。
 
 ## 兼容与发布承诺
 

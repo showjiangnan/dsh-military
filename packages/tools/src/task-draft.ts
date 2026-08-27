@@ -16,19 +16,6 @@ import type { ParameterSchemaSpec } from '@deepseek-ai/dsh-tools'
 
 /** Flash-friendly semantic input; Host-owned identity and fencing never come from model guesses. */
 export const taskCreateParameters = {
-  taskKey: {
-    type: 'string',
-    required: true,
-    description: 'Stable short key for this task inside the Mission, for example "specs-bootstrap". Reuse the same key to retry idempotently.',
-  },
-  direction: {
-    type: 'string',
-    description: 'Optional strategic grouping label. Omit for the Host default.',
-  },
-  wave: {
-    type: 'string',
-    description: 'Optional sequential wave label. Omit for the Host default first wave.',
-  },
   objective: {
     type: 'string',
     required: true,
@@ -49,83 +36,17 @@ export const taskCreateParameters = {
     required: true,
     description: 'Use "engineer" only for specs/docs local-main maintenance; use "worker" for isolated implementation work.',
   },
-  scope: {
-    type: 'object',
-    additionalProperties: false,
+  writePaths: {
+    type: 'array',
+    items: { type: 'string' },
     required: true,
-    description: 'Exact repository path fence. Paths are workspace-relative; never include broad home-directory paths.',
-    properties: {
-      readPaths: {
-        type: 'array',
-        items: { type: 'string' },
-        required: true,
-        description: 'Workspace-relative paths the task may inspect; use ["."] only when whole-project reading is necessary.',
-      },
-      writePaths: {
-        type: 'array',
-        items: { type: 'string' },
-        required: true,
-        description: 'Workspace-relative paths the task may modify. Engineer tasks normally use ["specs", "docs"].',
-      },
-      forbiddenPaths: {
-        type: 'array',
-        items: { type: 'string' },
-        description: 'Additional denied paths. Host always adds .git and Military control/secrets paths.',
-      },
-    },
+    description: 'Only the project-relative files or directories that may change. Host derives read scope and all forbidden paths.',
   },
   acceptanceCriteria: {
     type: 'array',
     items: { type: 'string' },
     required: true,
     description: 'Observable pass conditions. The Host embeds them in the immutable objective and binds the standard objective/tests/scope evidence contract.',
-  },
-  dependencies: {
-    type: 'array',
-    items: { type: 'string' },
-    description: 'Task IDs that must be accepted first. Use IDs returned by earlier military_task_create calls.',
-  },
-  stopConditions: {
-    type: 'array',
-    items: { type: 'string' },
-    description: 'Conditions requiring the assigned Agent to stop instead of improvising.',
-  },
-  escalationConditions: {
-    type: 'array',
-    items: { type: 'string' },
-    description: 'Conditions requiring a blocker or Tactical Request to General/Staff.',
-  },
-  contextFootprint: {
-    type: 'string',
-    enum: ['small', 'medium', 'large'],
-    description: 'Expected context size. Omit for Host-derived "medium".',
-  },
-  budget: {
-    type: 'object',
-    additionalProperties: false,
-    description: 'Optional tighter Task budget. Omit this object for Flash-safe Host defaults; values outside the documented ranges are rejected in one correction response.',
-    properties: {
-      modelSteps: {
-        type: 'integer',
-        description: 'Maximum model steps, 1-64. Default 16.',
-      },
-      toolCalls: {
-        type: 'integer',
-        description: 'Maximum admitted tool calls, 1-512. Default 64.',
-      },
-      guidanceRequests: {
-        type: 'integer',
-        description: 'Maximum Tactical Requests for this Task version, 0-32. Default 4.',
-      },
-      wallClockSeconds: {
-        type: 'integer',
-        description: 'Maximum live child duration in seconds, 60-86400. Default 7200.',
-      },
-      maxOutputTokens: {
-        type: 'integer',
-        description: 'Maximum output tokens per model request, 1024-256000. Default 16384.',
-      },
-    },
   },
 } as const satisfies ParameterSchemaSpec
 
@@ -214,9 +135,16 @@ export function compileTaskDraft(input: {
       contractId: brand<string, 'AcceptanceContractId'>('default-acceptance'),
       version: 1,
     },
-    dependencies: draft.dependencies.map(targetTaskId => ({
+    dependencies: draft.dependencies.map(targetTaskKey => ({
       type: 'requires' as const,
-      targetTaskId: brand<string, 'TaskId'>(targetTaskId),
+      // Flash models naturally refer to the stable taskKey they just emitted.
+      // Preserve an already canonical Task ID for advanced callers; otherwise
+      // compile the key through the same Mission-scoped identity function.
+      targetTaskId: brand<string, 'TaskId'>(
+        targetTaskKey.startsWith('task-')
+          ? targetTaskKey
+          : `task-${sha256(`${String(input.missionId)}\0${targetTaskKey}`).slice(0, 32)}`,
+      ),
     })),
     tactics: [],
     environmentSnapshotRef: input.environmentSnapshotRef,
@@ -236,16 +164,12 @@ export function compileTaskDraft(input: {
 
 export function parseTaskDraft(value: unknown): TaskDraft {
   const input = record(value, 'task draft')
-  const scope = record(input['scope'], 'scope')
+  const scope = input['scope'] === undefined
+    ? undefined
+    : record(input['scope'], 'scope')
   const role = requiredString(input['assignedRole'], 'assignedRole')
   if (role !== 'worker' && role !== 'engineer') {
     throw new MilitaryError('INVALID_ARGUMENT', 'assignedRole must be "worker" or "engineer"')
-  }
-  const context = input['contextFootprint'] === undefined
-    ? 'medium'
-    : requiredString(input['contextFootprint'], 'contextFootprint')
-  if (context !== 'small' && context !== 'medium' && context !== 'large') {
-    throw new MilitaryError('INVALID_ARGUMENT', 'contextFootprint must be small, medium or large')
   }
   const taskType = input['taskType'] === undefined
     ? role === 'engineer' ? 'specs' : 'implementation'
@@ -277,11 +201,15 @@ export function parseTaskDraft(value: unknown): TaskDraft {
   }
   const budgetInput = input['budget'] === undefined ? {} : record(input['budget'], 'budget')
   const readPaths = normalizePaths(
-    requiredStringArray(scope['readPaths'], 'scope.readPaths'),
+    scope === undefined
+      ? ['.']
+      : requiredStringArray(scope['readPaths'], 'scope.readPaths'),
     'scope.readPaths',
   )
   const writePaths = normalizePaths(
-    requiredStringArray(scope['writePaths'], 'scope.writePaths'),
+    scope === undefined
+      ? requiredStringArray(input['writePaths'], 'writePaths')
+      : requiredStringArray(scope['writePaths'], 'scope.writePaths'),
     'scope.writePaths',
   )
   if (readPaths.length === 0) {
@@ -303,8 +231,26 @@ export function parseTaskDraft(value: unknown): TaskDraft {
       'Engineer write paths must be below specs/ or docs/',
     )
   }
+  const acceptanceCriteria = nonEmptyStringArray(
+    input['acceptanceCriteria'],
+    'acceptanceCriteria',
+  )
+  const contextInput = input['contextFootprint']
+  const derivedContext = writePaths.length <= 1 && acceptanceCriteria.length <= 2
+    ? 'small'
+    : writePaths.length >= 4 || acceptanceCriteria.length >= 6
+      ? 'large'
+      : 'medium'
+  const context = contextInput === undefined
+    ? derivedContext
+    : requiredString(contextInput, 'contextFootprint')
+  if (context !== 'small' && context !== 'medium' && context !== 'large') {
+    throw new MilitaryError('INVALID_ARGUMENT', 'contextFootprint must be small, medium or large')
+  }
   const forbiddenPaths = normalizePaths(uniqueStrings([
-    ...optionalStringArray(scope['forbiddenPaths'], 'scope.forbiddenPaths'),
+    ...(scope === undefined
+      ? []
+      : optionalStringArray(scope['forbiddenPaths'], 'scope.forbiddenPaths')),
     '.git',
     '.dsh-military/control',
     '.dsh-military/secrets',
@@ -336,15 +282,25 @@ export function parseTaskDraft(value: unknown): TaskDraft {
       'budget.maxOutputTokens', 1_024, 256_000,
     ),
   }
+  const objective = requiredString(input['objective'], 'objective')
+  const taskKey = input['taskKey'] === undefined
+    ? `auto-${sha256(JSON.stringify({
+        objective,
+        assignedRole: role,
+        taskType,
+        writePaths,
+        acceptanceCriteria,
+      })).slice(0, 24)}`
+    : requiredString(input['taskKey'], 'taskKey')
   return cloneFrozen({
-    taskKey: requiredString(input['taskKey'], 'taskKey'),
+    taskKey,
     direction: input['direction'] === undefined
       ? 'mission-execution'
       : requiredString(input['direction'], 'direction'),
     wave: input['wave'] === undefined
       ? 'wave-1'
       : requiredString(input['wave'], 'wave'),
-    objective: requiredString(input['objective'], 'objective'),
+    objective,
     whyItMatters: input['whyItMatters'] === undefined
       ? 'This independently verifiable outcome advances the active Mission.'
       : requiredString(input['whyItMatters'], 'whyItMatters'),
@@ -356,7 +312,7 @@ export function parseTaskDraft(value: unknown): TaskDraft {
       forbiddenPaths,
     },
     requiredEvidence: ['objective', 'tests', 'scope'],
-    acceptanceCriteria: nonEmptyStringArray(input['acceptanceCriteria'], 'acceptanceCriteria'),
+    acceptanceCriteria,
     dependencies: optionalStringArray(input['dependencies'], 'dependencies'),
     stopConditions: input['stopConditions'] === undefined
       ? ['Stop when a required check cannot be run or scope would be exceeded.']
@@ -383,7 +339,9 @@ function defaultAllowedTools(
         'military_submit_blocker',
       ]
     : [
-        'read', 'glob', 'grep', 'write', 'edit',
+        'military_workspace_read', 'military_workspace_list',
+        'military_workspace_search', 'military_workspace_write',
+        'military_workspace_edit',
         'military_get_context', 'military_get_order',
         'military_get_tactical_directive',
         'military_record_observation', 'military_submit_candidate',

@@ -132,8 +132,8 @@ export class SqlitePrivateSkillRepository implements PrivateSkillRepository {
     return this.#records.listSync<KnowledgeRevocationOrder>(REVOCATION_NS)
   }
 
-  async transaction<T>(operation: () => Promise<T>): Promise<T> {
-    return await this.#database.transactionAsync(operation)
+  async transaction<T>(operation: () => T): Promise<T> {
+    return this.#database.transaction(operation)
   }
 }
 

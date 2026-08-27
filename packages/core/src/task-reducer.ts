@@ -34,13 +34,22 @@ export function reduceTaskEvent(tasks: Map<TaskId, ReducedTask>, event: MissionE
     case 'task/created':
       tasks.set(taskId(event.payload.taskId), {
         taskVersion: taskVersion(event.payload.taskVersion),
-        // Creation is atomically admitted as schedulable in Military Runtime.
-        state: 'READY',
+        state: 'CREATED',
       })
+      return
+    case 'task/ready':
+      setState(tasks, event.payload.taskId, event.payload.taskVersion, 'READY')
       return
     case 'task/leased': {
       const current = requireTask(tasks, event.payload.taskId, event.payload.taskVersion)
-      const leased = reduceTaskTransition(current.state, 'LEASED')
+      // Pre-scheduler RC.2 ledgers encoded READY implicitly in task/created.
+      // Replaying those immutable histories must remain valid after task/ready
+      // became explicit, so insert the legacy projection edge only while
+      // folding an old CREATED -> task/leased sequence.
+      const ready = current.state === 'CREATED'
+        ? reduceTaskTransition(current.state, 'READY')
+        : current.state
+      const leased = reduceTaskTransition(ready, 'LEASED')
       tasks.set(taskId(event.payload.taskId), {
         taskVersion: taskVersion(event.payload.taskVersion),
         state: reduceTaskTransition(leased, 'EXECUTING'),
@@ -59,7 +68,9 @@ export function reduceTaskEvent(tasks: Map<TaskId, ReducedTask>, event: MissionE
       let state = current.state === 'VERIFYING'
         ? current.state
         : reduceTaskTransition(current.state, 'VERIFYING')
-      if (event.payload.disposition === 'REWORK') state = reduceTaskTransition(state, 'REWORK')
+      if (event.payload.disposition === 'ACCEPTED') {
+        state = reduceTaskTransition(state, 'WAITING_INTEGRATION')
+      } else if (event.payload.disposition === 'REWORK') state = reduceTaskTransition(state, 'REWORK')
       else if (event.payload.disposition === 'BLOCKED'
         || event.payload.disposition === 'STRATEGIC'
         || event.payload.disposition === 'HUMAN_REVIEW_REQUIRED') {
@@ -73,9 +84,101 @@ export function reduceTaskEvent(tasks: Map<TaskId, ReducedTask>, event: MissionE
     case 'task/accepted':
       setState(tasks, event.payload.taskId, event.payload.taskVersion, 'ACCEPTED')
       return
+    case 'task/integrated': {
+      const current = requireTask(tasks, event.payload.taskId)
+      const integrating = current.state === 'WAITING_INTEGRATION'
+        ? reduceTaskTransition(current.state, 'INTEGRATING')
+        : current.state
+      tasks.set(taskId(event.payload.taskId), {
+        ...current,
+        state: integrating === 'INTEGRATING'
+          ? reduceTaskTransition(integrating, 'ACCEPTED')
+          : integrating,
+      })
+      return
+    }
+    case 'task/integration-failed': {
+      const current = requireTask(
+        tasks,
+        event.payload.taskId,
+        event.payload.taskVersion,
+      )
+      const integrating = current.state === 'WAITING_INTEGRATION'
+        ? reduceTaskTransition(current.state, 'INTEGRATING')
+        : current.state
+      tasks.set(taskId(event.payload.taskId), {
+        ...current,
+        state: integrating === 'INTEGRATING'
+          ? reduceTaskTransition(integrating, 'INTEGRATION_FAILED')
+          : integrating,
+      })
+      return
+    }
     case 'task/cancelled':
       setState(tasks, event.payload.taskId, event.payload.taskVersion, 'CANCELLED')
       return
+    case 'task/activation-settled': {
+      const current = requireTask(
+        tasks,
+        event.payload.taskId,
+        event.payload.taskVersion,
+      )
+      const state = current.state === event.payload.taskState
+        ? current.state
+        : reduceTaskTransition(current.state, event.payload.taskState)
+      tasks.set(taskId(event.payload.taskId), {
+        taskVersion: current.taskVersion,
+        state,
+      })
+      return
+    }
+    case 'task/resumed':
+      setState(tasks, event.payload.taskId, event.payload.taskVersion, 'READY')
+      return
+    case 'radio/guidance-delivered': {
+      const current = requireTask(
+        tasks,
+        event.payload.taskId,
+        event.payload.taskVersion,
+      )
+      const pending = current.state === 'BLOCKED'
+        ? reduceTaskTransition(current.state, 'GUIDANCE_PENDING')
+        : current.state
+      tasks.set(taskId(event.payload.taskId), {
+        ...current,
+        state: pending === 'GUIDANCE_PENDING'
+          ? reduceTaskTransition(pending, 'READY')
+          : reduceTaskTransition(pending, 'READY'),
+      })
+      return
+    }
+    case 'task/decision-waiting':
+      setState(
+        tasks,
+        event.payload.taskId,
+        event.payload.taskVersion,
+        'WAITING_DECISION',
+      )
+      return
+    case 'task/decision-resolved':
+      setState(
+        tasks,
+        event.payload.taskId,
+        event.payload.taskVersion,
+        'READY',
+      )
+      return
+    case 'specs/commit-recorded': {
+      const current = requireTask(tasks, event.payload.taskId)
+      let state = current.state
+      if (state === 'EXECUTING') state = reduceTaskTransition(state, 'CANDIDATE_SUBMITTED')
+      if (state === 'CANDIDATE_SUBMITTED') state = reduceTaskTransition(state, 'VERIFYING')
+      if (state === 'VERIFYING') state = reduceTaskTransition(state, 'WAITING_INTEGRATION')
+      if (state === 'WAITING_INTEGRATION') state = reduceTaskTransition(state, 'INTEGRATING')
+      if (state === 'INTEGRATING') state = reduceTaskTransition(state, 'ACCEPTED')
+      tasks.set(taskId(event.payload.taskId), { ...current, state })
+      return
+    }
     case 'task/rework-requested': {
       const current = requireTask(tasks, event.payload.taskId)
       let state = current.state

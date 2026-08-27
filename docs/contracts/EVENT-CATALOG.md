@@ -17,12 +17,18 @@
 | `wave/opened` | Wave opened | A schedulable wave entered execution. |
 | `wave/barrier-satisfied` | Wave barrier satisfied | All required task, integration, specs and oversight conditions passed. |
 | `task/created` | Task created | A versioned task order was added to the mission DAG. |
+| `task/ready` | Task ready | Scheduler admitted a created Task after its Wave and dependency barriers were satisfied. |
 | `task/leased` | Task leased | A role-bound agent received an exclusive task lease. |
 | `task/candidate-submitted` | Task candidate submitted | A worker proposed a candidate for external verification. |
 | `task/blocker-submitted` | Task blocker submitted | A worker submitted evidence of an unresolved blocker. |
 | `verification/completed` | Verification completed | Harness completed deterministic and optional semantic verification. |
 | `task/accepted` | Task accepted | Harness committed an accepted task result after verification. |
 | `task/cancelled` | Task cancelled | Harness terminally cancelled a Task after an explicit user or policy abort. |
+| `task/activation-settled` | Task activation settled | Host settled one exact Agent Activation without conflating child teardown with Task completion. |
+| `task/resumed` | Task resumed | Harness explicitly resumed a paused or recovery-required Task into the scheduler. |
+| `task/decision-waiting` | Task waiting for decision | A Task suspended execution until the root General records a user-owned decision. |
+| `task/decision-resolved` | Task decision resolved | The root General recorded the answer receipt and returned the waiting Task to scheduling. |
+| `task/integration-failed` | Task integration failed | A verified Candidate failed controlled integration and therefore did not complete its Task. |
 | `task/rework-requested` | Task rework requested | Harness issued a new task version after rejected verification. |
 | `task/integration-queued` | Task integration queued | An accepted candidate patch entered the controlled main integration queue. |
 | `task/integrated` | Task integrated | An accepted patch was applied to controlled local main and regressed. |
@@ -35,9 +41,11 @@
 | `radio/requested` | Radio request admitted | Evidence gate admitted a tactical guidance request. |
 | `radio/guidance-issued` | Radio guidance issued | An advisor produced validated tactical guidance. |
 | `radio/guidance-delivered` | Radio guidance delivered | Broker delivered non-stale guidance to the requesting task version. |
+| `radio/dead-lettered` | Radio request dead-lettered | A blocked Task exhausted the Radio request TTL or advisor lease attempts and was explicitly escalated. |
 | `decision/question-set-created` | Decision question set created | A child or General created a durable user decision set. |
 | `decision/question-presented` | Decision question presented | Root General presented one question set through DSH user questions. |
 | `decision/answered` | Decision answered | Harness durably recorded the user response and provenance. |
+| `decision/answer-acknowledged` | Decision answer acknowledged | The exact continuation Worker received and acknowledged the durable answer receipt. |
 | `decision/stale` | Decision question became stale | A pending user decision no longer matched the current mission or task revision. |
 | `decision/expired` | Decision expired | An unanswered or stale decision set reached a terminal state. |
 | `oversight/frozen` | Agent frozen | Oversight controller froze an anomalous agent before completion. |

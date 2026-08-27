@@ -4,7 +4,7 @@
 
 WebUI 让用户以“统帅”视角配置组织、观察 Mission、处理授权和审计证据，而不是把所有 Agent 对话平铺成聊天噪声。
 
-## 1.1 0.9.0-alpha.24 源码实现边界
+## 1.1 0.9.0-alpha.25 源码实现边界
 
 当前 Integration Alpha 已实现：
 
@@ -19,7 +19,12 @@ WebUI 让用户以“统帅”视角配置组织、观察 Mission、处理授权
   Presentation 可视化面板；
 - Session 诊断时间线、受治理恢复操作、Host workspace 目录和 Git/lease/
   integration 状态；
-- 固定九场景评测工作台、真实 Provider Session 样本评估及 N<5 稳定性保护；
+- 独立 Session Runtime Center，展示
+  Request→Mission→Direction→Wave→Task→Attempt→Activation→Dispatch，
+  以及 Candidate/Verification/Integration、Radio、Decision、预算和 receipt；
+- 共享 timeout/abort/dedupe/backoff/revision query layer 与跨标签页失效通知；
+- 固定九场景评测工作台、真实 Provider Session 样本趋势以及 N≥50/Wilson/
+  零安全失败发行验收；
 - 独立“知识与技能”入口和七视图 Knowledge Center；
 - 可信 Typert RPC 上的来源导入、分块 Job、候选 Diff/编辑/审批、Skill
   生命周期、效果记录、撤回与影响、sanitized pipeline 透明度及无 Task 模拟
@@ -53,10 +58,10 @@ label overflow 与 16/18px primitive 图标尺寸均一致。
 
 以下仍是后续产品面，不应在当前源码或报告中标记为已完成：
 
-- Mission/Direction/Wave/Task Dashboard；
-- Radio、Freeze、Candidate、Integration Conversation Nodes；
+- 把 Military 私有状态直接嵌入 DSH conversation log 的 Conversation Nodes
+  （RC.2 无第三方 required event 注册 seam）；
 - 自定义 Advisor 创建；
-- Mission 运行视图的多标签页冲突与断线恢复。
+- 分布式 Web push；当前使用 revisioned query/backoff/invalidation。
 
 RC.2 没有为外部插件提供 required Session Event 类型注册面。Military 权威状态位于自己的 Mission/Administrative Ledger；未来运行视图必须读取插件自有 Remote/Projection，不能通过写入未知 `military/*` DSH Session Event 实现。
 
@@ -180,9 +185,11 @@ SQLite 唯一键处理跨标签页/重启幂等。
 
 请求表单使用 Host Workspace/Mission 目录、置信水平、非劣界限和执行超时，不要求
 用户手填专业配置 JSON。Failed Job 显示结构化原因；retryable Job 可从冻结分片重试。
-Provider 样本按 dataset + Session + scenario 去重，actual route 为 exact、至少 10
-个独立 Session 且 Wilson 区间宽度不超过 0.35 才能显示稳定结论。确定性 Host 结果
-与真实 Provider 观察始终分栏。
+Provider 样本按 dataset + Session + scenario 去重。至少 10 个 exact-route
+独立 Session 且 Wilson 区间足够窄时可以显示趋势；发行 acceptance 另要求每个
+exact configuration × scenario 至少 50 个 Session、首次工具/E2E Wilson 门和
+意外确定性错误/越权写入/假完成/重复终态全为 0。确定性 Host 结果与真实
+Provider 观察始终分栏。
 
 ### 显示与进阶
 
@@ -209,9 +216,10 @@ Provider 样本按 dataset + Session + scenario 去重，actual route 为 exact�
 
 Secret 字段只选择 credential reference，不回显值。
 
-## 4. Conversation Nodes（目标设计，0.9.0-alpha.24 未实现）
+## 4. Runtime Center 与 Conversation Log 边界
 
-未来通过 Military 自有 Remote/Projection 与稳定业务 ID 构建，不以未知 DSH Session Event 为数据通道。建议稳定节点：
+当前 Runtime Center 已通过 Military 自有 Remote/Projection 与稳定业务 ID
+构建，不以未知 DSH Session Event 为数据通道。其稳定节点包括：
 
 - Mission Intent；
 - Staff Council；
@@ -226,7 +234,10 @@ Secret 字段只选择 credential reference，不回显值。
 - Promotion Order；
 - Incident。
 
-每个节点使用 durable Event family + stable id，可历史重建。
+每个节点使用 durable Event family + stable id，可历史重建，并携带
+sourceRevision、generation、generatedAt、staleAfter 与 health。把这些节点直接
+注入 DSH conversation log 仍是未实现边界；那需要未来上游提供安全的第三方事件
+扩展 seam。
 
 ## 5. Mission Dashboard
 

@@ -2,7 +2,7 @@
 
 [简体中文（默认）](README.md) | English
 
-> Status: `0.9.0-alpha.24`. The project has passed exact DSH RC.2 type
+> Status: `0.9.0-alpha.25`. The project has passed exact DSH RC.2 type
 > checking, installation into a clean Web Profile, activation by the real
 > Loader, three-start recovery E2E, pack/publint checks for every package,
 > reproducible packaging, and checksum gates.
@@ -31,8 +31,9 @@ Other presets receive none of the Military tools, listeners, or prompts.
   acceptance, and governance;
 - `@dsh-military/infrastructure`: Artifacts, restricted processes, Git
   worktrees, Candidates, Integration, specs, and the knowledge supply chain;
-- `@dsh-military/storage-sqlite`: SQLite migrations, atomic units of work,
-  persistent Ledgers, receipts, outbox, and runtime state;
+- `@dsh-military/storage-sqlite`: SQLite migrations, short-transaction
+  Command Sagas, persistent Ledgers, ordered outbox, Workspace/Execution
+  projections, and recovery state;
 - `@dsh-military/runtime`: application service graph, department Agents, and
   research and recovery coordination;
 - `@dsh-military/plugin-host`: RC.2 adapters for Agents, Sessions, Tools,
@@ -44,9 +45,10 @@ Other presets receive none of the Military tools, listeners, or prompts.
   using the same 42px/36px hit areas as DSH settings, native modals, seven
   fixed primary tabs, General and 11 department role workbenches,
   model/budget/prompt revisions, Flash readiness and simulation,
-  diagnostics and recovery, Specs workspaces, fixed evaluations,
-  accessibility, a complete seven-view Knowledge Center, and a seven-view
-  performance decision center;
+  diagnostics and recovery, Specs workspaces, an authoritative
+  Request-to-Integration Runtime Center, fixed evaluations, accessibility, a
+  complete seven-view Knowledge Center, and a seven-view performance decision
+  center;
 - `@dsh-military/preset`: the fixed `military` preset and its
   content-addressed generation;
 - `@dsh-military/installer`: transactional preset installation, upgrade,
@@ -90,6 +92,22 @@ deterministic in-process LLM adapter. Real external Provider credentials,
 network behavior, and deployment conditions remain production checks and are
 not simulated as if they were real.
 
+Real Flash acceptance is deliberately separate from deterministic tests. The
+performance page derives exportable evidence from immutable Session events
+and Host-observed receipts. Every exact configuration × scenario requires 50
+independent Sessions, the first-tool and E2E Wilson thresholds, and zero
+violations in four safety classes. Recompute the gate offline with:
+
+```bash
+npm run acceptance:flash -- \
+  --evidence /absolute/path/provider-acceptance.json \
+  --route deepseek-official/deepseek-v4-flash
+```
+
+This command never launches paid calls. Insufficient evidence remains
+`INSUFFICIENT_SAMPLE`; catalog presence or local deterministic PASS is never
+reported as real Provider acceptance.
+
 User-editable role prompt bodies are written in Simplified Chinese and stored
 in Settings/template revisions. Prompt Assembly appends Host-owned tool
 allowlists, workspace boundaries, capability grants, evidence requirements,
@@ -104,11 +122,11 @@ expresses intent, while the Host generates authoritative fields.
 - `military_task_create` accepts only a shallow Task draft. Mission,
   Direction, Wave, and Task IDs, versions, complexity, evidence clauses, and
   environment snapshots are generated deterministically by the Host.
-- Every Military turn first calls `military_get_context` and reuses the
-  returned Mission, Brainstorm, and Task IDs.
-- The root General sees only the 15 role-authorized Military tools.
-  Task-bound department Agents are narrowed further by phase: the first
-  Engineer Specs request has 9 tools, and a Worker has at most 14.
+- General and department Agents see only the 1–4 tools required by the
+  Host-owned phase. The immutable ToolProfile remains the authority ceiling,
+  and a Task grant may narrow that intersection further.
+- Models reuse only IDs returned by the current Host stage; they never guess a
+  Mission, Task, Attempt, Activation, Dispatch, Workspace, version, or fence.
 - Task `allowedTools` constrains both the model schema and the Capability
   Grant.
 - A failed validation returns all visible problems in one response, and the
@@ -224,7 +242,13 @@ executable lint assistance. The role catalog, six-layer effective Prompt,
 deterministic readiness, offline simulation, explicit read-only Canary,
 immutable history, cost, Session diagnostics, governed recovery, Host
 workspace directory, fixed nine-scenario benchmark, and browser accessibility
-are all integrated. Internal JSON registries, ToolProfiles,
+are all integrated. Safety and Recovery also exposes explicit Mission
+cancellation guarded by preview, state-hash CAS, expiry, and an exact
+confirmation phrase; the Host releases all child grants, budgets, capacity,
+and Workspace resources, and this is not the same as stopping one invocation.
+Military-owned failures sent to lightweight models use one bounded, redacted
+correction envelope with a single `nextTool` and an RC.2-schema-derived
+`correctedShape`. Internal JSON registries, ToolProfiles,
 PermissionProfiles, authority, terminal protocols, and parent receipts are
 not exposed as user-editable text. The complete 15-part contract is in
 [`docs/docs/67-military-control-center-flash-workbench-and-accessibility.md`](docs/docs/67-military-control-center-flash-workbench-and-accessibility.md).
@@ -245,7 +269,11 @@ well.
 ## Installation
 
 The GitHub source repository does not contain `release/`, compiled `lib/`
-directories, installed dependencies, or local gate reports. Build a verified
+directories, installed dependencies, or local gate reports. For offline
+source delivery, `pnpm pack:source` archives only
+`git ls-files --cached --others --exclude-standard`, so a preceding build or
+release gate cannot add compiled output, databases, credentials, or local
+reports. Build a verified
 release directory from source first:
 
 ```bash
@@ -258,8 +286,8 @@ their complete verification material:
 
 ```text
 release/
-  dsh-military-bundle-0.9.0-alpha.24.tgz
-  dsh-military-installer-0.9.0-alpha.24.tgz
+  dsh-military-bundle-0.9.0-alpha.25.tgz
+  dsh-military-installer-0.9.0-alpha.25.tgz
   checksums.sha256
   INSTALL.md
   VERSION.json
@@ -275,7 +303,7 @@ cd release
 shasum -a 256 -c checksums.sha256
 
 dsh plugin --profile web add \
-  ./dsh-military-bundle-0.9.0-alpha.24.tgz
+  ./dsh-military-bundle-0.9.0-alpha.25.tgz
 
 pnpm --dir "${DSH_HOME:-$HOME/.dsh}/profiles/web" exec \
   dsh-military-install install \

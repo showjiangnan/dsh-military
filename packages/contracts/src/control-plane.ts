@@ -41,6 +41,8 @@ export interface PortableRoleConfiguration {
   readonly permissionProfileId: string
   readonly permissionProfileRevision: number
   readonly modelCapabilityProfileId: string
+  /** Exact immutable capability revision selected when this Desired config was saved. */
+  readonly modelCapabilityProfileRevision?: number
   readonly allowCanaryModel: boolean
 }
 
@@ -58,7 +60,8 @@ export interface RoleConfigurationRevision {
   readonly readiness: Pick<FlashReadinessReport, 'disposition' | 'score' | 'errorCount' | 'warningCount'>
   /** Full immutable report for revisions created by the governed workbench. */
   readonly readinessReport?: FlashReadinessReport
-  readonly actor: 'web-user' | 'plugin-migration'
+  /** Host-resolved principal; legacy revisions may contain `web-user`. */
+  readonly actor: string
   readonly rollbackOfRevision?: number
   readonly simplifiedChineseReview?: SimplifiedChineseReviewReceipt
 }
@@ -113,6 +116,20 @@ export interface MilitaryModelCatalogEntry {
   readonly status: MilitaryModelValidationStatus
   readonly statusReason: string
   readonly capabilityProfileId?: string
+  readonly capabilityProfileRevision?: number
+  readonly catalogPresence?: 'PRESENT' | 'ABSENT' | 'UNKNOWN'
+  readonly protocolCompatibility?:
+    | 'DSH_TOOL_REQUEST_AVAILABLE'
+    | 'NATIVE_TOOL_CALLING_VERIFIED'
+    | 'BRIDGED_TOOL_CALLING_VERIFIED'
+    | 'TEXT_ONLY'
+    | 'UNKNOWN'
+  readonly policyEligibility?:
+    | 'ELIGIBLE'
+    | 'ELIGIBLE_UNVERIFIED'
+    | 'CANARY_ONLY'
+    | 'INELIGIBLE'
+  readonly performanceEvidence?: 'UNASSESSED' | 'CANARY' | 'VALIDATED'
   readonly supportedReasoning: readonly string[]
   readonly contextWindowTokens?: number
   readonly maxOutputTokens?: number
@@ -376,6 +393,15 @@ export interface RoleWorkbenchSnapshot {
   readonly document: RoleWorkbenchDocument
   readonly roles: readonly RoleWorkbenchRoleSnapshot[]
   readonly models: readonly MilitaryModelCatalogEntry[]
+  readonly application: {
+    readonly desiredRevision: number
+    readonly appliedRevision: number
+    readonly state: 'PENDING' | 'APPLYING' | 'APPLIED' | 'FAILED'
+    readonly attempts: number
+    readonly updatedAt: string
+    readonly appliedAt?: string
+    readonly error?: string
+  }
   readonly generatedAt: string
 }
 

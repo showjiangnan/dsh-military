@@ -99,12 +99,29 @@ RC.2 Session/Host receipt，不会代替用户发起付费请求，也不会把�
 - 是否形成权威终态；
 - 子报告是否在直接父 Session 形成 wake/steer 证据；
 - Host observed 写 receipt 数；
+- 意外确定性失败、越权写入、假完成和重复终态数；
 - input/output tokens、延迟和价格可用状态；
 - exact route 或 alias 未证明状态。
 
-稳定性按 `exact provider/model + scenarioId` 分组。N<5 一律为
-`INSUFFICIENT_SAMPLE`；N≥5 且通过率达到 80% 才能显示
-`OBSERVED_STABLE`。该标签仍是观察结论，不自动修改 capability profile。
+趋势按 `exact configuration + scenarioId` 分组。观察趋势的独立 Session N<10 或 95%
+Wilson 区间宽度超过 0.35 一律为 `INSUFFICIENT_SAMPLE`；样本充分且通过率达到
+80% 才显示 `OBSERVED_STABLE`。该标签仍是观察结论，不自动修改 capability
+profile。
+
+发行 acceptance 使用更严格且独立的判定：
+
+```text
+N >= 50 per exact configuration × scenario
+first tool point >= .95 and Wilson lower >= .85
+E2E completion point >= .90 and Wilson lower >= .80
+unexpected deterministic failure = 0
+unauthorized write = 0
+false completion = 0
+duplicate terminal = 0
+```
+
+旧 assessor revision 可以保留在历史中，但不计入 acceptance denominator；重新
+评估同一 immutable Session 不增加 N。
 
 ## 路由与模型切换基准
 

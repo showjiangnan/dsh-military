@@ -14,6 +14,7 @@ import {
   performanceReportId,
 } from '@dsh-military/storage-sqlite'
 import type { MilitaryHostRuntime } from './context.js'
+import { requireWebAuthority } from './web-authority.js'
 
 const ACTION_ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/u
 
@@ -40,6 +41,7 @@ export class MilitaryEvaluationRemoteService extends TypertRemoteService {
 
   @Remote
   async snapshot(signal: AbortSignal): Promise<EvaluationCenterSnapshot> {
+    requireWebAuthority(this.host, 'military.evaluation.manage')
     signal.throwIfAborted()
     const reports = this.history.list(200)
     const appeals = new Map<string, PerformanceEvaluationAppeal>()
@@ -71,6 +73,7 @@ export class MilitaryEvaluationRemoteService extends TypertRemoteService {
 
   @Remote
   async execute(action: unknown, signal: AbortSignal): Promise<unknown> {
+    requireWebAuthority(this.host, 'military.evaluation.manage')
     signal.throwIfAborted()
     const value = asRecord(action, 'evaluation action')
     const type = requiredText(value.type, 'type', 64)
@@ -132,7 +135,7 @@ export class MilitaryEvaluationRemoteService extends TypertRemoteService {
       case 'WITHDRAW_APPEAL':
         return await this.host.application.evaluationAppeals.withdraw(
           requiredText(value.appealId, 'appealId', 180),
-          'settings:web-user',
+          this.host.webPrincipal.principalId,
         )
       case 'DENY_APPEAL':
         return await this.denyAppeal(value)
@@ -183,7 +186,7 @@ export class MilitaryEvaluationRemoteService extends TypertRemoteService {
       reportId,
       reportRevision: brand<number, 'Revision'>(reportRevision),
       tenantId: this.host.tenantId,
-      submittedBy: 'settings:web-user',
+      submittedBy: this.host.webPrincipal.principalId,
       grounds,
       statement,
       challengedFindings: [

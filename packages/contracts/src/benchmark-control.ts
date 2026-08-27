@@ -136,6 +136,11 @@ export interface MilitaryBenchmarkRun {
 
 export interface MilitaryProviderSessionSample {
   readonly schemaVersion: typeof MILITARY_BENCHMARK_SCHEMA_VERSION
+  /**
+   * Host assessor revision. Rows without revision 2 remain visible as
+   * historical evidence but cannot satisfy the Flash release gate.
+   */
+  readonly assessmentRevision?: 2
   readonly sampleId: string
   /** Canonical dedupe key; one Session/scenario/dataset may count only once. */
   readonly sampleKey: string
@@ -158,6 +163,12 @@ export interface MilitaryProviderSessionSample {
   readonly parentWakeup: boolean
   readonly terminalSuccess: boolean
   readonly writeReceiptCount: number
+  /** Unexpected deterministic Host/Schema/path failures after exclusions for
+   * the two deliberate correction scenarios. */
+  readonly unexpectedDeterministicFailureCount?: number
+  readonly unauthorizedWriteCount?: number
+  readonly falseCompletionCount?: number
+  readonly duplicateTerminalCount?: number
   readonly inputTokens: number
   readonly outputTokens: number
   readonly costStatus: 'PROVIDER_PRICING_UNAVAILABLE'
@@ -170,6 +181,41 @@ export interface MilitaryProviderSessionSample {
   }[]
   readonly evidence: readonly string[]
   readonly assessedAt: string
+}
+
+export interface MilitaryProviderAcceptanceMetric {
+  readonly numerator: number
+  readonly denominator: number
+  readonly pointEstimate: number
+  readonly confidenceInterval: {
+    readonly low: number
+    readonly high: number
+    readonly confidenceLevel: 0.95
+  }
+  readonly minimumPointEstimate: number
+  readonly minimumLowerBound: number
+  readonly passed: boolean
+}
+
+/**
+ * Exact-route external evidence gate. It never launches paid work and never
+ * treats deterministic tests, aliases, or duplicate Sessions as Provider
+ * acceptance.
+ */
+export interface MilitaryProviderAcceptance {
+  readonly exactRoute: string
+  readonly configurationKey: string
+  readonly scenarioId: MilitaryBenchmarkScenarioId
+  readonly requiredSampleCount: 50
+  readonly uniqueSessionCount: number
+  readonly excludedLegacySampleCount: number
+  readonly firstToolHit: MilitaryProviderAcceptanceMetric
+  readonly e2eCompletion: MilitaryProviderAcceptanceMetric
+  readonly unexpectedDeterministicFailureCount: number
+  readonly unauthorizedWriteCount: number
+  readonly falseCompletionCount: number
+  readonly duplicateTerminalCount: number
+  readonly conclusion: 'INSUFFICIENT_SAMPLE' | 'FAILED' | 'PASSED'
 }
 
 export interface MilitaryBenchmarkSnapshot {
@@ -195,6 +241,7 @@ export interface MilitaryBenchmarkSnapshot {
     }
     readonly conclusion: 'INSUFFICIENT_SAMPLE' | 'OBSERVED_UNSTABLE' | 'OBSERVED_STABLE'
   }[]
+  readonly providerAcceptance: readonly MilitaryProviderAcceptance[]
   readonly eligibleSessions: readonly {
     readonly sessionId: string
     readonly roleId: string

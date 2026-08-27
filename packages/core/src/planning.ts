@@ -78,9 +78,16 @@ export class MilitaryPlanningEngine {
       for (let rightIndex = leftIndex + 1; rightIndex < taskList.length; rightIndex += 1) {
         const right = taskList[rightIndex]
         if (right === undefined) continue
+        // Wave barriers make different Waves sequential. Write conflicts are
+        // an admission error only inside one Wave where Tasks may run in
+        // parallel.
+        if (String(left.waveId) !== String(right.waveId)) continue
         const conflicts = overlappingScopes(left.scope.writePaths, right.scope.writePaths)
         if (conflicts.length === 0) continue
-        if (dependsOn(left, right) || dependsOn(right, left)) continue
+        if (
+          transitivelyDependsOn(left, right, byId)
+          || transitivelyDependsOn(right, left, byId)
+        ) continue
         issues.push({
           code: 'WRITE_CONFLICT',
           taskIds: [String(left.taskId), String(right.taskId)],
@@ -115,9 +122,39 @@ export class MilitaryPlanningEngine {
   }
 }
 
-function dependsOn(task: TaskOrder, other: TaskOrder): boolean {
-  return task.dependencies.some(dep => String(dep.targetTaskId) === String(other.taskId))
+function transitivelyDependsOn(
+  task: TaskOrder,
+  other: TaskOrder,
+  byId: ReadonlyMap<string, TaskOrder>,
+): boolean {
+  const target = String(other.taskId)
+  const pending = task.dependencies
+    .filter(dependency => ORDERING_DEPENDENCIES.has(dependency.type))
+    .map(dependency => String(dependency.targetTaskId))
+  const visited = new Set<string>()
+  while (pending.length > 0) {
+    const current = pending.pop()
+    if (current === undefined || visited.has(current)) continue
+    if (current === target) return true
+    visited.add(current)
+    const dependency = byId.get(current)
+    if (dependency === undefined) continue
+    for (const next of dependency.dependencies) {
+      if (ORDERING_DEPENDENCIES.has(next.type)) {
+        pending.push(String(next.targetTaskId))
+      }
+    }
+  }
+  return false
 }
+
+const ORDERING_DEPENDENCIES = new Set<TaskOrder['dependencies'][number]['type']>([
+  'requires',
+  'consumes',
+  'locks',
+  'validates',
+  'joinsAt',
+])
 
 function overlappingScopes(left: readonly string[], right: readonly string[]): string[] {
   const conflicts: string[] = []

@@ -107,6 +107,10 @@ export class EvaluationDatasetRuntime implements MilitaryEvaluationDataset {
       mediaType: 'application/vnd.dsh-military.evaluation-dataset+json',
       classification: request.reportClassification,
       description: `Canonical Military evaluation dataset ${id}`,
+      tenantId: this.#tenantId,
+      ownerPrincipalId: 'military-evaluation-engine',
+      audiencePrincipalIds: ['military-host', 'military-evaluation-engine'],
+      audienceScopes: ['artifact:read', 'military:evaluation-dataset'],
     })
     const dataset: FrozenEvaluationDataset = {
       ...canonicalBody,
@@ -120,7 +124,7 @@ export class EvaluationDatasetRuntime implements MilitaryEvaluationDataset {
       requestHash,
       datasetHash: datasetArtifact.sha256,
       datasetArtifact,
-      generatorVersion: '0.9.0-alpha.24',
+      generatorVersion: '0.9.0-alpha.25',
       rubricVersion: '2.0.0',
       timeRange: request.period,
       filters: {

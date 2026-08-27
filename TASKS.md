@@ -820,6 +820,181 @@
   - 完成全量门禁、不可变版本、空 Profile/三启动 E2E、本机重装、DSH Web
     重启；浏览器验证模型选择与配置保存后刷新/重启仍一致。
 
+## 2026-08-27 深度架构闭环：执行活性、恢复、Flash、WebUI 与生产可信度
+
+需求来源：用户要求启用 Persistent 模式，将 2026-08-27 对当前
+`0.9.0-alpha.24` 的 WebUI、Workflow、状态机、持久化、模型兼容、安全、
+评测与运维深度审计结论全部实现，完成代码审查和全量门禁后推送 GitHub。
+本节覆盖此前清单虽然标记完成、但本次跨模块调用链审计证明仍未真正闭环的
+语义；以本节新的纵向验收结果为准。
+
+### P0：执行活性与数据正确性
+
+- [x] **P0.51 分离 Workflow Obligation、Task Version、Attempt、Activation 与 Dispatch**
+  - 每条执行型用户消息持久化独立 `WorkflowObligation`，绑定 message/request
+    hash、Mission、Direction、Wave、Task、当前阶段、唯一下一工具和 wake cursor；
+    不再通过扫描 Mission 中任意 open Task 推测本次请求。
+  - Task 指令版本只在 objective/scope/acceptance 实质修订时递增；每次初始执行、
+    Rework、Guidance/Decision continuation 使用独立 Attempt/Activation/
+    Dispatch sequence 和 canonical payload hash。
+  - Session Snapshot 只能证明历史 Session 存在；只有 durable start/heartbeat
+    receipt 可报告 RUNNING，settlement receipt 报告 SETTLED，其余返回
+    RECOVERY_REQUIRED，禁止假 RUNNING。
+
+- [x] **P0.52 修复子 Agent settlement、lease cleanup 与取消/终止语义**
+  - child disposed 只结算 Activation，不得把 BLOCKED、REWORK、FROZEN、
+    AWAITING_GUIDANCE、AWAITING_DECISION 或成功 Specs Task无条件压回 READY。
+  - 用户 Stop 默认只取消当前 Invocation/Activation；Task、Mission、Freeze 和
+    Identity Termination 为显式不同命令。Step/wall-clock/no-progress 耗尽进入
+    可恢复失败或升级路径，不永久终止稳定 General identity。
+  - 重启、迟到、重复、乱序 settlement 使用 durable fence/idempotency 收敛，
+    并释放 exact Grant、Budget、Workspace 与并发占位。
+
+- [x] **P0.53 完整关闭 Radio、Blocker、Decision 与 Rework continuation**
+  - 合并重叠 blocker/radio 语义；一个原子命令同时写 Blocker Evidence、
+    `Task→AWAITING_GUIDANCE`、Radio Queue、Activation Waiting 和 parent receipt。
+  - Guidance 必须投递给 exact Attempt 或新 continuation Attempt，并由 Worker
+    acknowledge 后恢复 RUNNING；expiry/dead-letter 明确升级 BLOCKED。
+  - Decision Question Set 必须关联 Task/Attempt；General 展示、用户回答、
+    durable answer delivery、Worker acknowledge 和 Task resume 全部进入状态机。
+  - Rework 必须真实发送 continuation 或创建新 Attempt，不复用已 settle Snapshot。
+
+- [x] **P0.54 统一 Candidate、Verification、Specs、Integration 与最终完成语义**
+  - 废除“Verification ACCEPTED 即 Task 终态”；实现
+    `VERIFYING→VERIFIED→INTEGRATION_PENDING→INTEGRATING→COMPLETED`。
+  - CONFLICT、STALE、REGRESSION_FAILED 不得保留成功终态，必须进入明确
+    REWORK/BLOCKED/FAILED 并携带 receipt。
+  - Engineer Specs 事务产生正式 Candidate/Evidence/Verification/Completion
+    receipt；成功提交后 Task 终态，cleanup 不得重新派遣。
+  - 唯一 Completion invariant 由 Host reducer 判定，模型正文和 parent report
+    不能自行宣布完成。
+
+- [x] **P0.55 建立短事务 Saga、真实 Outbox 与完整 Workspace 持久化**
+  - Mission SQLite 事务不得跨 LLM、Git、文件系统、Provider 或长验证；采用
+    command intent/outbox、外部 operation marker、checkpoint 和 receipt 的短事务
+    Saga，所有副作用具有稳定 operationId 与状态查询。
+  - 所有 SQLite 写入经过同一 queued writer/transaction API，禁止异步事务等待
+    期间的 raw connection 写入串入或被无关 rollback 回滚。
+  - 实现 transactional outbox claim/delivery/retry/dead-letter/offset；若某记录
+    仅是审计 journal，使用准确名称和 UI 语义。
+  - Workspace Snapshot、Lease、Candidate Patch、Integration Order/Receipt
+    持久化到唯一生产 Store；启动时发现/收养/隔离现有 worktree，未知状态绝不
+    先递归删除。完整进程重启可恢复 mid-worker/mid-integration。
+
+- [x] **P0.56 实装 Direction/Wave/Dependency/Barrier/Mission Scheduler**
+  - 生产路径使用 Planning Engine 校验 DAG、未知依赖、cycle、write conflict；
+    Task 只有在依赖完成、Wave 激活、scope lock 和预算准入后才可派遣。
+  - 实装 Direction/Wave aggregate 和 transition；产生 `wave/opened`、
+    `wave/barrier-satisfied`、`mission/completed/cancelled` 权威事件。
+  - Trajectory、Effectiveness、Evaluation 和 Web Projection 只消费真实事件，
+    不以缺省或模型声明替代。
+
+- [x] **P0.57 消除 Flash 文件路径和阶段工具协议的确定性失败**
+  - Worker 在真实 execution cwd 运行，或只看到 Host-rooted Military
+    read/search/write/edit wrapper；模型只提交 Task 相对路径，Host 转换并执行
+    绝对 canonical authorization。
+  - 每个状态只暴露 1—4 个当前工具；固定 ToolProfile 继续作为权限上限，
+    模型可见面由 canonical state 生成。
+  - 简化 Task Create 基础 Schema，Host 派生 taskKey、Direction/Wave、
+    read/forbidden scope、budget、stop/escalation；高级计划走独立受治理入口。
+  - 统一错误 envelope、唯一 nextTool、corrected shape、retryability 和重复签名
+    阻断；终态成功后绝不执行同一 assistant response 的后续调用。
+
+### P1：模型能力、WebUI、安全与评测真值
+
+- [x] **P1.25 建立诚实的 DSH Model Capability 与 Compatibility Bridge**
+  - 分离 Catalog Presence、Protocol Compatibility、Policy Eligibility 和
+    Performance Evidence；不得因目录存在就虚构 toolCalling、reasoning、
+    context、residency 或 VALIDATED。
+  - 所有 DSH route 均可见且可配置；native tool route 直接执行，非 native
+    route 只有在受测 Bridge 可用时才可执行。未评测不阻断可用 route，但必须
+    准确标注。
+  - Role Workbench 保存 exact catalog capabilityProfileId；Dispatch 前校验 exact
+    route/adapter，Binding 与评测引用同一不可变 profile。
+
+- [x] **P1.26 将设置保存升级为 Desired/Applied 原子配置**
+  - 一次 UI 保存原子写完整 Desired revision；后台 Reconciler 校验并应用
+    General 与全部部门，全部成功后推进 Applied revision。
+  - UI 只有 Desired==Applied 时显示已生效；失败显示 exact role/field、可重试
+    或回滚，不产生 Settings 已提交但 Runtime 部分应用的 split-brain。
+  - 所有多字段面板使用 section draft/preview/apply，移除顺序 `setMany` 中间态；
+    页面刷新、重启、多标签页执行 revision/fence 冲突处理。
+
+- [x] **P1.27 建立真实 Military 运行中心与统一 Web 查询层**
+  - 保留现有七个设置一级选项卡；新增独立 Session 运行中心，展示 Request→
+    Mission→Direction→Wave→Task→Attempt/Activation→Candidate/Verification/
+    Integration、Radio/Decision、Budget 和 Receipt。
+  - 所有 projection 携带 source revision、generatedAt、staleAfter 和 health；
+    删除/迁移读取未被生产 Provider 写入的 workspace/integration 表和假空状态。
+  - 建立共享 timeout/abort/dedupe/backoff/visibility/offline/revision query 层；
+    历史报告选择、dirty draft 和 stale response 不被轮询覆盖。
+  - Recovery preview 绑定 previewHash、expected state/revision 和 expiry，执行时
+    CAS；状态变化必须重新展示 Diff 和确认。
+
+- [x] **P1.28 统一 DSH WebUI Adapter、组件拆分和浏览器无障碍**
+  - 提供薄 `FormField/Input/Select/TextArea/Notice/Section/Toolbar/AsyncBoundary`
+    Adapter，仅组合 RC.2 primitive 与 `--dsw-*` token，不维护第二主题。
+  - 按 Settings、Runtime、Knowledge、Evaluation、Operations feature slice 拆分
+    超大组件，删除未使用 ModelsPanel/useModelCatalog 和重复 style/control。
+  - 改进 focusable/inert/visibility、焦点恢复、200% zoom、forced-colors、
+    reduced-motion、长模型 ID、简体中文 IME；完成真实浏览器、多标签页、
+    断线和键盘 E2E。
+
+- [x] **P1.29 完整落实 Artifact ACL、Classification、Residency 与 Principal**
+  - Content Blob 与 Artifact Reference 分离；Reference 绑定 tenant、Mission、
+    Task、classification、owner/audience、expiry 和 grant。知道 content hash
+    不等于读取授权，同内容多分类执行最高分类合并。
+  - Tool/Mission/Model authorization 使用真实上下文分类，不硬编码 internal；
+    每次模型 Dispatch 生成 provider/model、classification、residency、redaction、
+    policy revision 和 Evidence receipt。
+  - Web Remote 使用 DSH principal/tenant authority context，不再硬编码 web-user；
+    当前本机单用户边界与未来多租户能力准确区分。
+  - restricted/raw 数据支持加密、密钥轮换、保留清理、legal hold、lineage、
+    deletion receipt 和 orphan artifact GC。
+
+- [x] **P1.30 修复 Tool 预算/超时幂等与 Evaluation 数据真值**
+  - Tool post hook/evidence/settlement 失败仍通过 finally/outbox 结算；超时后可
+    查询 operation receipt，禁止副作用已成功却返回失败后重复执行。
+  - Evaluation 比率保留 numerator/denominator/status；零分母为 N/A，不为 0。
+  - 长 narrative/provider 调用独立 heartbeat 和 lease fence；成本使用 exact
+    route/version price snapshot，未知成本不参与 Pareto。
+  - Mission completion、Specs coverage、Integration outcome、parent wake 等
+    指标只在相应权威事件完整时计算，否则报告 missingness/blocked。
+
+### P2：维护性、生产化与发布
+
+- [x] **P2.13 清理包依赖方向、状态词汇和大型领域类**
+  - Tools 不反向依赖 plugin-host 类型；Host Context augmentation 下沉到稳定
+    API/contracts 包；修复未声明的 command-brainstorm 类型依赖。
+  - 每个 aggregate 生成 transition/reducer/UI action 合同；消除 Task、
+    Integration、Ingestion、Brainstorm 等多套状态词汇与不可达状态。
+  - 拆分 ingestion/evaluation/control-plane/session-adapters/host-runtime/
+    coordination repository 热点，保持行为测试先行。
+
+- [x] **P2.14 生产可观测性、容量、分布式 Provider 与灾备**
+  - 落实 OTel trace/metric/log correlation、SLO、backpressure、Radio oldest age、
+    outbox lag、lease expiry、recovery drift 和容量测试。
+  - 完成可替换 PostgreSQL Ledger、对象存储、队列、KMS、多租户限额、数据驻留、
+    签名资产、备份恢复、灾备和 legal hold 演练；本地 SQLite 模式继续受支持。
+
+- [ ] **P2.15 完成纵向测试、真实 Flash 外部验收、文档与发行推送**
+  - 源码实现、216 项确定性测试、767 项文档/合同检查、exact RC.2、
+    13/13 pack/publint、可重复发布、空 Profile、三启动纵向 E2E、代码审查和
+    source-only 归档均已完成；本项只因真实 Provider 的
+    `exact configuration × scenario × N≥50` 外部证据尚未产生而保持未勾选。
+  - 增加多 open Task 请求关联、三次 Rework、Radio/Decision 全循环、Specs
+    终态、Integration conflict/stale/regression、Stop 后续跑、完整进程崩溃、
+    SQLite 并发、Wave barrier、Outbox delivery 和浏览器矩阵。
+  - 确定性 Host/Schema/路径错误必须为 0；真实 Flash 每关键场景 N≥50，首次
+    工具命中点估计≥95%且 95% Wilson 下界≥85%，E2E 完成点估计≥90%且下界
+    ≥80%，越权写入/假完成/重复终态为 0。
+  - 同步 ADR、架构、Workflow、状态机、WebUI、安全、评测、Runbook、测试矩阵、
+    CHANGELOG、VERSION、README 中英文、MANIFEST 和单卷规范；完成 generate、
+    typecheck、exact RC.2、build、test、repair、semantic、review、docs、release、
+    空 Profile 与浏览器验收。
+  - 最终代码审查无未解决 P0/P1；提交完整源码交付单元并使用本机已授权 GitHub
+    identity 推送 `origin`，记录 commit 与远端确认。
+
 ## 总体验收标准
 
 - [x] `pnpm install --frozen-lockfile` 通过。
@@ -949,16 +1124,30 @@
     Profile/三启动 E2E；本机完成工兵 Flash→Pro、high→max、输出与并发参数
     保存、页面重载、DSH 进程重启持久化，再恢复原 Flash/high/16384/2 配置并
     二次重启确认，所有 live 模型 option 均启用且页面无“未验证”或保存失败。
+30. 完成 `0.9.0-alpha.25` 深度架构闭环：持久化
+    Workflow/Task-Version/Attempt/Activation/Dispatch、Radio/Decision/Rework、
+    Candidate→Verification→Integration、Direction/Wave Scheduler、短事务
+    Command Saga、统一 SQLite writer、ordered outbox、Workspace 重启恢复、
+    Task-rooted Flash 文件工具、统一脱敏纠错 envelope、模型能力四轴、
+    Desired/Applied、Runtime Center、Artifact ACL、显式 Mission 取消、
+    Evaluation missingness 与 Production Plane；最终审查又补齐并发
+    reservation 串行化、lineage fence、Dispatch 精确重放、Activation 合法
+    转移/终态原因、无 Workspace 子会话收敛、可恢复资源清理、Artifact
+    完整性/索引重建/孤儿回收，以及按职责拆分 Evaluation、Ingestion、
+    Control Plane、Session、Host Runtime 与 SQLite 协调仓库。216 项确定性测试、767 项
+    文档/合同检查、82 项架构审查、exact RC.2、13/13 pack/publint、可重复
+    release、空 Profile 和三启动 E2E 全部通过；源码 ZIP 已证明不含 `lib/`、
+    `release/`、本地报告、数据库或凭据。
 
 当前确定性开发状态：
 
 1. 用户确认的十五项控制中心深化任务均已实现并通过源码、安装和浏览器门；
 2. 绩效评估 v2 的十五项生产可信度任务均已实现并通过源码、统计 fixture、
    发行、安装和浏览器门；
-3. `P1.9` 与“真实 Flash 全部首次命中”仍保持未完成，因为它们要求用户创建
+3. `P1.9` 与“真实 Flash 全部首次命中”仍保持未完成，因为它们要求部署侧创建
    新的真实 Provider 根/子 Session，并为每个 exact configuration × 场景取得
-   至少 10 个唯一 Session 且达到区间宽度门，不能由离线门、模拟门或 N=1
-   推导。
+   至少 50 个唯一 Session，同时通过首次工具/E2E Wilson 下界和四类零安全失败
+   门；不能由离线门、模拟门、确定性 fixture 或 N=1 推导。
 
 后续外部验收（不阻塞确定性开发与发行门）：
 

@@ -1,5 +1,83 @@
 # dsh-military release notes
 
+## 0.9.0-alpha.25 — DSH RC.2
+
+This release completes the execution-liveness and production-truth audit that
+followed the `alpha.24` installed repair.
+
+Every executable user request now has its own durable Workflow Obligation.
+Task instruction versions are separate from execution Attempts; every initial
+run, Rework, Guidance continuation and Decision continuation receives a new
+Attempt, Activation and Dispatch. A Session snapshot is historical evidence,
+not a liveness proof: only durable start/heartbeat receipts can report
+`RUNNING`, and settlement closes only the exact Activation.
+
+Radio, Decision and parent wakeup now carry exact Task/Attempt fences.
+Candidate acceptance proceeds through Verification and controlled
+Integration before the Host reducer can issue Completion. Conflict, stale
+head and regression failure cannot retain a successful terminal state.
+Worker and Engineer file calls use Task-rooted relative-path tools, durable
+operation IDs and status queries, which removes deterministic absolute-path
+failures and prevents blind retries after timeouts.
+
+SQLite no longer holds a transaction over model, Provider, Git, filesystem or
+verification I/O. Command execution uses short durable Saga checkpoints:
+`PENDING_EFFECT`, `RETRYABLE`, `EFFECT_APPLIED` and `COMMITTED`. The
+transaction API rejects asynchronous callbacks, and every standalone public
+SQLite write is automatically enclosed in its own short `BEGIN IMMEDIATE`
+transaction. Only startup PRAGMAs and `VACUUM` use the explicit maintenance
+boundary. Tool evidence and budget
+settlement use all-settled handling plus the ordered transactional outbox, so
+post-hook failure does not silently abandon recovery.
+
+The Web delivery adds an authoritative Runtime Center, a shared
+timeout/abort/dedupe/revision query layer, cross-tab invalidation and thin
+RC.2 UI adapters. Role settings expose Desired versus Applied revisions.
+The Operations Center can now cancel an exact Mission through a high-risk
+preview/CAS/expiry/confirmation flow. Cancellation goes through Mission
+Kernel authority, then releases every persisted/live child Grant, budget,
+capacity reservation and Workspace lease; it is intentionally distinct from
+stopping one invocation.
+Principal-aware Remote authorization, Artifact ACL/classification/retention,
+dispatch-policy receipts, provider topology, capacity, telemetry and signed
+backup/restore evidence are now explicit production contracts. Local SQLite
+mode remains supported and is never labeled as distributed PostgreSQL,
+object storage, external queue or KMS.
+
+All Military-owned tool failures now use one bounded and redacted recovery
+envelope: stable code/message/retryability, exactly one `nextTool`, and the
+exact corrected argument shape derived from the installed RC.2 schema. Secret
+material and host absolute paths are never reflected to a lightweight model.
+The source packer now archives the Git-visible source set instead of walking
+the working directory, so release verification cannot contaminate a
+source-only handoff with `lib/`, tarballs, local reports, runtime data, or
+credentials.
+
+The Flash workbench now computes a strict external acceptance result from
+immutable exact-route Sessions and Host-observed receipts. Every exact
+configuration × scenario requires at least 50 independent Sessions,
+first-tool point estimate ≥95% with a 95% Wilson lower bound ≥85%, E2E
+completion ≥90% with lower bound ≥80%, and zero unexpected deterministic
+failures, unauthorized writes, false completions or duplicate terminals.
+The UI can export this evidence and `npm run acceptance:flash` independently
+recomputes the gate. No paid calls are launched by the repository, and this
+release does not claim real Flash acceptance without those external samples.
+
+The source includes migrations `0009`/`0010`, 216 deterministic tests, four
+new ADRs and documentation Part 69. It remains pinned exclusively to DSH
+`0.1.1-rc.2` commit
+`b150a551b8d465e31e418e1b2eaf5e79bbb7d28e`.
+
+The final review also serialized in-memory lifecycle mutations, fenced
+Task/Mission lineage, made Dispatch replay side-effect free, prevented
+pre-start false settlement, and converged child resources even when a
+Staff/Advisor binding has no Workspace. Artifact reads now authenticate and
+rehash cleartext; GC reconstructs the authority index, deletes metadata-free
+crash orphans, and fails closed if retained metadata has lost its Blob.
+Evaluation, ingestion, Control Plane, Session, Host Runtime, and SQLite
+coordination responsibilities are split into reviewable modules without
+changing their public package barrels.
+
 ## 0.9.0-alpha.24 — DSH RC.2
 
 This immutable release supersedes the `alpha.23` candidate after real installed
@@ -598,8 +676,9 @@ This revision closes every deterministic failure captured in the
 - RC.2 now installs Military prompt/schema parity inside unpublished
   continuable-child construction, before the first model request can race the
   asynchronous durable-binding lookup;
-- Engineer sees one nine-tool Specs workflow and no ghost write/edit/bash/jobs
-  instructions; Worker sees at most fourteen implementation tools;
+- every Engineer/Worker request is phase-masked to 1–4 Host-owned tools (and
+  may be narrowed further by its Task grant), with no ghost
+  write/edit/bash/jobs instructions;
 - Task `allowedTools` constrains both the request vocabulary and the issued
   Capability Grant;
 - `military_specs_apply_order` is the sole Engineer mutation: one atomic call

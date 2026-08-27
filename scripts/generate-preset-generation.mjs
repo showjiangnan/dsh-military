@@ -34,7 +34,7 @@ const manifest = {
   presetId: 'military',
   generation,
   assetHash,
-  bundleVersion: '0.9.0-alpha.24',
+  bundleVersion: '0.9.0-alpha.25',
   dshBaseline: {
     release: '0.1.1-rc.2',
     commit: 'b150a551b8d465e31e418e1b2eaf5e79bbb7d28e',

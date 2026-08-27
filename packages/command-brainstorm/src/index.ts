@@ -1,4 +1,4 @@
-import type {} from '@dsh-military/plugin-host'
+import type {} from '@dsh-military/runtime'
 import { assertModelInputCapability, createMissionCommand } from '@dsh-military/core'
 import type { Context } from '@deepseek-ai/cordis'
 import type { Agent } from '@deepseek-ai/dsh-agent'

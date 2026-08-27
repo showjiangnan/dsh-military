@@ -22,6 +22,10 @@ import type {
   PerformanceEvaluationAppeal,
 } from '@dsh-military/contracts'
 import { MilitaryBenchmarkCenter } from './benchmark-center.js'
+import {
+  callMilitaryRpc,
+  useMilitaryRefreshLoop,
+} from './query-client.js'
 
 type ViewId =
   | 'overview'
@@ -124,26 +128,32 @@ export function MilitaryEvaluationCenter(props: {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
 
-  const refresh = useCallback(async (signal?: AbortSignal): Promise<void> => {
+  const refresh = useCallback(async (signal?: AbortSignal): Promise<boolean> => {
     try {
       const next = await evaluationSnapshot(props.connection, signal)
       setSnapshot(next)
-      const latest = next.reports.find(item => item.state === 'CURRENT')
-        ?? next.reports[0]
-      setSelectedReport(latest === undefined ? '' : reportKey(latest))
-      setReport(next.latestReport)
-      setDataset(undefined)
+      const preservesSelection = selectedReport !== ''
+        && next.reports.some(item => reportKey(item) === selectedReport)
+      if (!preservesSelection) {
+        const latest = next.reports.find(item => item.state === 'CURRENT')
+          ?? next.reports[0]
+        setSelectedReport(latest === undefined ? '' : reportKey(latest))
+        setReport(next.latestReport)
+        setDataset(undefined)
+      }
       setError('')
+      return true
     } catch (failure) {
       if (signal?.aborted !== true) setError(messageOf(failure))
+      return false
     }
-  }, [props.connection])
+  }, [props.connection, selectedReport])
 
-  useEffect(() => {
-    const controller = new AbortController()
-    void refresh(controller.signal)
-    return () => { controller.abort() }
-  }, [props.refreshToken, refresh])
+  useMilitaryRefreshLoop({
+    key: `military-evaluation-snapshot:${props.refreshToken ?? ''}`,
+    refresh,
+    intervalMs: 10_000,
+  })
 
   useEffect(() => {
     const summary = snapshot?.reports.find(item =>
@@ -973,14 +983,13 @@ async function evaluationSnapshot(
   connection: Pick<ConnectionHandle, 'rpc'>,
   signal?: AbortSignal,
 ): Promise<EvaluationCenterSnapshot> {
-  const response = await connection.rpc.call(
-    '/api',
-    'militaryEvaluationCenter/snapshot',
-    { args: {} },
-    signal,
+  return await callMilitaryRpc<EvaluationCenterSnapshot>(
+    connection,
+    'militaryEvaluationCenter',
+    'snapshot',
+    {},
+    { signal, key: 'military-evaluation-snapshot' },
   )
-  if (!response.ok) throw new Error(response.error.message)
-  return response.value as EvaluationCenterSnapshot
 }
 
 async function evaluationAction(
@@ -988,14 +997,13 @@ async function evaluationAction(
   action: Record<string, unknown>,
   signal?: AbortSignal,
 ): Promise<unknown> {
-  const response = await connection.rpc.call(
-    '/api',
-    'militaryEvaluationCenter/execute',
-    { args: { action } },
-    signal,
+  return await callMilitaryRpc(
+    connection,
+    'militaryEvaluationCenter',
+    'execute',
+    { action },
+    { signal, dedupe: false },
   )
-  if (!response.ok) throw new Error(response.error.message)
-  return response.value
 }
 
 function aggregateFailures(
@@ -1066,6 +1074,19 @@ function paretoStatuses(
 }
 
 function passesEconomicQualityGate(value: PerformanceRow): boolean {
+  const requiredRates = [
+    'accuracy.finalAcceptanceRate',
+    'accuracy.falseCompletionRate',
+    'accuracy.regressionEscapeRate',
+    'reliability.permissionViolationRate',
+    'reliability.terminalDuplicateRate',
+    'reliability.recoveryDriftRate',
+    ...(value.sample.completedAttempts === 0
+      ? []
+      : ['completion.parentWakeupRate']),
+  ]
+  if (requiredRates.some(key =>
+    value.metricTruth[key]?.status !== 'AVAILABLE')) return false
   return value.status === 'VALID'
     && value.accuracy.falseCompletionRate === 0
     && value.accuracy.regressionEscapeRate === 0
@@ -1115,10 +1136,21 @@ function paretoLabel(value: ParetoStatus | undefined): string {
 }
 
 function interval(value: {
+  readonly status?: 'AVAILABLE' | 'NOT_APPLICABLE' | 'INCOMPLETE_EVIDENCE'
   readonly estimate: number
   readonly low: number
   readonly high: number
+  readonly numerator?: number
+  readonly denominator?: number
 }): string {
+  if (value.status !== undefined && value.status !== 'AVAILABLE') {
+    const detail = value.denominator === undefined
+      ? ''
+      : `（${value.numerator ?? 0}/${value.denominator}）`
+    return value.status === 'INCOMPLETE_EVIDENCE'
+      ? `N/A · 权威事件不完整${detail}`
+      : `N/A${detail}`
+  }
   return `${percent(value.estimate)} [${percent(value.low)}, ${percent(value.high)}]`
 }
 

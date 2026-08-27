@@ -24,6 +24,10 @@ Generation Store         → preset manifest 与只读资产
 - [`reference/sql/0003-projections.sql`](../reference/sql/0003-projections.sql)
 - [`reference/sql/0004-governance.sql`](../reference/sql/0004-governance.sql)
 
+可执行源码 migration 位于 `packages/storage-sqlite/src/migrations/`，当前连续为
+`0001`—`0010`；`0009` 增加 outbox runtime/receipt/offset，
+`0010-command-saga.sql` 增加外部 effect checkpoint。
+
 关键唯一约束：
 
 ```text
@@ -39,19 +43,29 @@ UNIQUE(decision_set_id, version)
 
 ## 3. 事务规则
 
-### Append + Outbox
+### 同步短事务
 
-领域状态改变以单事务完成：
+`SqliteMilitaryDatabase.transaction()` 只接受同步 callback。返回 Promise 或
+thenable 会 rollback 并抛出 `SQLite transaction callbacks must be synchronous`。
+因此模型、Provider、Git、文件系统和长验证一律在事务外运行。
+
+### Command Saga + Outbox
+
+Mission command 使用三个短阶段：
 
 ```text
-validate expected revision
-append immutable event
-update aggregate revision
-insert outbox row
-commit
+tx 1: validate revision + append admission + PENDING_EFFECT lease
+outside tx: execute stable idempotent/queryable operation
+tx 2: persist EFFECT_APPLIED result checkpoint
+tx 3: command receipt + transactional outbox + COMMITTED fence
 ```
 
-Projection、Web push 和异步 Agent 调度从 Outbox 消费。不能先通知模型再写 Ledger。
+effect failure 进入 `RETRYABLE`；进程在 effect 后、receipt 前崩溃时保留
+`EFFECT_APPLIED` 并只补 finalization。Projection、异步 Agent 调度和补偿
+settlement 从 Outbox 消费。不能先报告命令完成再写 receipt。
+
+Outbox 实现 claim lease、retry/backoff、dead-letter、delivery receipt 和
+partition offset；相同 eventId 幂等，单 partition 保序。
 
 ### Artifact
 
@@ -86,6 +100,12 @@ Git 不能和 SQLite 形成单一原子事务，因此使用 Saga 和 repository
 4. CAS 移动 local main；
 5. 写 Receipt；
 6. 崩溃时根据 trailer 对账。
+
+### Workspace
+
+Workspace Snapshot、Lease、Candidate Patch、Integration Order/Receipt 写入同一
+生产 Store。启动 reconciliation 只收养可证明归属的 worktree，隔离可证明过期
+的 worktree；未知状态停止并等待核验，不先递归删除。
 
 ## 4. Snapshot 和 Projection
 

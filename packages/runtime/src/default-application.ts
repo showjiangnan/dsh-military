@@ -5,6 +5,7 @@ import {
   type MilitaryAdministrativeLedger,
   type MilitaryArtifacts,
   type MilitaryLedger,
+  type MilitaryProductionPlane,
   type ModelCapabilityProfile,
   type PermissionProfile,
   type ResourceBudgetPolicy,
@@ -13,6 +14,12 @@ import {
 } from '@dsh-military/contracts'
 import {
   ExactRc2Compatibility,
+  ComposedMilitaryProductionPlane,
+  CorrelatedMilitaryTelemetry,
+  EphemeralAssetSigner,
+  ExecutionLifecycleCoordinator,
+  InMemoryTenantCapacityControl,
+  InMemoryDurableQueue,
   SingleWriterMissionKernel, LedgerMissionCommandHandler, DeterministicContextCompiler, AdaptiveExecutionRouter, InMemoryCapabilityGrantStore,
   GeneralRoutingService,
   InMemoryAgentExecutionBindings,
@@ -32,7 +39,10 @@ import {
   MilitaryEvaluationEngine,
   MilitaryOrchestrator,
   OversightController,
+  StaticResidencyControl,
+  UnsupportedBackupControl,
   VerificationEngine,
+  embeddedProductionProviders,
   type Rc2CapabilityProbe,
 } from '@dsh-military/core'
 import { ConservativeChiefAdviceProvider, ChiefOfStaffRuntime } from './chief-of-staff.js'
@@ -63,9 +73,11 @@ export interface DefaultMilitaryApplicationOptions {
 
 export class DefaultMilitaryApplication implements MilitaryApplication {
   readonly tenantId: string
+  readonly production: MilitaryProductionPlane
   readonly ledger
   readonly missionKernel
   readonly contextCompiler
+  readonly executionLifecycle = new ExecutionLifecycleCoordinator()
   readonly executionRouter = new AdaptiveExecutionRouter()
   readonly capabilityGrants = new InMemoryCapabilityGrantStore()
   readonly administrativeLedger
@@ -100,6 +112,17 @@ export class DefaultMilitaryApplication implements MilitaryApplication {
 
   constructor(options: DefaultMilitaryApplicationOptions) {
     this.tenantId = options.tenantId
+    this.production = new ComposedMilitaryProductionPlane({
+      providers: embeddedProductionProviders(),
+      telemetry: new CorrelatedMilitaryTelemetry(),
+      capacity: new InMemoryTenantCapacityControl([
+        defaultCapacityLimits(options.tenantId),
+      ]),
+      queue: new InMemoryDurableQueue(options.tenantId),
+      backups: new UnsupportedBackupControl(),
+      signer: new EphemeralAssetSigner(),
+      residency: new StaticResidencyControl(),
+    })
     this.ledger = options.ledger
     this.administrativeLedger = options.administrativeLedger
     this.artifacts = options.artifacts
@@ -109,13 +132,24 @@ export class DefaultMilitaryApplication implements MilitaryApplication {
     const policy = options.generalPolicy ?? defaultGeneralPolicy()
     this.generalRouting = new GeneralRoutingService(policy, this.policies)
     this.verification = new VerificationEngine(options.artifacts, this.observedEvidence)
-    this.runtime = new MilitaryOrchestrator({ ledger: options.ledger, verification: this.verification, oversight: this.oversight, brainstorm: this.brainstorm })
+    this.runtime = new MilitaryOrchestrator({
+      ledger: options.ledger,
+      verification: this.verification,
+      oversight: this.oversight,
+      brainstorm: this.brainstorm,
+      radio: this.radio,
+      decisions: this.decisionBroker,
+    })
     this.workspaces = new LocalWorkspaceRuntime({ resolver: options.workspaceResolver, artifacts: options.artifacts })
     this.integration = new LocalIntegrationRuntime({ resolver: options.workspaceResolver, workspaces: this.workspaces, artifacts: options.artifacts,
+      tenantId: options.tenantId,
       checks: new CommandIntegrationChecks(options.integrationCommands ?? {}) })
     this.ingestion = new TacticalIngestionRuntime({ artifacts: options.artifacts, tags: this.tags, extractor: new HeuristicTacticalExtractor(options.artifacts),
-      sessions: options.sessionSourceReader ?? { read: async () => new TextEncoder().encode('[]') } })
-    this.knowledge = new KnowledgeSupplyChainRuntime(options.artifacts)
+      sessions: options.sessionSourceReader ?? { read: async () => new TextEncoder().encode('[]') },
+      tenantId: options.tenantId })
+    this.knowledge = new KnowledgeSupplyChainRuntime(options.artifacts, {
+      tenantId: options.tenantId,
+    })
     this.evaluationDataset = new EvaluationDatasetRuntime(
       this.observationCatalog,
       options.artifacts,
@@ -193,6 +227,20 @@ export class DefaultMilitaryApplication implements MilitaryApplication {
     for (const model of builtinModels) this.policies.registerModel(model)
     this.policies.registerVerifier(verifier); this.policies.registerBudget(budget)
     this.resourceBudgets.registerPolicy(budget)
+  }
+}
+
+function defaultCapacityLimits(
+  tenantId: string,
+): import('@dsh-military/contracts').TenantCapacityLimits {
+  return {
+    tenantId,
+    revision: 1,
+    activeTasks: 1_024,
+    activeAgents: 128,
+    modelConcurrency: 32,
+    pendingOutbox: 10_000,
+    storageBytes: 10 * 1024 * 1024 * 1024,
   }
 }
 

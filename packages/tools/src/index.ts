@@ -1,6 +1,6 @@
 import type { Context } from '@deepseek-ai/cordis'
 import type { MilitaryRole } from '@dsh-military/contracts'
-import type {} from '@dsh-military/plugin-host'
+import type {} from '@dsh-military/runtime'
 import { registerTools } from './common.js'
 import { generalTools } from './general.js'
 import { workerTools } from './worker.js'
@@ -32,9 +32,11 @@ export * from './runtime-validation.js'
 export * from './execution-budget.js'
 export * from './task-draft.js'
 export * from './private-skill-usage.js'
+export * from './bound-task.js'
+export * from './workspace-tools.js'
 
 export const name = 'dsh-military-tools'
-export const inject = ['tools', 'militaryHost', 'militaryDepartmentAgents']
+export const inject = ['tools', 'militaryHost']
 
 /**
  * The fixed preset registers the union once for schema stability.  Runtime role

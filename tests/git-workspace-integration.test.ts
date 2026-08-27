@@ -4,6 +4,7 @@ import { mkdir, readFile, stat, writeFile } from 'node:fs/promises'
 import { brand, type IntegrationOrder, type WorkspaceLease } from '@dsh-military/contracts'
 import {
   GitWorktreeManager,
+  InMemoryWorkspaceStateStore,
   LocalArtifactStore,
   LocalMainGit,
   LocalMainIntegration,
@@ -135,6 +136,8 @@ test('write task uses isolated worktree, CandidatePatch and controlled local-mai
   const temp = await temporaryDirectory('military-worktree-')
   try {
     const repository = `${temp.path}/repo`
+    const integrationRoot = `${temp.path}/integration-root`
+    const outsideSentinel = `${temp.path}/must-survive`
     const artifacts = new LocalArtifactStore(`${temp.path}/artifacts`)
     const git = new LocalMainGit(repository)
     await git.ensureRepository()
@@ -156,10 +159,18 @@ test('write task uses isolated worktree, CandidatePatch and controlled local-mai
     await writeFile(`${worktree}/src/feature.txt`, 'verified feature\n', 'utf8')
     const patch = await workspaces.createCandidatePatch({ workspaceLeaseId: lease.workspaceLeaseId, candidateId: 'candidate-1', missionId: 'mission-1', taskId: 'task-1', taskVersion: 1, signal: new AbortController().signal })
     assert.deepEqual(patch.changedPaths, ['src/feature.txt'])
+    await mkdir(outsideSentinel)
+    await writeFile(`${outsideSentinel}/sentinel.txt`, 'never delete\n', 'utf8')
 
-    const integration = new LocalMainIntegration({ repositoryRoot: repository, workspaces, artifacts, regressionChecks: [['git', 'diff', '--check']] })
+    const integration = new LocalMainIntegration({
+      repositoryRoot: repository,
+      integrationRoot,
+      workspaces,
+      artifacts,
+      regressionChecks: [['git', 'diff', '--check']],
+    })
     const order: IntegrationOrder = {
-      schemaVersion: '1.0.0', integrationOrderId: 'integration-1', missionId: 'mission-1', taskId: 'task-1', taskVersion: 1,
+      schemaVersion: '1.0.0', integrationOrderId: '../../must-survive', missionId: 'mission-1', taskId: 'task-1', taskVersion: 1,
       candidatePatchId: patch.candidatePatchId, expectedHead: snapshot.git.head, expectedTreeHash: snapshot.git.treeHash,
       targetBranch: 'main', conflictPolicy: 'STOP_AND_REPORT', verifierProfileRefs: ['verifier-default@1'], authorizedBy: 'harness', createdAt: stamp(),
     }
@@ -171,8 +182,96 @@ test('write task uses isolated worktree, CandidatePatch and controlled local-mai
     const receipt = await integration.execute(order.integrationOrderId, new AbortController().signal)
     assert.equal(receipt.disposition, 'APPLIED')
     assert.equal(await readFile(`${repository}/src/feature.txt`, 'utf8'), 'verified feature\n')
+    assert.equal(
+      await readFile(`${outsideSentinel}/sentinel.txt`, 'utf8'),
+      'never delete\n',
+    )
     await workspaces.release(lease.workspaceLeaseId)
   } finally { await temp.dispose() }
+})
+
+test('workspace reconciliation quarantines a persisted path outside the managed worktree root', async () => {
+  const temp = await temporaryDirectory('military-worktree-quarantine-')
+  try {
+    const repository = `${temp.path}/repo`
+    const stateRoot = `${temp.path}/state`
+    const outside = `${temp.path}/must-survive`
+    const artifacts = new LocalArtifactStore(`${temp.path}/artifacts`)
+    const git = new LocalMainGit(repository)
+    await git.ensureRepository()
+    await writeFile(`${repository}/base.txt`, 'base\n', 'utf8')
+    await git.commitLocalMain({
+      message: 'chore: quarantine fixture',
+      allowedPaths: ['base.txt'],
+    })
+    await mkdir(outside)
+    await writeFile(`${outside}/sentinel.txt`, 'do not delete\n', 'utf8')
+    const state = new InMemoryWorkspaceStateStore()
+    const initial = new GitWorktreeManager({
+      repositoryRoot: repository,
+      stateRoot,
+      artifacts,
+      state,
+    })
+    const snapshot = await initial.snapshot({
+      tenantId: 'tenant-quarantine',
+      workspaceKey: repository,
+      signal: new AbortController().signal,
+    })
+    const lease: WorkspaceLease = {
+      schemaVersion: '1.0.0',
+      workspaceLeaseId: 'lease-quarantine',
+      tenantId: 'tenant-quarantine',
+      missionId: 'mission-quarantine',
+      taskId: 'task-quarantine',
+      taskVersion: 1,
+      agent: identity('worker'),
+      workspaceSnapshotId: snapshot.workspaceSnapshotId,
+      mode: 'WRITE',
+      pathScope: {
+        readPaths: ['.'],
+        writePaths: ['.'],
+        forbiddenPaths: ['.git'],
+      },
+      state: 'ACTIVE',
+      leaseVersion: 1,
+      acquiredAt: stamp(),
+      expiresAt: brand<string, 'IsoDateTime'>(
+        new Date(Date.now() + 60_000).toISOString(),
+      ),
+    }
+    state.putLease({
+      lease,
+      phase: 'PREPARING',
+      worktreePath: outside,
+      updatedAt: stamp(),
+    })
+
+    const recovered = new GitWorktreeManager({
+      repositoryRoot: repository,
+      stateRoot,
+      artifacts,
+      state,
+    })
+    await recovered.reconcile(new AbortController().signal)
+    assert.equal(
+      await readFile(`${outside}/sentinel.txt`, 'utf8'),
+      'do not delete\n',
+    )
+    const quarantined = state.listLeases().find(value =>
+      value.lease.workspaceLeaseId === lease.workspaceLeaseId)
+    assert.equal(quarantined?.phase, 'RECOVERY_REQUIRED')
+    assert.equal(
+      quarantined?.recoveryReason,
+      'WORKTREE_PATH_OUTSIDE_MANAGED_ROOT',
+    )
+    assert.throws(
+      () => recovered.executionPath(lease.workspaceLeaseId),
+      /workspace lease is not active/u,
+    )
+  } finally {
+    await temp.dispose()
+  }
 })
 
 test('Specs transaction validates before writes and rolls back failed validation', async () => {

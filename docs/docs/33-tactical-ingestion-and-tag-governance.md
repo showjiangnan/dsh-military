@@ -12,7 +12,7 @@
 
 ## 1.1 当前源码实现
 
-`0.9.0-alpha.24` 已把本章从目标设计落实为一条 Host-owned 供应链：
+`0.9.0-alpha.25` 已把本章从目标设计落实为一条 Host-owned 供应链：
 
 ```text
 Knowledge Center

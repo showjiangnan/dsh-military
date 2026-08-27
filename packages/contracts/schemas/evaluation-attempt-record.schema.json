@@ -115,6 +115,24 @@
         "recoverySucceeded": { "type": "boolean" },
         "recoveryDrift": { "type": "boolean" },
         "verifierObserved": { "type": "boolean" },
+        "authority": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "taskSettlementObserved",
+            "missionSettlementObserved",
+            "specsOutcomeObserved",
+            "integrationOutcomeObserved",
+            "parentWakeupObserved"
+          ],
+          "properties": {
+            "taskSettlementObserved": { "type": "boolean" },
+            "missionSettlementObserved": { "type": "boolean" },
+            "specsOutcomeObserved": { "type": "boolean" },
+            "integrationOutcomeObserved": { "type": "boolean" },
+            "parentWakeupObserved": { "type": "boolean" }
+          }
+        },
         "reworkCount": { "type": "integer", "minimum": 0 },
         "blockerCount": { "type": "integer", "minimum": 0 },
         "radioCount": { "type": "integer", "minimum": 0 },

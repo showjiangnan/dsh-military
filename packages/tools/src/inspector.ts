@@ -1,4 +1,6 @@
-import type { MilitaryHostRuntime } from '@dsh-military/plugin-host'
+import type {
+  MilitaryToolHostRuntime as MilitaryHostRuntime,
+} from '@dsh-military/runtime'
 import type { Context } from '@deepseek-ai/cordis'
 import type { SessionId as DshSessionId } from '@deepseek-ai/dsh-session'
 import type { ToolDefinition } from '@deepseek-ai/dsh-tools'

@@ -4,6 +4,7 @@ import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { promisify } from 'node:util'
+import { createUserMessage } from '@deepseek-ai/dsh-llm'
 
 const exec = promisify(execFile)
 const RC2_RELEASE = '0.1.1-rc.2'
@@ -20,6 +21,7 @@ const { runProfile, loadLayeredEnv, LlmAdapter } = await loadRc2Boot()
 const runId = crypto.randomUUID()
 const rootSessionId = `military-e2e-root-${runId}`
 let taskId
+let engineerTaskId
 const repository = join(resolve(dshHome), 'e2e-workspace')
 const previousCwd = process.cwd()
 let active
@@ -61,9 +63,12 @@ try {
     scope: rootHandle.agent,
   })
   const rootVisibleTools = rootAssembly.tools.map(tool => tool.name).sort()
-  assert.equal(rootVisibleTools.length, 6)
+  assert.equal(rootVisibleTools.length, 4)
   assert.ok(rootVisibleTools.includes('ask_user_question'))
-  assert.ok(rootVisibleTools.includes('military_mission_start'))
+  assert.ok(rootVisibleTools.includes('military_status'))
+  assert.ok(rootVisibleTools.includes('military_tactical_ingest'))
+  assert.ok(rootVisibleTools.includes('military_tactical_review'))
+  assert.equal(rootVisibleTools.includes('military_mission_start'), false)
   assert.equal(rootVisibleTools.includes('military_task_create'), false)
   assert.equal(rootVisibleTools.includes('bash'), false)
   assert.equal(rootVisibleTools.includes('glob'), false)
@@ -85,31 +90,35 @@ try {
     rootPrompt,
     /Use pwd|Use the (?:read|write|edit|glob|grep) tool|every bash result/u,
   )
-  assert.match(rootPrompt, /Military 工具边界 general-tools@6/u)
+  assert.match(rootPrompt, /Military 工具边界 general-tools@7/u)
   assert.match(rootPrompt, /advisor-generalist.*不得传入 taskId/u)
 
+  rootHandle.agent.session.append('turn/start', { turn: 1 })
+  const initialRequest = createUserMessage({
+    content: [{
+      type: 'text',
+      text: '创建并验证一个隔离工作区文件，同时检查工兵首轮工具合同。',
+    }],
+    source: { kind: 'user' },
+  })
+  await enterGeneralStep(rootHandle.agent, [initialRequest], 1, 1)
+  rootHandle.agent.session.append(
+    'user/message',
+    initialRequest,
+    { surfaceOp: 'append' },
+  )
+  const missionStageAssembly = await active.ctx.systemPrompt.assemble({
+    agent: rootHandle.agent,
+    scope: rootHandle.agent,
+  })
+  assert.deepEqual(
+    missionStageAssembly.tools.map(tool => tool.name),
+    ['military_mission_start'],
+  )
   const mission = await executeTool(active.ctx, rootHandle.agent, 'military_mission_start', {
     title: 'RC.2 installed-profile vertical E2E',
   }, `e2e-mission-start-${runId}`)
   const missionId = requireString(mission, 'missionId')
-  const missionAssembly = await active.ctx.systemPrompt.assemble({
-    agent: rootHandle.agent,
-    scope: rootHandle.agent,
-  })
-  assert.ok(
-    missionAssembly.tools.some(tool => tool.name === 'military_task_create'),
-    'Task creation was not restored after the Mission bootstrap phase',
-  )
-  const brainstorm = await firstHost.application.runtime.startBrainstorm(rootSessionId)
-  const context = await executeTool(
-    active.ctx,
-    rootHandle.agent,
-    'military_get_context',
-    {},
-    `e2e-root-context-${runId}`,
-  )
-  assert.equal(context.mission?.missionId, missionId)
-  assert.equal(context.brainstorm?.orderId, brainstorm.orderId)
   const duplicateMission = await executeTool(
     active.ctx,
     rootHandle.agent,
@@ -121,46 +130,32 @@ try {
   )
   assert.equal(duplicateMission.missionId, missionId)
   assert.equal(duplicateMission.disposition, 'EXISTING')
-  const status = await executeTool(
-    active.ctx,
-    rootHandle.agent,
-    'military_status',
-    {},
-    `e2e-status-repeat-${runId}`,
+  await enterGeneralStep(rootHandle.agent, [], 1, 2)
+  const missionAssembly = await active.ctx.systemPrompt.assemble({
+    agent: rootHandle.agent,
+    scope: rootHandle.agent,
+  })
+  assert.deepEqual(
+    missionAssembly.tools.map(tool => tool.name),
+    ['military_task_create'],
+    'Task creation was not selected as the sole next stage after Mission bootstrap',
   )
-  assert.ok(Array.isArray(status.templates))
-  assert.equal(status.templates.length, 11)
+  const brainstorm = await firstHost.application.runtime.startBrainstorm(rootSessionId)
   assert.equal(
-    new Set(status.templates.map(template => template.templateId)).size,
-    status.templates.length,
+    String(await firstHost.application.runtime.missionForSession(rootSessionId)),
+    missionId,
   )
-  assert.ok(JSON.stringify(status).length < 8_000)
+  assert.ok(brainstorm.orderId)
 
   const taskDraft = {
-    taskKey: `vertical-${runId}`,
-    direction: 'Installed Profile verification',
-    wave: 'Wave 1 — isolated implementation',
-    objective: 'Create and integrate one verified file from an isolated Worker worktree.',
+    objective: `Create and integrate one verified file from an isolated Worker worktree (${runId}).`,
     whyItMatters: 'Proves the installed RC.2 Profile executes the authoritative vertical path.',
     taskType: 'verification',
     assignedRole: 'worker',
-    scope: {
-      readPaths: ['.'],
-      writePaths: ['src'],
-      forbiddenPaths: ['.dsh-military'],
-    },
+    writePaths: ['src'],
     acceptanceCriteria: [
       'The isolated Worker file is verified and integrated into local main.',
     ],
-    stopConditions: ['Stop after accepted integration or deterministic verification failure.'],
-    escalationConditions: ['Escalate any path-scope or verification mismatch.'],
-    contextFootprint: 'small',
-    budget: {
-      modelSteps: 8,
-      toolCalls: 32,
-      guidanceRequests: 2,
-      wallClockSeconds: 300,
-    },
   }
   const firstTask = await executeTool(
     active.ctx,
@@ -178,13 +173,42 @@ try {
     `e2e-task-create-duplicate-${runId}`,
   )
   assert.deepEqual(duplicateTask, firstTask, 'same-process duplicate command changed its durable result')
-  await executeTool(
+  const engineerTask = await executeTool(
+    active.ctx,
+    rootHandle.agent,
+    'military_task_create',
+    {
+      objective: `Create one exact Task-authorized Specs document (${runId}).`,
+      whyItMatters: 'Proves the Engineer first request has one coherent mutation path.',
+      taskType: 'specs',
+      assignedRole: 'engineer',
+      writePaths: ['specs'],
+      acceptanceCriteria: [
+        'The Engineer sees only the current Host-owned Specs phase.',
+      ],
+    },
+    `e2e-engineer-task-${runId}`,
+  )
+  engineerTaskId = requireString(engineerTask, 'taskId')
+  await enterGeneralStep(rootHandle.agent, [], 1, 3)
+  const status = await executeTool(
     active.ctx,
     rootHandle.agent,
     'military_status',
     {},
     `e2e-status-${runId}`,
   )
+  assert.ok(Array.isArray(status.templates))
+  assert.equal(status.templates.length, 11)
+  assert.equal(
+    new Set(status.templates.map(template => template.templateId)).size,
+    status.templates.length,
+  )
+  assert.ok(JSON.stringify(status).length < 8_000)
+  rootHandle.agent.session.append('turn/end', {
+    turn: 1,
+    reason: { kind: 'completed' },
+  })
   await rootHandle.dispose()
   rootHandle = undefined
   await active.ctx.fiber.dispose()
@@ -207,10 +231,25 @@ try {
     taskId,
     'Task projection did not recover after Profile restart',
   )
-  const restartDuplicate = await executeTool(active.ctx, rootHandle.agent, 'military_task_create', {
-    ...taskDraft,
-  }, `e2e-task-create-restart-duplicate-${runId}`)
-  assert.deepEqual(restartDuplicate, firstTask, 'cross-restart duplicate command changed its durable result')
+  rootHandle.agent.session.append('turn/start', { turn: 2 })
+  const continuation = createUserMessage({
+    content: [{ type: 'text', text: '继续' }],
+    source: { kind: 'user' },
+  })
+  await enterGeneralStep(rootHandle.agent, [continuation], 2, 1)
+  rootHandle.agent.session.append(
+    'user/message',
+    continuation,
+    { surfaceOp: 'append' },
+  )
+  await executeTool(
+    active.ctx,
+    rootHandle.agent,
+    'military_status',
+    {},
+    `e2e-status-restart-${runId}`,
+  )
+  await enterGeneralStep(rootHandle.agent, [], 2, 2)
 
   const spawned = await executeTool(
     active.ctx,
@@ -228,6 +267,10 @@ try {
   assert.equal(spawned.childState, 'RUNNING')
   assert.equal(Object.hasOwn(spawned, 'childSessionId'), false)
   assert.equal(Object.hasOwn(spawned, 'bindingId'), false)
+  rootHandle.agent.session.append('turn/end', {
+    turn: 2,
+    reason: { kind: 'completed' },
+  })
   const initialWorkerRequest = await withTimeout(
     nextControlledRequest(),
     10_000,
@@ -243,16 +286,16 @@ try {
   )
   assert.equal(
     workerGrant.maximumUses,
-    32,
-    'Task toolCalls budget did not narrow the durable Capability Grant',
+    64,
+    'Host-derived Task tool budget did not narrow the durable Capability Grant',
   )
   const workerLifeBudget = await secondHost.application.resourceBudgets.getReservation(
     workerBinding.concurrencyReservationId,
   )
   assert.equal(
     Date.parse(workerLifeBudget.expiresAt) - Date.parse(workerLifeBudget.reservedAt),
-    300_000,
-    'Task wallClockSeconds did not narrow the durable child-life reservation',
+    7_200_000,
+    'Host-derived Task wall-clock budget did not narrow the durable child-life reservation',
   )
   assert.equal(
     initialWorkerRequest.maxTokens,
@@ -265,20 +308,10 @@ try {
     .map(tool => tool.name)
     .sort()
   assert.deepEqual(initialWorkerToolNames, [
-    'edit',
-    'glob',
-    'grep',
-    'military_get_context',
     'military_get_order',
     'military_get_tactical_directive',
-    'military_radio_request',
-    'military_record_observation',
     'military_submit_blocker',
-    'military_submit_candidate',
     'military_submit_decision_questions',
-    'read',
-    'report',
-    'write',
   ])
   assert.equal(initialWorkerToolNames.includes('bash'), false)
   assert.equal(initialWorkerToolNames.includes('job_output'), false)
@@ -288,11 +321,11 @@ try {
   )
   assert.match(
     JSON.stringify(initialWorkerRequest.messages ?? []),
-    /分配的隔离执行工作树/u,
+    /所有文件操作只使用 military_workspace_read\/list\/search\/write\/edit/u,
   )
   assert.match(
     initialWorkerRequest.system ?? '',
-    /Military 工具边界 worker-tools@(?:pending|6)/u,
+    /Military 工具边界 worker-tools@(?:pending|7)/u,
   )
   const childMilitaryTools = visibleMilitaryTools(active.ctx, child)
   assert.ok(childMilitaryTools.includes('military_get_context'))
@@ -305,41 +338,59 @@ try {
     true,
     'RC.2 child-scoped report schema was removed by the Military ToolProfile',
   )
-  const childContext = await executeTool(
+  const childOrder = await executeTool(
     active.ctx,
     child,
-    'military_get_context',
+    'military_get_order',
     {},
-    `e2e-worker-context-${runId}`,
+    `e2e-worker-order-${runId}`,
   )
-  assert.equal(childContext.mission?.missionId, missionId)
-  assert.equal(childContext.task?.taskId, taskId)
-  assert.equal(Object.hasOwn(childContext, 'bindingId'), false)
-  assert.equal(Object.hasOwn(childContext, 'grantId'), false)
+  assert.equal(childOrder.order?.missionId, missionId)
+  assert.equal(childOrder.order?.taskId, taskId)
+  assert.equal(Object.hasOwn(childOrder, 'bindingId'), false)
+  assert.equal(Object.hasOwn(childOrder, 'grantId'), false)
 
   const binding = await secondHost.application.executionBindings.forSession(childSessionId)
   assert.ok(binding?.workspace, 'Worker has no durable isolated-workspace binding')
   const worktree = secondHost.application.workspaces.executionPath(binding.workspace.leaseId)
+  const discovery = await executeTool(
+    active.ctx,
+    child,
+    'military_workspace_read',
+    { path: 'src/base.txt' },
+    `e2e-worker-discovery-read-${runId}`,
+  )
+  assert.ok(
+    discovery.lines.some(line => line.text === 'RC.2 E2E base'),
+    'Worker discovery read did not return the Task-rooted file',
+  )
   await mkdir(join(worktree, 'src'), { recursive: true })
   await executeTool(
     active.ctx,
     child,
-    'write',
+    'military_workspace_write',
     {
-      file_path: join(worktree, 'src/e2e-result.txt'),
+      path: 'src/e2e-result.txt',
       content: `draft:${runId}\n`,
     },
     `e2e-worker-write-${runId}`,
+  )
+  await executeTool(
+    active.ctx,
+    child,
+    'military_workspace_read',
+    { path: 'src/e2e-result.txt' },
+    `e2e-worker-verification-read-${runId}`,
   )
   const observedCallId = `call-e2e-worker-edit-${runId}`
   await executeTool(
     active.ctx,
     child,
-    'edit',
+    'military_workspace_edit',
     {
-      file_path: join(worktree, 'src/e2e-result.txt'),
-      old_string: `draft:${runId}`,
-      new_string: `verified:${runId}`,
+      path: 'src/e2e-result.txt',
+      oldText: `draft:${runId}`,
+      newText: `verified:${runId}`,
     },
     observedCallId,
   )
@@ -371,31 +422,7 @@ try {
   })
   childSessionId = undefined
 
-  const engineerTask = await executeTool(
-    active.ctx,
-    rootHandle.agent,
-    'military_task_create',
-    {
-      taskKey: `engineer-contract-${runId}`,
-      direction: 'Installed Profile verification',
-      wave: 'Wave 2 — Specs prompt contract',
-      objective: 'Create one exact Task-authorized Specs document.',
-      whyItMatters: 'Proves the Engineer first request has one coherent mutation path.',
-      taskType: 'specs',
-      assignedRole: 'engineer',
-      scope: {
-        readPaths: ['.'],
-        writePaths: ['specs'],
-        forbiddenPaths: ['.dsh-military'],
-      },
-      acceptanceCriteria: [
-        'The Engineer sees only the atomic Specs workflow.',
-      ],
-      contextFootprint: 'small',
-    },
-    `e2e-engineer-task-${runId}`,
-  )
-  const engineerTaskId = requireString(engineerTask, 'taskId')
+  assert.ok(engineerTaskId)
   const engineerSpawned = await secondHost.departmentAgents.spawn({
     parent: rootHandle.agent,
     templateId: 'engineer-default',
@@ -421,15 +448,8 @@ try {
   assert.deepEqual(
     (initialEngineerRequest.tools ?? []).map(tool => tool.name).sort(),
     [
-      'glob',
-      'grep',
-      'military_get_context',
       'military_get_order',
-      'military_specs_apply_order',
-      'military_specs_read',
       'military_submit_blocker',
-      'read',
-      'report',
     ],
   )
   assert.doesNotMatch(
@@ -438,7 +458,7 @@ try {
   )
   assert.match(
     initialEngineerRequest.system ?? '',
-    /Military 工具边界 engineer-tools@(?:pending|6)/u,
+    /Military 工具边界 engineer-tools@(?:pending|7)/u,
   )
   assert.match(
     JSON.stringify(initialEngineerRequest.messages ?? []),
@@ -511,7 +531,7 @@ try {
       continuableWorker: true,
       shallowCandidateContract: true,
       continuableEngineer: true,
-      engineerFirstRequestHasNineTools: true,
+      engineerFirstRequestHasBoundedPhaseTools: true,
       durableDuplicateCommand: true,
       missionTaskRecovery: true,
       verificationAccepted: true,
@@ -562,6 +582,22 @@ async function resumeMilitaryRoot(ctx, sessionId) {
     resumeSessionId: sessionId,
     setup: agentCtx => ctx.agentPresets.mount(agentCtx, 'military').then(() => undefined),
   })
+}
+
+async function enterGeneralStep(agent, messages, turn, step) {
+  const decision = await agent.ctx.waterfall(
+    'agent/pre-step',
+    {
+      agent,
+      messages,
+      turn,
+      step,
+      signal: AbortSignal.timeout(60_000),
+    },
+    async () => ({ kind: 'enter', messages: [...messages] }),
+  )
+  assert.equal(decision.kind, 'enter', `General workflow rejected turn ${turn} step ${step}`)
+  return decision
 }
 
 async function executeTool(ctx, agent, name, args, callId) {
@@ -648,7 +684,7 @@ async function installControlledModel(ctx, host, AdapterBase) {
       benchmarks: [],
       validatedAt: new Date().toISOString(),
     })
-    await selectControlledDepartmentTemplates(host)
+    await selectControlledDepartmentTemplates(ctx, host)
     return dispose
   } catch (error) {
     dispose()
@@ -656,11 +692,15 @@ async function installControlledModel(ctx, host, AdapterBase) {
   }
 }
 
-async function selectControlledDepartmentTemplates(host) {
+async function selectControlledDepartmentTemplates(ctx, host) {
+  const applied = new Map()
   for (const templateId of ['worker-default', 'engineer-default']) {
     const current = await host.application.templates.get(templateId)
-    if (current.modelPolicy.provider === 'dsh-military-e2e') continue
-    await host.application.templates.revise({
+    if (current.modelPolicy.provider === 'dsh-military-e2e') {
+      applied.set(templateId, current)
+      continue
+    }
+    const next = {
       ...current,
       revision: Number(current.revision) + 1,
       modelPolicy: {
@@ -668,10 +708,40 @@ async function selectControlledDepartmentTemplates(host) {
         provider: 'dsh-military-e2e',
         model: 'controlled-hang',
         modelCapabilityProfileId: 'dsh-military-e2e-model-rc2',
+        modelCapabilityProfileRevision: 1,
       },
       updatedAt: new Date().toISOString(),
-    }, current.revision)
+    }
+    await host.application.templates.revise(next, current.revision)
+    applied.set(templateId, next)
   }
+  // Keep the durable Desired document aligned with the immutable runtime
+  // templates. The isolated E2E adapter is a real route for this Profile run;
+  // bypassing Settings here would intentionally leave startup reconciliation
+  // FAILED after the next Loader restart and mask a production invariant.
+  const setting = ctx.settings.get('military-role-workbench')
+  const document = JSON.parse(setting.stateJson)
+  const changedAt = new Date().toISOString()
+  const nextDocument = {
+    ...document,
+    revision: Number(document.revision) + 1,
+    roles: document.roles.map(role => {
+      const template = applied.get(role.roleId)
+      if (template === undefined) return role
+      return {
+        ...role,
+        provider: 'dsh-military-e2e',
+        model: 'controlled-hang',
+        modelCapabilityProfileId: 'dsh-military-e2e-model-rc2',
+        modelCapabilityProfileRevision: 1,
+        templateRevision: Number(template.revision),
+      }
+    }),
+    updatedAt: changedAt,
+  }
+  await ctx.settings.update('military-role-workbench', {
+    stateJson: JSON.stringify(nextDocument),
+  })
 }
 
 function visibleMilitaryTools(ctx, agent) {

@@ -17,8 +17,8 @@ import { resolveTacticalRecall, sha256, stableJson } from '@dsh-military/core'
 import { SqliteStateRecords } from '@dsh-military/storage-sqlite'
 import type { MilitaryHostRuntime } from './context.js'
 import { renderTacticApplicabilityCards } from './context-audit.js'
+import { requireWebAuthority } from './web-authority.js'
 
-const ACTOR_ID = 'web-user'
 const MAX_ACTION_BYTES = 17 * 1_024 * 1_024
 const OPERATION_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/
 const RECALL_SIMULATION_NAMESPACE = 'military-private-skill-recall-simulation'
@@ -68,6 +68,7 @@ export class PrivateSkillRemoteService extends TypertRemoteService {
    */
   @Remote
   async execute(action: unknown, signal: AbortSignal): Promise<unknown> {
+    requireWebAuthority(this.host, 'military.knowledge.manage')
     signal.throwIfAborted()
     const value = privateSkillAction(action)
     const type = requireString(value, 'type', 'private Skill action')
@@ -99,6 +100,7 @@ export class PrivateSkillRemoteService extends TypertRemoteService {
     readonly transparency: readonly MilitaryPrivateSkillPipelineTransparency[]
     readonly recallSimulations: readonly MilitaryRecallSimulationResult[]
   }> {
+    requireWebAuthority(this.host, 'military.knowledge.manage')
     signal.throwIfAborted()
     const operation = await this.host.application.ingestion.operationSnapshot()
     const candidates = await Promise.all(operation.candidates.map(async candidate => {
@@ -131,6 +133,7 @@ export class PrivateSkillRemoteService extends TypertRemoteService {
     action: Record<string, unknown>,
     signal: AbortSignal,
   ): Promise<unknown> {
+    const actorId = this.host.webPrincipal.principalId
     if (type === 'SIMULATE_RECALL') {
       return await this.simulateRecall(operationId, action, signal)
     }
@@ -151,10 +154,13 @@ export class PrivateSkillRemoteService extends TypertRemoteService {
       new Date(retentionAnchor + retentionDays * 86_400_000).toISOString(),
     )
     const rights = {
-      ownerId: ACTOR_ID,
+      ownerId: actorId,
       license,
       allowedUse: [visibilityAllowedUse(visibility)],
-      allowedAudience: [...new Set([ACTOR_ID, visibilityAudience(visibility)])],
+      allowedAudience: [...new Set([
+        actorId,
+        visibilityAudience(visibility, actorId),
+      ])],
       derivativeWorkAllowed: true,
       externalModelProcessingAllowed: action.externalModelProcessingAllowed === true,
       retentionPolicyRef: `retain-${retentionDays}-days`,
@@ -166,7 +172,7 @@ export class PrivateSkillRemoteService extends TypertRemoteService {
     switch (type) {
       case 'CREATE_DIRECT_SOURCE': {
         const source = await this.host.application.ingestion.createSource({
-          requestedBy: ACTOR_ID,
+          requestedBy: actorId,
           source: {
             kind: 'DIRECT_TEXT',
             title: requireString(action, 'title', type),
@@ -189,7 +195,7 @@ export class PrivateSkillRemoteService extends TypertRemoteService {
           throw new TypeError('session event range requires non-negative integers with startSeq <= endSeq')
         }
         const source = await this.host.application.ingestion.createSource({
-          requestedBy: ACTOR_ID,
+          requestedBy: actorId,
           source: {
             kind: 'SESSION_RANGE',
             title: requireString(action, 'title', type),
@@ -209,7 +215,7 @@ export class PrivateSkillRemoteService extends TypertRemoteService {
         const bytes = await this.host.application.artifacts.get(artifactId)
         const classification = privateSkillClassification(action.classification)
         const source = await this.host.application.ingestion.createSource({
-          requestedBy: ACTOR_ID,
+          requestedBy: actorId,
           source: {
             kind: 'ARTIFACT',
             title: requireString(action, 'title', type),
@@ -231,7 +237,7 @@ export class PrivateSkillRemoteService extends TypertRemoteService {
       }
       case 'START_EXTRACTION': {
         const job = await this.host.application.ingestion.startExtraction({
-          requestedBy: ACTOR_ID,
+          requestedBy: actorId,
           value: {
             sourceHandle: brand<string, 'PrivateSkillSourceHandle'>(
               requireString(action, 'sourceHandle', type),
@@ -268,7 +274,7 @@ export class PrivateSkillRemoteService extends TypertRemoteService {
           requestId: brand<string, 'TacticalIngestionRequestId'>(
             requireString(action, 'requestId', type),
           ),
-          actor: { kind: 'USER', id: ACTOR_ID },
+          actor: { kind: 'USER', id: actorId },
         })
         return jobActionResult(job)
       }
@@ -278,7 +284,7 @@ export class PrivateSkillRemoteService extends TypertRemoteService {
             requireString(action, 'candidateId', type),
           ),
           expectedCandidateHash: requireString(action, 'candidateHash', type),
-          actor: { kind: 'USER', id: ACTOR_ID },
+          actor: { kind: 'USER', id: actorId },
           title: requireString(action, 'title', type),
           claims: optionalStringArray(action.claims, 24),
           risks: optionalStringArray(action.risks, 20),
@@ -298,7 +304,7 @@ export class PrivateSkillRemoteService extends TypertRemoteService {
           expectedCandidateHash: requireString(action, 'candidateHash', type),
           expectedDiffHash: requireString(action, 'diffHash', type),
           action: reviewAction as 'APPROVE_AS_DRAFT' | 'RETURN' | 'REJECT',
-          actor: { kind: 'USER', id: ACTOR_ID },
+          actor: { kind: 'USER', id: actorId },
           ...(typeof action.instructions !== 'string' || action.instructions.trim() === ''
             ? {}
             : { instructions: action.instructions.trim() }),
@@ -314,7 +320,7 @@ export class PrivateSkillRemoteService extends TypertRemoteService {
           skillId: requireString(action, 'skillId', type),
           version: brand<string, 'SemVer'>(requireString(action, 'version', type)),
           to: privateSkillLifecycle(action.to),
-          requestedBy: ACTOR_ID,
+          requestedBy: actorId,
           reason: requireString(action, 'reason', type),
           evidenceRefs: optionalStringArray(action.evidenceRefs, 32),
         })
@@ -333,7 +339,7 @@ export class PrivateSkillRemoteService extends TypertRemoteService {
         const reason = privateSkillRevocationReason(action.reason)
         const revoked = await this.host.application.ingestion.revokeSource({
           sourceHandle,
-          requestedBy: ACTOR_ID,
+          requestedBy: actorId,
           reason,
         })
         const revokedSource = await this.host.application.ingestion.source(sourceHandle)
@@ -343,8 +349,8 @@ export class PrivateSkillRemoteService extends TypertRemoteService {
           revocationOrderId,
           snapshotId: String(sourceHandle),
           reason,
-          requestedBy: ACTOR_ID,
-          authorizedBy: ACTOR_ID,
+          requestedBy: actorId,
+          authorizedBy: actorId,
           authorizationReceiptRef: `private-skill-revocation:${revocationOrderId}`,
           affectedTacticVersions: revoked.affectedTacticVersions,
           requiredActions: [
@@ -698,9 +704,10 @@ function visibilityAllowedUse(
 
 function visibilityAudience(
   visibility: PrivateSkillRemotePolicy['defaultVisibility'],
+  actorId: string,
 ): string {
   switch (visibility) {
-    case 'user-private': return ACTOR_ID
+    case 'user-private': return actorId
     case 'workspace-private': return 'workspace:local-profile'
     case 'organization-private': return 'organization:local-profile'
   }

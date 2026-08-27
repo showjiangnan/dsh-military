@@ -34,6 +34,11 @@ Agent principal 永远不能自行获得人类专属授权。Agent 的权限来�
 
 管理命令不接受模型自由填写的 Context；Host 从认证连接、Session ownership、Settings 权限和凭据服务构造。
 
+Web Remote 同样不能使用固定字符串代替身份。RC.2 本地单用户部署由 Host 创建
+明确的 `LOCAL_PROFILE_USER` authority context；未来多用户部署必须从认证
+connection 注入 principal/tenant。两者使用同一授权 API，但本地身份不能被
+描述成企业 RBAC。
+
 ## 4. 授权决策
 
 有效权限为：
@@ -123,6 +128,10 @@ time
 ```
 
 不得把 Secret、Token 或原始凭据写入审计日志。
+
+Artifact 读取审计记录 Reference 身份，而不是只记 content hash。Reference
+必须通过 tenant、workflow、audience/grant、scope、classification ceiling 和
+expiry；相同 blob 的另一个合法引用不能为当前 principal 提供旁路。
 
 ## 10. 验收条件
 

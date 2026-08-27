@@ -34,8 +34,9 @@ RC.2 已知事件目录不提供外部 required event 动态注册。审查脚�
 - RC.2 预留 childId 必须在调用前写入 Provisioning/Binding；
 - Worker 在首轮前必须获得真实 Task + Workspace Lease；
 - critical 与 ordinary report 都使用 `next-step`，确保 idle parent 自动恢复；
-- Task `allowedTools` 同时约束首请求 Schema 与 Capability Grant，Engineer
-  Specs 首请求不得超过 9 个工具；
+- Task `allowedTools` 同时约束首请求 Schema 与 Capability Grant；每个
+  Engineer/Worker 请求必须是 ToolProfile、Task grant 与 Host phase mask 的
+  1—4 工具交集；
 - selective drain 不能终止未列出的 sibling；
 - 重复 childId 必须对账 parent、descriptor、binding，不能盲重试。
 
@@ -53,9 +54,10 @@ RC.2 已知事件目录不提供外部 required event 动态注册。审查脚�
 -无同步模块请求环；
 - Settings 使用 RC.2 共享 mirror；
 -业务组件不建立重复 wire reader；
-- 当前 0.9.0-alpha.24 Web 包不注册 Military Conversation Node；角色治理、
-  诊断/恢复、Workspace、固定基准和知识透明度使用插件自有窄
-  Remote/Projection；后续附加运行视图同样必须以稳定业务 ID 聚合和分页重放。
+- 当前 0.9.0-alpha.25 Web 包不注册 Military Conversation Log Node；角色治理、
+  诊断/恢复、Workspace、固定基准、知识透明度和完整 Runtime Center 使用插件
+  自有窄 Remote/Projection。运行节点以稳定业务 ID、source revision 和
+  staleness 聚合，不把 Session Log 变成第二个 Mission 真源。
 
 ## 6. DeepSeek
 

@@ -53,7 +53,7 @@ export interface PrivateSkillRepository {
   putRevocation(value: KnowledgeRevocationOrder): void
   revocation(revocationOrderId: string): KnowledgeRevocationOrder | null
   listRevocations(): readonly KnowledgeRevocationOrder[]
-  transaction<T>(operation: () => Promise<T>): Promise<T>
+  transaction<T>(operation: () => T): Promise<T>
 }
 
 /** Deterministic repository for unit tests and non-SQLite embeddings. */
@@ -162,7 +162,7 @@ export class InMemoryPrivateSkillRepository implements PrivateSkillRepository {
     return cloneFrozen([...this.#revocations.values()])
   }
 
-  async transaction<T>(operation: () => Promise<T>): Promise<T> {
+  async transaction<T>(operation: () => T): Promise<T> {
     const snapshot = structuredClone({
       sources: this.#sources,
       pipelines: this.#pipelines,
@@ -175,7 +175,7 @@ export class InMemoryPrivateSkillRepository implements PrivateSkillRepository {
       revocations: this.#revocations,
     })
     try {
-      return await operation()
+      return operation()
     } catch (error) {
       this.#sources = snapshot.sources
       this.#pipelines = snapshot.pipelines

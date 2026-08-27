@@ -50,6 +50,10 @@ export class LocalWorkspaceRuntime implements MilitaryWorkspaces {
     const fileManifestRef = await this.#artifacts.put({
       bytes: new TextEncoder().encode(JSON.stringify(files, null, 2)), mediaType: 'application/json', classification: 'internal',
       description: `Workspace manifest for ${input.workspaceKey}`,
+      tenantId: input.tenantId,
+      ownerPrincipalId: 'military-host',
+      audiencePrincipalIds: ['military-host'],
+      audienceScopes: ['artifact:read', 'military:workspace-snapshot'],
     })
     const environment = {
       node: process.version, platform: process.platform, arch: process.arch,
@@ -58,6 +62,10 @@ export class LocalWorkspaceRuntime implements MilitaryWorkspaces {
     const environmentArtifact = await this.#artifacts.put({
       bytes: new TextEncoder().encode(JSON.stringify(environment, null, 2)), mediaType: 'application/json', classification: 'internal',
       description: `Environment snapshot for ${input.workspaceKey}`,
+      tenantId: input.tenantId,
+      ownerPrincipalId: 'military-host',
+      audiencePrincipalIds: ['military-host'],
+      audienceScopes: ['artifact:read', 'military:workspace-snapshot'],
     })
     const snapshot: WorkspaceSnapshot = {
       schemaVersion: '1.0.0', workspaceSnapshotId: uuid('workspace-snapshot'), tenantId: input.tenantId, workspaceKey: input.workspaceKey,
@@ -165,7 +173,18 @@ export class LocalWorkspaceRuntime implements MilitaryWorkspaces {
     if (untracked.length > 0) await requireProcess('git', ['add', '--intent-to-add', '--', ...untracked], { cwd: path, signal: input.signal })
     const diff = await requireProcess('git', ['diff', '--binary', '--full-index', '--no-ext-diff', snapshot.git.head, '--'], { cwd: path, signal: input.signal })
     const bytes = new TextEncoder().encode(diff.stdout)
-    const patchArtifact = await this.#artifacts.put({ bytes, mediaType: 'text/x-diff', classification: 'internal', description: `Candidate patch ${input.candidateId}` })
+    const patchArtifact = await this.#artifacts.put({
+      bytes,
+      mediaType: 'text/x-diff',
+      classification: 'internal',
+      description: `Candidate patch ${input.candidateId}`,
+      tenantId: lease.tenantId,
+      missionId: input.missionId,
+      taskId: input.taskId,
+      ownerPrincipalId: String(lease.agent.agentId),
+      audiencePrincipalIds: ['military-host', String(lease.agent.agentId)],
+      audienceScopes: ['artifact:read', 'military:candidate-patch'],
+    })
     const patch: CandidatePatch = {
       schemaVersion: '1.0.0', candidatePatchId: deterministicCandidatePatchId(
         input.candidateId,
@@ -215,7 +234,18 @@ export class LocalWorkspaceRuntime implements MilitaryWorkspaces {
     }
     const complete = await requireProcess('git', ['diff', '--binary', '--no-ext-diff', '--', ...changed], { cwd: attempt.path, signal })
     const bytes = new TextEncoder().encode(complete.stdout || diff.stdout)
-    const patchArtifact = await this.#artifacts.put({ bytes, mediaType: 'text/x-diff', classification: 'internal', description: `Candidate patch ${candidateId}` })
+    const patchArtifact = await this.#artifacts.put({
+      bytes,
+      mediaType: 'text/x-diff',
+      classification: 'internal',
+      description: `Candidate patch ${candidateId}`,
+      tenantId: attempt.baseSnapshot.tenantId,
+      missionId: attempt.missionId,
+      taskId: attempt.taskId,
+      ownerPrincipalId: 'military-host',
+      audiencePrincipalIds: ['military-host'],
+      audienceScopes: ['artifact:read', 'military:candidate-patch'],
+    })
     const patch: CandidatePatch = {
       schemaVersion: '1.0.0', candidatePatchId: deterministicCandidatePatchId(
         candidateId,

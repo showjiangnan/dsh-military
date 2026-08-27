@@ -171,12 +171,20 @@ export class Rc2DepartmentAgentTransport implements DepartmentAgentTransport {
         'persisted idempotent child belongs to another direct parent',
       )
     }
-    // A persisted snapshot proves that RC.2 accepted the original initial
-    // prompt. The child may already be settled and absent from the live
-    // registry; release any capacity left by a host crash before acknowledging
-    // the durable dispatch to the automation outbox.
-    await this.#host.forgetDepartmentChild(String(childId))
-    return true
+    // Persistence proves only that RC.2 once accepted the child identity. It
+    // does not prove that the Activation is live, that a terminal Military
+    // receipt exists, or that the Task completed. Treating this row as a
+    // running success strands the parent forever. Converge the old Activation
+    // to LOST/RECOVERY_REQUIRED; the next Mission revision reserves a new
+    // Attempt and therefore a new child identity.
+    await this.#host.forgetDepartmentChild(
+      String(childId),
+      'PERSISTED_CHILD_NOT_LIVE',
+    )
+    throw new MilitaryError(
+      'PERSISTENCE_FAILED',
+      `persisted child ${String(childId)} has no live Activation; a new Task Attempt is required`,
+    )
   }
 }
 
@@ -189,8 +197,10 @@ const ENGINEER_SPECS_TOOLS = Object.freeze([
 ] as const)
 
 const WORKER_IMPLEMENTATION_TOOLS = Object.freeze([
-  'read', 'glob', 'grep', 'write', 'edit',
   'military_get_context', 'military_get_order',
+  'military_workspace_read', 'military_workspace_list',
+  'military_workspace_search', 'military_workspace_write',
+  'military_workspace_edit', 'military_workspace_operation_status',
   'military_get_tactical_directive', 'military_record_observation',
   'military_submit_candidate', 'military_submit_blocker',
   'military_radio_request', 'military_submit_decision_questions',
@@ -237,7 +247,7 @@ export function departmentWorkspaceInstruction(
       : ''
     return `\n\n权威项目根目录：${request.executionCwd}\nread/glob/grep 使用项目相对路径；搜索项目根目录时，glob/grep 不要传 path。Specs 工具的文档参数必须是任务授权的相对路径，例如 specs/file.md 或 docs/file.md，绝不能使用绝对路径。${largeSpecsProtocol}无论创建还是修改文件，都要在需要时先读取现有内容，并把每份文件的完整最终内容一次性传给 military_specs_apply_order。该终态事务会写入、验证、本地提交、记录回执、通知父级并结束本轮；收到成功回执后立即停止，不要调用 report。不得检查父目录或 DeepSeek Harness 的实现代码检出目录。`
   }
-  return `\n\n分配的隔离执行工作树：${request.executionCwd}\n每个 read/write/edit 的 file_path 以及每个 glob/grep 的 path 都必须使用严格位于该工作树内的绝对路径。不得使用父项目的 local-main 路径、任何父目录或 DeepSeek Harness 的实现代码检出目录。只能在任务写入范围内创建和修改文件，在该工作树中完成验证后只提交一个 Candidate。`
+  return `\n\n你在隔离执行工作树中工作。所有文件操作只使用 military_workspace_read/list/search/write/edit，并始终传项目相对路径（例如 src/index.ts）；不要调用通用 read/write/edit/glob/grep，也不要复制或猜测工作树绝对路径。Host 会把相对路径绑定到本 Task 的隔离工作树并强制检查读写范围。写入或编辑返回 operationId；若收到超时，先用 military_workspace_operation_status 查询回执，禁止直接重复副作用。先读取或搜索必要上下文，再修改；完成后调用 military_submit_candidate，Host 会在隔离工作树中验证并集成。不得检查父项目、任何父目录或 DeepSeek Harness 的实现代码检出目录。`
 }
 
 function assertDirectParent(child: Agent, parent: Agent): void {

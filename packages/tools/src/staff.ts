@@ -1,4 +1,4 @@
-import type {} from '@dsh-military/plugin-host'
+import type {} from '@dsh-military/runtime'
 import type { Context } from '@deepseek-ai/cordis'
 import type { ToolDefinition } from '@deepseek-ai/dsh-tools'
 import { MilitaryError, brand } from '@dsh-military/contracts'
@@ -111,9 +111,16 @@ export function staffTools(ctx: Context): readonly ToolDefinition[] {
         }
         const disposition = String(args.sufficiency)
         if (!['PARTIAL', 'INSUFFICIENT', 'CONFLICTED', 'UNKNOWN'].includes(disposition)) throw new Error('invalid tactical sufficiency')
+        const missionId = await ctx.militaryHost.application.runtime
+          .missionForSession(identityFor(ctx, agent).sessionId)
         const packet = await ctx.militaryHost.application.artifacts.put({
           bytes: new TextEncoder().encode(JSON.stringify(args.context, null, 2)), mediaType: 'application/json',
           classification: 'confidential', description: 'Chief of Staff fallback context packet',
+          tenantId: ctx.militaryHost.tenantId,
+          ...(missionId === null ? {} : { missionId: String(missionId) }),
+          ownerPrincipalId: String(identityFor(ctx, agent).agentId),
+          audiencePrincipalIds: ['military-host', String(identityFor(ctx, agent).agentId)],
+          audienceScopes: ['artifact:read', 'military:staff-context'],
         })
         return await ctx.militaryHost.application.chiefOfStaff.advise({
           contextPacket: packet, sufficiency: disposition as 'PARTIAL' | 'INSUFFICIENT' | 'CONFLICTED' | 'UNKNOWN', signal: exec.signal,

@@ -10,9 +10,16 @@ export interface AgentPlaneState {
    * distinguishes a new user execution request from continuation/child wake
    * so an already accepted Mission is not reopened accidentally.
    */
-  readonly generalWorkflowTurns: Map<string, 'USER_EXECUTION' | 'CONTINUATION' | 'CHILD_WAKE'>
+  readonly generalWorkflowTurns: Map<string, {
+    readonly reason: 'USER_EXECUTION' | 'CONTINUATION' | 'CHILD_WAKE'
+    readonly requestKey: string
+    readonly requestHash: string
+    readonly requestSummary: string
+  }>
   /** Successful General coordination tools observed in one exact turn. */
   readonly generalSuccessfulToolsByTurn: Map<string, Set<string>>
+  /** Exact Host-derived workflow stage used to narrow General's request schema. */
+  readonly generalWorkflowStageByAgent: Map<string, GeneralWorkflowStage>
   /** General Sessions whose open workflow may emit tools but not prose implementation. */
   readonly generalWorkflowSessions: Set<string>
   readonly contextManifestByStep: Map<string, ContextManifest>
@@ -29,6 +36,8 @@ export interface AgentPlaneState {
     readonly signature: string
     readonly errorHash: string
   }>
+  /** Host-owned small-model phase; it narrows schemas without trusting model prose. */
+  readonly departmentPhaseByAgent: Map<string, DepartmentToolPhase>
   /**
    * Process-local dispatch slots enforcing ToolProfile.maxParallelCalls.
    * Durable grants and budgets remain the crash-recovery authority; these
@@ -48,12 +57,14 @@ export function createAgentPlaneState(): AgentPlaneState {
     interlockNoProgress: new Map(),
     generalWorkflowTurns: new Map(),
     generalSuccessfulToolsByTurn: new Map(),
+    generalWorkflowStageByAgent: new Map(),
     generalWorkflowSessions: new Set(),
     contextManifestByStep: new Map(),
     terminalSubmissionTurns: new Set(),
     concludedStepByAgent: new Map(),
     modelFailureAttempts: new Map(),
     invalidToolCallByAgent: new Map(),
+    departmentPhaseByAgent: new Map(),
     activeToolCallsByAgent: new Map(),
     finalizationOnlyAgents: new Set(),
     userCancelledChildren: new Set(),
@@ -72,16 +83,42 @@ export function clearAgentPlaneState(
   deleteMapPrefixed(state.interlockNoProgress, prefix)
   deleteMapPrefixed(state.generalWorkflowTurns, prefix)
   deleteMapPrefixed(state.generalSuccessfulToolsByTurn, prefix)
+  state.generalWorkflowStageByAgent.delete(agentId)
   deleteMapPrefixed(state.contextManifestByStep, prefix)
   deletePrefixed(state.terminalSubmissionTurns, prefix)
   state.concludedStepByAgent.delete(agentId)
   deleteMapPrefixed(state.modelFailureAttempts, prefix)
   state.invalidToolCallByAgent.delete(agentId)
+  state.departmentPhaseByAgent.delete(agentId)
   state.activeToolCallsByAgent.delete(agentId)
   state.finalizationOnlyAgents.delete(agentId)
   state.userCancelledChildren.delete(agentId)
   if (sessionId !== undefined) state.generalWorkflowSessions.delete(sessionId)
 }
+
+export type GeneralWorkflowStage =
+  | 'START_MISSION'
+  | 'CREATE_TASK'
+  | 'READ_DEPARTMENT_STATUS'
+  | 'SPAWN_DEPARTMENT'
+  | 'POLL_TACTICAL_REQUEST'
+  | 'ISSUE_TACTICAL_GUIDANCE'
+  | 'PRESENT_DECISION'
+  | 'ASK_USER_DECISION'
+  | 'RECORD_DECISION'
+
+/**
+ * Host-owned model-facing phase. ORDER is deliberately separate from
+ * DISCOVER: a lightweight Worker must read its immutable order before it can
+ * choose repository paths, and reading the order must not hide the read tools
+ * needed by the next step.
+ */
+export type DepartmentToolPhase =
+  | 'ORDER'
+  | 'DISCOVER'
+  | 'MUTATE'
+  | 'VERIFY'
+  | 'RECOVER'
 
 export function modelAttemptKey(agentId: string, turn: number, step: number): string {
   return `${agentId}:${turn}:${step}`

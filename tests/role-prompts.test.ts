@@ -66,7 +66,7 @@ test('editable role prose cannot remove immutable Host persona boundaries', () =
   )
   assert.match(persona, /自定义要求/u)
   assert.match(persona, /以下运行身份与权限边界由 Host 固定/u)
-  assert.match(persona, /模板：engineer-default@6/u)
+  assert.match(persona, /模板：engineer-default@7/u)
   assert.match(persona, /能力授权：grant-1/u)
 
   const general = generalPersona(custom)

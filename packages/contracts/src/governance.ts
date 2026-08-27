@@ -233,6 +233,20 @@ export interface ModelCapabilityProfile {
   readonly profileId: string
   readonly revision: Revision
   readonly status: 'DRAFT' | 'CANARY' | 'VALIDATED' | 'DEPRECATED'
+  /** Independent axes: catalog presence never implies protocol or quality. */
+  readonly catalogPresence?: 'PRESENT' | 'ABSENT' | 'UNKNOWN'
+  readonly protocolCompatibility?:
+    | 'DSH_TOOL_REQUEST_AVAILABLE'
+    | 'NATIVE_TOOL_CALLING_VERIFIED'
+    | 'BRIDGED_TOOL_CALLING_VERIFIED'
+    | 'TEXT_ONLY'
+    | 'UNKNOWN'
+  readonly policyEligibility?:
+    | 'ELIGIBLE'
+    | 'ELIGIBLE_UNVERIFIED'
+    | 'CANARY_ONLY'
+    | 'INELIGIBLE'
+  readonly performanceEvidence?: 'UNASSESSED' | 'CANARY' | 'VALIDATED'
   readonly provider: string
   readonly model: string
   readonly supportedReasoning: readonly ('off' | 'low' | 'high' | 'max')[]
@@ -240,7 +254,19 @@ export interface ModelCapabilityProfile {
   readonly maxOutputTokens: number
   readonly toolCalling: boolean
   readonly inputModalities: readonly ('text' | 'image')[]
-  readonly reasoningPassback: 'all-reasoning-turns'
+  readonly reasoningPassback:
+    | 'all-reasoning-turns'
+    | 'provider-defined'
+    | 'none'
+    | 'unknown'
+  readonly capabilityEvidence?: {
+    readonly contextWindow: 'ADAPTER_DECLARED' | 'CONSERVATIVE_FALLBACK'
+    readonly maxOutput: 'ADAPTER_DECLARED' | 'CONSERVATIVE_FALLBACK'
+    readonly toolCalling: 'BUILT_IN_VERIFIED' | 'LIVE_CANARY' | 'UNVERIFIED'
+    readonly reasoning: 'ADAPTER_DECLARED' | 'UNDECLARED'
+    readonly inputModalities: 'ADAPTER_DECLARED' | 'UNDECLARED'
+    readonly residency: 'POLICY_BOUND' | 'UNDECLARED'
+  }
   readonly maximumRequestImageBytes?: number
   /** @deprecated migration hint; inputModalities is authoritative. */
   readonly vision?: boolean
@@ -252,7 +278,8 @@ export interface ModelCapabilityProfile {
     readonly finalAcceptanceRate: number
     readonly falseCompletionRate: number
   }[]
-  readonly validatedAt: IsoDateTime
+  readonly observedAt?: IsoDateTime
+  readonly validatedAt?: IsoDateTime
 }
 
 export interface GeneralExecutionPolicy {
@@ -405,6 +432,7 @@ export interface ObservedToolCallReceipt {
   readonly missionId?: string
   readonly taskId?: string
   readonly taskVersion?: number
+  readonly attemptId?: string
   readonly toolName: string
   readonly argumentsHash: Sha256
   readonly outcomeHash: Sha256
@@ -522,6 +550,7 @@ export interface DecisionBrokerRecord {
   readonly missionId: string
   readonly taskId?: string
   readonly taskVersion?: number
+  readonly attemptId?: string
   readonly state: 'CREATED' | 'QUEUED' | 'PRESENTED' | 'PARTIALLY_ANSWERED' | 'ANSWERED' | 'EXPIRED' | 'CANCELLED' | 'SUPERSEDED' | 'STALE' | 'DELIVERY_FAILED'
   readonly priority: 'LOW' | 'NORMAL' | 'HIGH' | 'CRITICAL'
   readonly questionSetRef: string
@@ -629,6 +658,8 @@ export interface AgentExecutionBinding {
   readonly tenantId: string
   readonly rootSessionId: string
   readonly missionId: string
+  /** Actual dispatch payload classification used by authorization/residency. */
+  readonly dataClassification?: import('./domain.js').DataClassification
   readonly agent: AgentIdentity
   readonly departmentId: MilitaryDepartmentId
   readonly templateId: string
@@ -642,11 +673,23 @@ export interface AgentExecutionBinding {
    * registry (or child startup rolls back).
    */
   readonly concurrencyReservationId: string
+  /**
+   * Durable Task execution identity. A Task version may have several Attempts;
+   * an Attempt owns one Activation and one or more transport Dispatches.
+   */
+  readonly execution?: {
+    readonly attemptId: string
+    readonly attemptNo: number
+    readonly activationId: string
+    readonly dispatchId: string
+    readonly dispatchSequence: number
+  }
   readonly executionStrategy: import('./kernel.js').ExecutionStrategy
   readonly provider: string
   readonly model: string
   readonly reasoningEffort: ReasoningEffort
   readonly modelCapabilityProfileId: string
+  readonly modelCapabilityProfileRevision?: Revision
   readonly toolProfile: { readonly id: string; readonly revision: Revision }
   readonly permissionProfile: { readonly id: string; readonly revision: Revision }
   readonly apiGrants: readonly { readonly id: string; readonly revision: Revision }[]

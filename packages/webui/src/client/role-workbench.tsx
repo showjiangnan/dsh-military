@@ -31,6 +31,10 @@ import {
   type RoleWorkbenchRoleSnapshot,
   type RoleWorkbenchSnapshot,
 } from '@dsh-military/contracts/control-plane'
+import {
+  callMilitaryRpc,
+  useMilitaryRefreshLoop,
+} from './query-client.js'
 
 interface Props {
   readonly connection: Pick<ConnectionHandle, 'rpc'>
@@ -96,6 +100,7 @@ export function RoleWorkbench(props: Props): ReactNode {
   const busyRef = useRef(false)
   const dirtyRef = useRef(false)
   const selectedRoleIdRef = useRef<string>(GENERAL_ROLE_ID)
+  const initialAdoptRef = useRef(true)
   const dirty = useMemo(
     () => draft !== undefined && baseline !== undefined && !sameDraft(draft, baseline),
     [draft, baseline],
@@ -162,18 +167,23 @@ export function RoleWorkbench(props: Props): ReactNode {
     }
   }, [adoptRole, connection])
 
-  useEffect(() => {
-    const controller = new AbortController()
-    void refresh(controller.signal, { adopt: true })
-    const timer = globalThis.setInterval(() => {
-      if (!busyRef.current) void refresh(controller.signal)
-    }, 5_000)
-    return () => {
-      controller.abort()
-      globalThis.clearInterval(timer)
-      refreshInFlight.current = false
-    }
+  const refreshProjection = useCallback(async (
+    signal: AbortSignal,
+  ): Promise<boolean> => {
+    const next = await refresh(signal, {
+      adopt: initialAdoptRef.current,
+      roleId: selectedRoleIdRef.current,
+    })
+    if (next !== undefined) initialAdoptRef.current = false
+    return next !== undefined
   }, [refresh])
+  const pollingPaused = useCallback(() => busyRef.current, [])
+  useMilitaryRefreshLoop({
+    key: 'military-role-workbench-snapshot',
+    refresh: refreshProjection,
+    intervalMs: 5_000,
+    paused: pollingPaused,
+  })
 
   const run = useCallback(async <T,>(
     operation: () => Promise<T>,
@@ -404,6 +414,16 @@ export function RoleWorkbench(props: Props): ReactNode {
     onResult('可移植配置已作为一个 Host 原子事务写入。')
   }
 
+  const retryApplication = async (): Promise<void> => {
+    const value = await run(async () =>
+      await dispatchMilitaryControlAction(connection, {
+        type: 'RETRY_APPLICATION',
+      }))
+    if (value === undefined) return
+    await refresh(undefined, { adopt: false })
+    onResult('Host 已重新执行 Desired → Applied 协调，并回读当前应用状态。')
+  }
+
   if (snapshot === undefined || role === undefined || draft === undefined) {
     return (
       <section data-role-workbench="true" aria-busy="true" style={loadingStyle}>
@@ -567,6 +587,45 @@ export function RoleWorkbench(props: Props): ReactNode {
             </Button>
           </div>
         </header>
+
+        <div
+          role={snapshot.application.state === 'FAILED' ? 'alert' : 'status'}
+          aria-live="polite"
+          style={snapshot.application.state === 'FAILED' ? errorStyle : warningStyle}
+          data-role-application-state={snapshot.application.state}
+        >
+          <div style={headingRowStyle}>
+            <strong>
+              {snapshot.application.state === 'APPLIED'
+                && snapshot.application.desiredRevision === snapshot.application.appliedRevision
+                ? '当前配置已生效'
+                : snapshot.application.state === 'FAILED'
+                  ? '配置应用失败'
+                  : '配置正在应用'}
+            </strong>
+            <Pill>
+              Desired {snapshot.application.desiredRevision} · Applied {snapshot.application.appliedRevision}
+            </Pill>
+            <span style={microStyle}>
+              尝试 {snapshot.application.attempts} 次 · {formatDate(snapshot.application.updatedAt)}
+            </span>
+          </div>
+          {snapshot.application.error === undefined ? null : (
+            <code style={applicationErrorStyle}>{snapshot.application.error}</code>
+          )}
+          {snapshot.application.state !== 'FAILED' ? null : (
+            <div style={actionRowStyle}>
+              <Button
+                variant="primary"
+                size="sm"
+                disabled={busy}
+                onClick={() => { void retryApplication() }}
+              >
+                重试应用并回读
+              </Button>
+            </div>
+          )}
+        </div>
 
         {pendingRoleId === undefined ? null : (
           <div role="alert" style={warningStyle}>
@@ -777,6 +836,9 @@ export function RoleWorkbench(props: Props): ReactNode {
             <div style={historyItemStyle}>
               <p style={microStyle}>
                 exact route：{selectedModel.exactRoute} · 状态 {modelStatusLabel(selectedModel.status)}
+                {selectedModel.capabilityProfileId === undefined
+                  ? ''
+                  : ` · capability ${selectedModel.capabilityProfileId}@${selectedModel.capabilityProfileRevision ?? '?'}`}
                 {selectedModel.statusRevision === undefined
                   ? ''
                   : ` @${selectedModel.statusRevision}`}
@@ -793,6 +855,24 @@ export function RoleWorkbench(props: Props): ReactNode {
                 最大输出 {selectedModel.maxOutputTokens?.toLocaleString('zh-CN') ?? '未披露'} ·
                 输入模态 {selectedModel.inputModalities.join('/') || '未披露'}
               </p>
+              <dl style={evidenceGridStyle}>
+                <div>
+                  <dt>目录存在性</dt>
+                  <dd>{selectedModel.catalogPresence ?? 'UNKNOWN'}</dd>
+                </div>
+                <div>
+                  <dt>协议兼容性</dt>
+                  <dd>{selectedModel.protocolCompatibility ?? 'UNKNOWN'}</dd>
+                </div>
+                <div>
+                  <dt>策略准入</dt>
+                  <dd>{selectedModel.policyEligibility ?? 'ELIGIBLE_UNVERIFIED'}</dd>
+                </div>
+                <div>
+                  <dt>性能证据</dt>
+                  <dd>{selectedModel.performanceEvidence ?? 'UNASSESSED'}</dd>
+                </div>
+              </dl>
               <ul style={compactListStyle}>
                 {selectedModel.evidence.map(value => <li key={value}>{value}</li>)}
               </ul>
@@ -1353,14 +1433,13 @@ export async function fetchMilitaryControlSnapshot(
   connection: Pick<ConnectionHandle, 'rpc'>,
   signal?: AbortSignal,
 ): Promise<RoleWorkbenchSnapshot> {
-  const response = await connection.rpc.call(
-    '/api',
-    'militaryControlPlane/snapshot',
-    { args: {} },
-    signal,
+  return await callMilitaryRpc<RoleWorkbenchSnapshot>(
+    connection,
+    'militaryControlPlane',
+    'snapshot',
+    {},
+    { signal, key: 'military-control-snapshot' },
   )
-  if (!response.ok) throw new Error(response.error.message)
-  return response.value as RoleWorkbenchSnapshot
 }
 
 export async function dispatchMilitaryControlAction(
@@ -1368,14 +1447,13 @@ export async function dispatchMilitaryControlAction(
   action: Record<string, unknown>,
   signal?: AbortSignal,
 ): Promise<unknown> {
-  const response = await connection.rpc.call(
-    '/api',
-    'militaryControlPlane/execute',
-    { args: { action } },
-    signal,
+  return await callMilitaryRpc(
+    connection,
+    'militaryControlPlane',
+    'execute',
+    { action },
+    { signal, dedupe: false },
   )
-  if (!response.ok) throw new Error(response.error.message)
-  return response.value
 }
 
 function draftFromRole(role: RoleWorkbenchRoleSnapshot): RoleDraft {
@@ -1742,6 +1820,21 @@ const errorStyle: CSSProperties = {
 const errorTextStyle: CSSProperties = {
   margin: 0,
   color: 'var(--dsw-alias-state-error-primary)',
+}
+
+const applicationErrorStyle: CSSProperties = {
+  display: 'block',
+  maxHeight: 96,
+  overflow: 'auto',
+  whiteSpace: 'pre-wrap',
+  overflowWrap: 'anywhere',
+}
+
+const evidenceGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
+  gap: 8,
+  margin: 0,
 }
 
 const checkStyle: CSSProperties = {

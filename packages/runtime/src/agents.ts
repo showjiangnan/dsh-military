@@ -9,7 +9,10 @@ import {
   type MilitaryAgentTemplates,
   type MilitaryPolicyRegistry,
   type MilitaryCapabilityGrants,
+  type MilitaryCapacityControl,
   type MilitaryExecutionRouter,
+  type MilitaryExecutionLifecycle,
+  type MilitaryTelemetry,
   type MilitaryResourceBudgets,
   type ResourceBudgetPolicy,
   type ResourceBudgetReservation,
@@ -94,7 +97,10 @@ export class DepartmentAgentSpawner {
   readonly #bindings: MilitaryAgentExecutionBindings
   readonly #grants: MilitaryCapabilityGrants
   readonly #budgets: MilitaryResourceBudgets
+  readonly #capacity: MilitaryCapacityControl
+  readonly #telemetry: MilitaryTelemetry
   readonly #router: MilitaryExecutionRouter
+  readonly #lifecycle: MilitaryExecutionLifecycle
   readonly #transport: DepartmentAgentTransport
   readonly #runtime: MilitaryRuntime
   readonly #workspace: DepartmentWorkspaceCoordinator | undefined
@@ -106,7 +112,10 @@ export class DepartmentAgentSpawner {
     readonly bindings: MilitaryAgentExecutionBindings
     readonly grants: MilitaryCapabilityGrants
     readonly budgets: MilitaryResourceBudgets
+    readonly capacity: MilitaryCapacityControl
+    readonly telemetry: MilitaryTelemetry
     readonly router: MilitaryExecutionRouter
+    readonly lifecycle: MilitaryExecutionLifecycle
     readonly transport: DepartmentAgentTransport
     readonly runtime: MilitaryRuntime
     readonly workspace?: DepartmentWorkspaceCoordinator
@@ -117,7 +126,10 @@ export class DepartmentAgentSpawner {
     this.#bindings = input.bindings
     this.#grants = input.grants
     this.#budgets = input.budgets
+    this.#capacity = input.capacity
+    this.#telemetry = input.telemetry
     this.#router = input.router
+    this.#lifecycle = input.lifecycle
     this.#transport = input.transport
     this.#runtime = input.runtime
     this.#workspace = input.workspace
@@ -125,15 +137,80 @@ export class DepartmentAgentSpawner {
   }
 
   async spawn(request: DepartmentAgentSpawnRequest): Promise<SpawnedDepartmentAgent> {
+    return await this.#telemetry.withSpan({
+      name: 'military.department.spawn',
+      tenantId: request.tenantId,
+      missionId: String(request.missionId),
+      ...(request.taskId === undefined
+        ? {}
+        : { taskId: String(request.taskId) }),
+      operationId: request.idempotencyKey
+        ?? `spawn:${String(request.templateId)}`,
+      attributes: {
+        templateId: String(request.templateId),
+        taskBound: request.taskId !== undefined,
+      },
+    }, async () => await this.#spawn(request))
+  }
+
+  async #spawn(
+    request: DepartmentAgentSpawnRequest,
+  ): Promise<SpawnedDepartmentAgent> {
     if (request.signal.aborted) throw request.signal.reason
     const template = await this.#templates.resolveForInstantiation(request.templateId)
-    const capability = await this.#policies.modelCapability(template.modelPolicy.provider, template.modelPolicy.model)
+    const capability = await this.#policies.modelCapability(
+      template.modelPolicy.provider,
+      template.modelPolicy.model,
+      template.modelPolicy.modelCapabilityProfileRevision,
+    )
+    if (template.modelPolicy.modelCapabilityProfileId !== capability.profileId) {
+      throw new MilitaryError(
+        'AGENT_TEMPLATE_CAPABILITY_UNSUPPORTED',
+        `template capability ${template.modelPolicy.modelCapabilityProfileId} does not match exact route profile ${capability.profileId}`,
+      )
+    }
+    if (template.modelPolicy.modelCapabilityProfileRevision !== undefined
+      && Number(template.modelPolicy.modelCapabilityProfileRevision)
+        !== Number(capability.revision)) {
+      throw new MilitaryError(
+        'AGENT_TEMPLATE_CAPABILITY_UNSUPPORTED',
+        `template capability revision ${Number(template.modelPolicy.modelCapabilityProfileRevision)} does not match exact route profile revision ${Number(capability.revision)}`,
+      )
+    }
     if (capability.contextWindowTokens < template.contextPolicy.contextBudgetTokens) {
       throw new MilitaryError('AGENT_TEMPLATE_CAPABILITY_UNSUPPORTED', 'template context budget exceeds model context')
     }
-    const spawnDigest = request.idempotencyKey === undefined
+    if ((template.role === 'worker' || template.role === 'engineer')
+      && request.taskId === undefined) {
+      throw new MilitaryError(
+        'INVALID_ARGUMENT',
+        `a ${template.role === 'worker' ? 'Worker' : 'Engineer'} must be spawned for one explicit Task and workspace lease`,
+      )
+    }
+    const dispatch = request.taskId === undefined || request.taskOrder === undefined
       ? undefined
-      : departmentSpawnDigest(request)
+      : await this.#lifecycle.reserveTaskDispatch({
+          tenantId: request.tenantId,
+          missionId: request.missionId,
+          taskId: request.taskId,
+          taskVersion: request.taskOrder.taskVersion,
+          dispatchKey: request.idempotencyKey
+            ?? `task-dispatch:${sha256(stableJson({
+              taskId: String(request.taskId),
+              taskVersion: Number(request.taskOrder.taskVersion),
+              templateId: String(request.templateId),
+              prompt: request.prompt.trim(),
+            })).slice(0, 40)}`,
+          payloadHash: departmentDispatchPayloadHash(request),
+          cause: 'INITIAL',
+        })
+    try {
+    const spawnDigest = request.idempotencyKey === undefined && dispatch === undefined
+      ? undefined
+      : departmentSpawnDigest(
+          request,
+          dispatch?.dispatch.dispatchId ?? request.idempotencyKey!,
+        )
     const strategy: ExecutionStrategy = request.taskOrder === undefined
       ? {
           schemaVersion: '1.0.0',
@@ -166,11 +243,10 @@ export class DepartmentAgentSpawner {
       templateRevision: template.revision,
       generation: 1,
     }
-    if ((template.role === 'worker' || template.role === 'engineer')
-      && request.taskId === undefined) {
-      throw new MilitaryError(
-        'INVALID_ARGUMENT',
-        `a ${template.role === 'worker' ? 'Worker' : 'Engineer'} must be spawned for one explicit Task and workspace lease`,
+    if (dispatch !== undefined) {
+      await this.#lifecycle.bindActivationAgent(
+        dispatch.activation.activationId,
+        identity,
       )
     }
     if (spawnDigest !== undefined) {
@@ -180,12 +256,31 @@ export class DepartmentAgentSpawner {
       )
       if (existing !== null) {
         assertRecoveredBinding(existing, request, template, identity)
+        await reserveProductionCapacity(
+          this.#capacity,
+          existing.concurrencyReservationId,
+          request,
+        )
+        if (dispatch !== undefined) {
+          await this.#lifecycle.markDispatch({
+            dispatchId: dispatch.dispatch.dispatchId,
+            state: 'ACCEPTED',
+          })
+        }
         const spawned = await this.#transport.spawn({
           request,
           template,
           binding: existing,
         })
         assertSpawnedIdentity(spawned.identity, identity)
+        if (dispatch !== undefined) {
+          await this.#lifecycle.markDispatch({
+            dispatchId: dispatch.dispatch.dispatchId,
+            state: 'STARTED',
+            childSessionId: spawned.childSessionId,
+            transportReceiptId: `rc2-child:${String(spawned.childSessionId)}`,
+          })
+        }
         return cloneFrozen({
           identity: spawned.identity,
           childSessionId: spawned.childSessionId,
@@ -220,6 +315,11 @@ export class DepartmentAgentSpawner {
       }),
       clock: this.#clock,
     })
+    await reserveProductionCapacity(
+      this.#capacity,
+      concurrency.reservationId,
+      request,
+    )
     const grantId = stableSpawnId('capability-grant', spawnDigest)
     const issuedAt = now(this.#clock)
     const grantTools = taskGrantedTools(toolProfile, request.taskOrder)
@@ -250,6 +350,7 @@ export class DepartmentAgentSpawner {
       tenantId: request.tenantId,
       rootSessionId: String(request.rootSessionId),
       missionId: String(request.missionId),
+      dataClassification: request.taskOrder?.dataClassification ?? 'internal',
       agent: identity,
       departmentId: template.department,
       templateId: String(template.templateId),
@@ -257,11 +358,21 @@ export class DepartmentAgentSpawner {
       presetGeneration: request.presetGeneration,
       capabilityGrantId: grantId,
       concurrencyReservationId: concurrency.reservationId,
+      ...(dispatch === undefined ? {} : {
+        execution: {
+          attemptId: dispatch.attempt.attemptId,
+          attemptNo: dispatch.attempt.attemptNo,
+          activationId: dispatch.activation.activationId,
+          dispatchId: dispatch.dispatch.dispatchId,
+          dispatchSequence: dispatch.dispatch.sequence,
+        },
+      }),
       executionStrategy: strategy,
       provider: strategy.provider,
       model: strategy.model,
       reasoningEffort: strategy.reasoningEffort,
       modelCapabilityProfileId: template.modelPolicy.modelCapabilityProfileId,
+      modelCapabilityProfileRevision: capability.revision,
       toolProfile: { id: toolProfile.toolProfileId, revision: toolProfile.revision },
       permissionProfile: { id: permissionProfile.permissionProfileId, revision: permissionProfile.revision },
       apiGrants: template.capabilities.apiGrantIds.map(id => ({ id, revision: brand<number, 'Revision'>(1) })),
@@ -283,6 +394,7 @@ export class DepartmentAgentSpawner {
     }
     let grantIssued = false
     let bindingCreated = false
+    let transportSubmitted = false
     try {
       await this.#grants.issue(capabilityGrant)
       grantIssued = true
@@ -292,10 +404,35 @@ export class DepartmentAgentSpawner {
       // capacity must already be durable at that boundary.
       await this.#bindings.create(binding)
       bindingCreated = true
+      if (dispatch !== undefined) {
+        await this.#lifecycle.markDispatch({
+          dispatchId: dispatch.dispatch.dispatchId,
+          state: 'ACCEPTED',
+        })
+      }
+      transportSubmitted = true
       const spawned = await this.#transport.spawn({ request: effectiveRequest, template, binding })
       assertSpawnedIdentity(spawned.identity, identity)
+      if (dispatch !== undefined) {
+        await this.#lifecycle.markDispatch({
+          dispatchId: dispatch.dispatch.dispatchId,
+          state: 'STARTED',
+          childSessionId: spawned.childSessionId,
+          transportReceiptId: `rc2-child:${String(spawned.childSessionId)}`,
+        })
+      }
       return cloneFrozen({ identity: spawned.identity, childSessionId: spawned.childSessionId, bindingId: binding.bindingId })
     } catch (error) {
+      if (dispatch !== undefined) {
+        await this.#lifecycle.markDispatch({
+          dispatchId: dispatch.dispatch.dispatchId,
+          state: transportSubmitted ? 'RECOVERY_REQUIRED' : 'FAILED',
+          failureCode: error instanceof MilitaryError
+            ? error.failure.code
+            : 'DEPARTMENT_SPAWN_FAILED',
+        }).catch(() => undefined)
+      }
+      if (transportSubmitted) throw error
       if (bindingCreated) {
         await this.#bindings.discard(binding.bindingId).catch(() => undefined)
       }
@@ -303,13 +440,66 @@ export class DepartmentAgentSpawner {
         await this.#grants.discard(grantId).catch(() => undefined)
       }
       await this.#budgets.discard(concurrency.reservationId).catch(() => undefined)
+      await this.#capacity.release(
+        concurrency.reservationId,
+        request.tenantId,
+      ).catch(() => undefined)
       // The RC.2 transport owns Task lease rollback because it can serialize
       // the lease command immediately before prompt admission. The spawner
       // still owns prepared-worktree and capacity cleanup for every failure.
       if (workspace !== undefined) await this.#workspace?.release(workspace.lease.workspaceLeaseId).catch(() => undefined)
       throw error
     }
+    } catch (error) {
+      if (dispatch !== undefined) {
+        const current = await this.#lifecycle.getDispatch(
+          dispatch.dispatch.dispatchId,
+        ).catch(() => null)
+        if (current !== null
+          && current.state !== 'SETTLED'
+          && current.state !== 'RECOVERY_REQUIRED'
+          && current.state !== 'FAILED'
+          && current.state !== 'CANCELLED') {
+          await this.#lifecycle.markDispatch({
+            dispatchId: current.dispatchId,
+            state: current.state === 'ACCEPTED' || current.state === 'STARTED'
+              ? 'RECOVERY_REQUIRED'
+              : 'FAILED',
+            failureCode: error instanceof MilitaryError
+              ? error.failure.code
+              : 'DEPARTMENT_SPAWN_FAILED',
+          }).catch(() => undefined)
+        }
+      }
+      throw error
+    }
   }
+}
+
+async function reserveProductionCapacity(
+  capacity: MilitaryCapacityControl,
+  reservationId: string,
+  request: DepartmentAgentSpawnRequest,
+): Promise<void> {
+  const requested = {
+    activeTasks: request.taskId === undefined ? 0 : 1,
+    activeAgents: 1,
+    modelConcurrency: 1,
+    pendingOutbox: 0,
+    storageBytes: 0,
+  }
+  await capacity.admit({
+    reservationId,
+    tenantId: request.tenantId,
+    payloadHash: sha256(stableJson({
+      reservationId,
+      tenantId: request.tenantId,
+      missionId: String(request.missionId),
+      taskId: request.taskId === undefined ? null : String(request.taskId),
+      requested,
+    })),
+    requested,
+  })
 }
 
 export function taskGrantedTools(
@@ -327,7 +517,10 @@ export function taskGrantedTools(
   return profile.allowTools.filter(name => !denied.has(name) && task.has(name))
 }
 
-function departmentSpawnDigest(request: DepartmentAgentSpawnRequest): string {
+function departmentSpawnDigest(
+  request: DepartmentAgentSpawnRequest,
+  executionKey: string,
+): string {
   return sha256(stableJson({
     tenantId: request.tenantId,
     rootSessionId: String(request.rootSessionId),
@@ -335,8 +528,26 @@ function departmentSpawnDigest(request: DepartmentAgentSpawnRequest): string {
     missionId: String(request.missionId),
     templateId: String(request.templateId),
     taskId: request.taskId === undefined ? null : String(request.taskId),
-    idempotencyKey: request.idempotencyKey,
+    executionKey,
   })).slice(0, 32)
+}
+
+function departmentDispatchPayloadHash(
+  request: DepartmentAgentSpawnRequest,
+): string {
+  return sha256(stableJson({
+    tenantId: request.tenantId,
+    rootSessionId: String(request.rootSessionId),
+    parentSessionId: String(request.parentSessionId),
+    missionId: String(request.missionId),
+    templateId: String(request.templateId),
+    taskId: request.taskId === undefined ? null : String(request.taskId),
+    taskVersion: request.taskOrder === undefined
+      ? null
+      : Number(request.taskOrder.taskVersion),
+    prompt: request.prompt.trim(),
+    label: request.label.trim(),
+  }))
 }
 
 function stableSpawnId(prefix: string, digest: string | undefined): string {

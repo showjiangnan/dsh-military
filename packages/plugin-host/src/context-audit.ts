@@ -45,6 +45,17 @@ export function registerContextAudit(
     if (!host.isMilitaryAgent(payload.agent)) return await next()
     await host.ensureSessionBinding(payload.agent)
     const identity = await host.identityFor(payload.agent)
+    if (identity.role !== 'general') {
+      const binding = await host.application.executionBindings.forAgent(
+        String(identity.agentId),
+        identity.generation,
+      )
+      if (binding?.execution !== undefined) {
+        await host.application.executionLifecycle.heartbeatActivation({
+          activationId: binding.execution.activationId,
+        })
+      }
+    }
     if (identity.role === 'general'
       && consumeCancelledChildSettlementOnly(payload.messages, state.userCancelledChildren)) {
       ctx.logger.debug(
@@ -129,9 +140,11 @@ export function registerContextAudit(
         turn: payload.turn,
       })
       if (stage === null) {
+        state.generalWorkflowStageByAgent.delete(String(payload.agent.id))
         state.generalWorkflowSessions.delete(String(identity.sessionId))
         return decision
       }
+      state.generalWorkflowStageByAgent.set(String(payload.agent.id), stage)
       state.generalWorkflowSessions.add(String(identity.sessionId))
       return {
         kind: 'enter' as const,
@@ -166,6 +179,7 @@ export function registerContextAudit(
       const model = await host.application.policies.modelCapability(
         binding.provider,
         binding.model,
+        binding.modelCapabilityProfileRevision,
       )
       const imageCount = decision.messages.reduce(
         (count, message) =>
@@ -508,6 +522,12 @@ async function persistContextManifest(
     mediaType: 'application/vnd.dsh-military.context-manifest+json',
     classification: 'confidential',
     description: `Context Manifest ${manifest.manifestId} for ${String(manifest.taskId)}@${Number(manifest.taskVersion)}`,
+    tenantId: host.tenantId,
+    missionId: String(manifest.missionId),
+    taskId: String(manifest.taskId),
+    ownerPrincipalId: String(identity.agentId),
+    audiencePrincipalIds: ['military-host', String(identity.agentId)],
+    audienceScopes: ['artifact:read', 'military:context-manifest'],
   })
   await host.application.administrativeLedger.append(administrativeEvent({
     type: 'context/manifest-created',

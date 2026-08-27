@@ -21,39 +21,66 @@ export function inferDshCatalogModelCapability(input: {
 }): ModelCapabilityProfile {
   const contextWindowTokens = Math.max(
     4_096,
-    positiveInteger(input.resolved?.context?.contextWindow, 1_000_000),
+    positiveInteger(input.resolved?.context?.contextWindow, 4_096),
   )
   const maxOutputTokens = Math.max(
     1_024,
     positiveInteger(
       input.resolved?.defaultMaxTokens,
-      Math.min(256_000, contextWindowTokens),
+      Math.min(4_096, contextWindowTokens),
     ),
   )
   const declaredModalities = input.resolved?.inputModalities ?? []
-  const inputModalities: Array<'text' | 'image'> = ['text']
+  const inputModalities: Array<'text' | 'image'> = []
+  if (declaredModalities.includes('text')) inputModalities.push('text')
   if (declaredModalities.includes('image')) inputModalities.push('image')
   const route = `${input.provider}/${input.model}`
+  const observedAt = brand<string, 'IsoDateTime'>(
+    input.registeredAt ?? new Date().toISOString(),
+  )
   return {
     schemaVersion: '1.0.0',
     profileId: `dsh-catalog-${safeIdentifier(route)}-${sha256(route).slice(0, 12)}`,
     revision: brand<number, 'Revision'>(1),
-    status: 'VALIDATED',
+    status: 'DRAFT',
+    catalogPresence: 'PRESENT',
+    protocolCompatibility: 'DSH_TOOL_REQUEST_AVAILABLE',
+    policyEligibility: 'ELIGIBLE_UNVERIFIED',
+    performanceEvidence: 'UNASSESSED',
     provider: input.provider,
     model: input.model,
     // DSH owns route-specific effort translation. Military keeps its compact
     // low/high/max vocabulary so every live adapter route remains selectable.
-    supportedReasoning: ['off', 'low', 'high', 'max'],
+    supportedReasoning: logicalReasoningCapabilities(input.resolved),
     contextWindowTokens,
     maxOutputTokens,
-    toolCalling: true,
+    // RC.2 proves that the adapter accepts a ToolSchema request, not that the
+    // exact provider/model will emit a native tool call. A successful live
+    // canary may promote a later immutable revision.
+    toolCalling: false,
     inputModalities,
-    reasoningPassback: 'all-reasoning-turns',
-    dataResidencyPolicyRefs: ['dsh-provider-default@1'],
+    reasoningPassback: input.resolved?.reasoning === undefined
+      ? 'unknown'
+      : 'provider-defined',
+    capabilityEvidence: {
+      contextWindow: input.resolved?.context?.contextWindow === undefined
+        ? 'CONSERVATIVE_FALLBACK'
+        : 'ADAPTER_DECLARED',
+      maxOutput: input.resolved?.defaultMaxTokens === undefined
+        ? 'CONSERVATIVE_FALLBACK'
+        : 'ADAPTER_DECLARED',
+      toolCalling: 'UNVERIFIED',
+      reasoning: input.resolved?.reasoning === undefined
+        ? 'UNDECLARED'
+        : 'ADAPTER_DECLARED',
+      inputModalities: input.resolved?.inputModalities === undefined
+        ? 'UNDECLARED'
+        : 'ADAPTER_DECLARED',
+      residency: 'UNDECLARED',
+    },
+    dataResidencyPolicyRefs: [],
     benchmarks: [],
-    validatedAt: brand<string, 'IsoDateTime'>(
-      input.registeredAt ?? new Date().toISOString(),
-    ),
+    observedAt,
   }
 }
 
@@ -120,8 +147,26 @@ export function modelCapabilityExecutionFingerprint(
     contextWindowTokens: profile.contextWindowTokens,
     maxOutputTokens: profile.maxOutputTokens,
     toolCalling: profile.toolCalling,
+    protocolCompatibility: profile.protocolCompatibility,
+    policyEligibility: profile.policyEligibility,
+    capabilityEvidence: profile.capabilityEvidence,
     inputModalities: profile.inputModalities,
   }))
+}
+
+function logicalReasoningCapabilities(
+  resolved: ResolvedModelInfo | undefined,
+): readonly ('off' | 'low' | 'high' | 'max')[] {
+  const efforts = resolved?.reasoning?.efforts ?? []
+  if (efforts.length === 0) return ['off']
+  const values = new Set<'off' | 'low' | 'high' | 'max'>(['off'])
+  for (const effort of efforts) {
+    const label = `${String(effort.id)} ${effort.name}`.toLocaleLowerCase()
+    if (/(?:max|ultra|extreme|最高)/u.test(label)) values.add('max')
+    else if (/(?:high|deep|deliberate|高)/u.test(label)) values.add('high')
+    else if (/(?:low|economy|fast|低)/u.test(label)) values.add('low')
+  }
+  return [...values]
 }
 
 async function resolveModelInfo(

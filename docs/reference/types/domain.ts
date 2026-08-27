@@ -85,10 +85,15 @@ export interface AgentIdentity {
 
 export interface ArtifactRef {
   readonly artifactId: ArtifactId
+  /** Opaque authorization-bearing reference; the content hash is never one. */
+  readonly referenceId?: string
   readonly sha256: Sha256
   readonly mediaType: string
   readonly byteLength: number
   readonly classification: DataClassification
+  readonly tenantId?: string
+  readonly missionId?: string
+  readonly taskId?: string
   readonly description?: string
   readonly sourceEventId?: EventId
 }
@@ -185,6 +190,8 @@ export interface TaskOrder {
   readonly whyItMatters: string
   readonly taskType: string
   readonly assignedRole: 'worker' | 'engineer'
+  /** Actual Task content classification, distinct from any permission ceiling. */
+  readonly dataClassification?: DataClassification
   readonly complexity: TaskComplexityVector
   readonly scope: PathScope
   readonly allowedTools: readonly string[]
@@ -321,6 +328,7 @@ export interface AgentTemplateProfile {
     readonly fallbackTemplateIds: readonly AgentTemplateId[]
     readonly dataResidency: 'local' | 'enterprise' | 'external-allowed'
     readonly modelCapabilityProfileId: string
+    readonly modelCapabilityProfileRevision?: Revision
     readonly dataResidencyPolicyRef: string
     readonly allowFallback?: boolean
     /** Explicitly permits a CANARY capability profile for this template. */
@@ -917,6 +925,18 @@ export interface EvaluationAttemptRecord {
     readonly blockerCount: number
     readonly radioCount: number
     readonly userInterventionCount: number
+    /**
+     * Completeness of the authoritative event chain used to derive outcome
+     * fields.  A false value means the corresponding boolean above is only an
+     * observed absence and MUST NOT be interpreted as a negative outcome.
+     */
+    readonly authority?: {
+      readonly taskSettlementObserved: boolean
+      readonly missionSettlementObserved: boolean
+      readonly specsOutcomeObserved: boolean
+      readonly integrationOutcomeObserved: boolean
+      readonly parentWakeupObserved: boolean
+    }
   }
   readonly usage: {
     readonly inputTokens: number
@@ -948,7 +968,27 @@ export interface EvaluationAttemptRecord {
   readonly completedAt?: IsoDateTime
 }
 
+export type EvaluationMetricStatus =
+  | 'AVAILABLE'
+  | 'NOT_APPLICABLE'
+  | 'INCOMPLETE_EVIDENCE'
+
+/**
+ * Lossless representation of a ratio.  `value` is intentionally absent when
+ * the denominator is zero or the authoritative event chain is incomplete.
+ */
+export interface EvaluationRatio {
+  readonly status: EvaluationMetricStatus
+  readonly numerator: number
+  readonly denominator: number
+  /** Population that should have supplied an authoritative observation. */
+  readonly eligiblePopulation?: number
+  readonly value?: number
+  readonly missingReasons?: readonly string[]
+}
+
 export interface EvaluationRateInterval {
+  readonly status: EvaluationMetricStatus
   readonly estimate: number
   readonly low: number
   readonly high: number
@@ -1041,6 +1081,12 @@ export interface AgentTemplatePerformance {
     readonly terminalDuplicateRate: number
     readonly recoveryDriftRate: number
   }
+  /**
+   * Canonical truth for every ratio exposed above.  Legacy scalar fields are
+   * retained for report compatibility; consumers MUST use this map to
+   * distinguish a measured zero from N/A or incomplete evidence.
+   */
+  readonly metricTruth: Readonly<Record<string, EvaluationRatio>>
   readonly efficiency: {
     readonly acceptedOutcomeCount: number
     readonly meanTokensPerAcceptedOutcome: number

@@ -1,5 +1,61 @@
 # Changelog
 
+## 0.9.0-alpha.25 — 2026-08-27
+
+### Execution liveness, crash recovery, Flash acceptance and production truth
+
+- Split every executable request into durable `WorkflowObligation`, Task
+  Version, Attempt, Activation and Dispatch aggregates. Runtime state now
+  requires start/heartbeat/settlement receipts and never infers `RUNNING`
+  from a historical Session snapshot.
+- Closed cancellation, late settlement, parent wakeup, Radio/Guidance,
+  Decision Answer/acknowledgement and Rework continuation with exact
+  Attempt/version fences.
+- Completed the Candidate → Verification → Integration → Completion pipeline.
+  Verification acceptance is no longer a false Task terminal; conflict,
+  stale and regression failures create explicit recovery outcomes.
+- Replaced async SQLite units of work with a short-transaction Command Saga.
+  External work runs outside database locks and is recovered through
+  `PENDING_EFFECT`, `RETRYABLE`, `EFFECT_APPLIED` and `COMMITTED` checkpoints.
+- Enforced the single-writer boundary for direct SQLite calls: every public
+  standalone `run`/`exec` write receives a short `BEGIN IMMEDIATE`
+  transaction; only startup PRAGMAs and `VACUUM` use the explicit maintenance
+  escape hatch.
+- Added ordered transactional-outbox delivery, dead letters and offsets;
+  durable Workspace reconciliation; Direction/Wave/DAG barriers; and
+  Task-rooted read/search/write/edit tools with operation-status recovery.
+- Added an honest DSH capability bridge, Desired/Applied role configuration,
+  immutable dispatch-policy receipts, principal-aware Web authority, governed
+  Artifact ACL/retention/legal hold/key rotation, and exact pricing status.
+- Added Runtime Center, the shared abort/timeout/dedupe/revision query layer,
+  cross-tab invalidation, RC.2 UI adapters and authoritative recovery health
+  including Command Saga drift.
+- Added governed Mission cancellation to Operations Center with target
+  selection, reason, preview, state-hash CAS, expiry, exact high-risk phrase,
+  Mission Kernel authorization and complete child-resource cleanup.
+- Standardized every Military-owned tool rejection into a bounded, redacted
+  envelope with one legal recovery tool and an exact RC.2-derived corrected
+  argument shape.
+- Made source archives Git-policy-derived and deterministic; build/release
+  outputs, local reports, databases and credentials remain excluded even when
+  packaging immediately after the full release gate.
+- Added production-plane contracts for PostgreSQL/object store/durable
+  queue/KMS adapters, local SQLite truth labels, topology readiness,
+  correlated telemetry, capacity/backpressure and signed backup drills.
+- Added the real-Provider Flash release gate: each exact configuration and
+  scenario requires 50 independent Sessions, first-tool and E2E Wilson
+  thresholds, and zero deterministic/safety violations. The gate only reads
+  immutable Session/Host receipts and never launches or fabricates paid runs.
+- Added migrations `0009` and `0010`, 216 deterministic tests, four ADRs and
+  documentation Part 69. Real external Flash acceptance remains
+  `INSUFFICIENT_SAMPLE` until a deployment supplies the required evidence.
+- Final review serialized lifecycle mutations, made exact Dispatch replay
+  side-effect free, rejected pre-start false settlement, settled no-Workspace
+  child bindings, surfaced partial resource cleanup, authenticated Artifact
+  reads, rebuilt the Artifact reference index during GC, and split the
+  evaluation/ingestion/control/session/host/coordination hotspots by stable
+  responsibility.
+
 ## 0.9.0-alpha.24 — 2026-08-27
 
 ### Installed multiline role-save repair

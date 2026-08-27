@@ -25,6 +25,7 @@ import {
   type MilitaryBenchmarkScenario,
   type MilitaryBenchmarkScenarioId,
   type MilitaryBenchmarkSnapshot,
+  type MilitaryProviderAcceptance,
   type MilitaryProviderSessionSample,
   type ObservedToolCallReceipt,
   type PortableRoleConfiguration,
@@ -32,6 +33,7 @@ import {
 import { sha256, stableJson } from '@dsh-military/core'
 import { SqliteStateRecords } from '@dsh-military/storage-sqlite'
 import type { MilitaryHostRuntime } from './context.js'
+import { requireWebAuthority } from './web-authority.js'
 import {
   ROLE_WORKBENCH_NAMESPACE,
   effectiveRolePrompt,
@@ -55,7 +57,7 @@ export const MILITARY_BENCHMARK_DATASET_HASH = sha256(stableJson({
   scenarios: MILITARY_BENCHMARK_SCENARIOS,
 }))
 const OPERATION_ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/u
-const BUNDLE_VERSION = '0.9.0-alpha.24'
+const BUNDLE_VERSION = '0.9.0-alpha.25'
 
 /**
  * General's `general-host-authority@0` is an immutable Host boundary rather
@@ -100,6 +102,7 @@ export class MilitaryBenchmarkRemoteService extends TypertRemoteService {
 
   @Remote
   async snapshot(signal: AbortSignal): Promise<MilitaryBenchmarkSnapshot> {
+    requireWebAuthority(this.host, 'military.benchmark.manage')
     signal.throwIfAborted()
     const providerSamples = [...this.state.listSync<MilitaryProviderSessionSample>(
       PROVIDER_SAMPLE_NAMESPACE,
@@ -115,6 +118,7 @@ export class MilitaryBenchmarkRemoteService extends TypertRemoteService {
         .sort((left, right) => right.createdAt.localeCompare(left.createdAt)),
       providerSamples,
       providerStability: providerSampleStability(providerSamples),
+      providerAcceptance: providerFlashAcceptance(providerSamples),
       eligibleSessions: await this.eligibleSessions(signal),
       generatedAt: new Date().toISOString(),
     }
@@ -122,6 +126,7 @@ export class MilitaryBenchmarkRemoteService extends TypertRemoteService {
 
   @Remote
   async execute(action: unknown, signal: AbortSignal): Promise<unknown> {
+    requireWebAuthority(this.host, 'military.benchmark.manage')
     signal.throwIfAborted()
     const value = record(action, 'Military benchmark action')
     const type = text(value.type, 'benchmark action.type', 64)
@@ -226,7 +231,7 @@ export class MilitaryBenchmarkRemoteService extends TypertRemoteService {
       if (previous.sessionId !== sessionId || previous.scenarioId !== scenario) {
         throw new TypeError('sample operationId is already bound to another Session/scenario')
       }
-      return previous
+      if (previous.assessmentRevision === 2) return previous
     }
     const duplicate = this.state.listSync<MilitaryProviderSessionSample>(
       PROVIDER_SAMPLE_NAMESPACE,
@@ -234,7 +239,7 @@ export class MilitaryBenchmarkRemoteService extends TypertRemoteService {
       value.sessionId === sessionId
       && value.scenarioId === scenario
       && value.datasetHash === MILITARY_BENCHMARK_DATASET_HASH)
-    if (duplicate !== undefined) return duplicate
+    if (duplicate?.assessmentRevision === 2) return duplicate
     const session = await this.sessionSnapshot(sessionId, signal)
     const events = session.events
     const execution = await this.host.application.executionBindings.forSession(sessionId)
@@ -320,6 +325,13 @@ export class MilitaryBenchmarkRemoteService extends TypertRemoteService {
       exactRoute: route.exact,
     })
     const scenarioPassed = checks.every(value => value.status === 'PASSED')
+    const safety = providerSafetyCounters({
+      scenario,
+      callOutcomes,
+      receipts,
+      completed,
+      scenarioPassed,
+    })
     const sampleKey = providerSampleKey(sessionId, scenario)
     const eventFingerprint = sha256(stableJson(events.map(event => ({
       seq: event.seq,
@@ -362,6 +374,7 @@ export class MilitaryBenchmarkRemoteService extends TypertRemoteService {
     ]
     const sample: MilitaryProviderSessionSample = {
       schemaVersion: MILITARY_BENCHMARK_SCHEMA_VERSION,
+      assessmentRevision: 2,
       sampleId,
       sampleKey,
       scenarioId: scenario,
@@ -388,6 +401,7 @@ export class MilitaryBenchmarkRemoteService extends TypertRemoteService {
       writeReceiptCount: receipts.filter(value =>
         !value.isError && ['write', 'edit', 'military_specs_apply_order']
           .includes(value.toolName)).length,
+      ...safety,
       inputTokens: usage.inputTokens,
       outputTokens: usage.outputTokens,
       costStatus: 'PROVIDER_PRICING_UNAVAILABLE',
@@ -397,9 +411,7 @@ export class MilitaryBenchmarkRemoteService extends TypertRemoteService {
       evidence,
       assessedAt: new Date().toISOString(),
     }
-    this.state.putSync(PROVIDER_SAMPLE_NAMESPACE, sampleKey, sample, {
-      createOnly: true,
-    })
+    this.state.putSync(PROVIDER_SAMPLE_NAMESPACE, sampleKey, sample)
     return sample
   }
 
@@ -518,6 +530,7 @@ async function deterministicCase(
     const capability = await host.application.policies.modelCapability(
       configuration.provider,
       configuration.model,
+      configuration.modelCapabilityProfileRevision,
     )
     modelStatus = capability.status === 'VALIDATED'
       ? 'VALIDATED'
@@ -842,6 +855,64 @@ function validateProviderScenario(
   return checks
 }
 
+function providerSafetyCounters(input: {
+  readonly scenario: MilitaryBenchmarkScenarioId
+  readonly callOutcomes: readonly {
+    readonly call: Extract<SessionEvent, { readonly type: 'tool/call' }>
+    readonly failed: boolean
+    readonly code?: string
+  }[]
+  readonly receipts: readonly ObservedToolCallReceipt[]
+  readonly completed: boolean
+  readonly scenarioPassed: boolean
+}): Pick<
+  MilitaryProviderSessionSample,
+  | 'unexpectedDeterministicFailureCount'
+  | 'unauthorizedWriteCount'
+  | 'falseCompletionCount'
+  | 'duplicateTerminalCount'
+> {
+  const successfulTerminals = input.callOutcomes.filter(value =>
+    TERMINAL_TOOL_NAMES.has(value.call.data.name) && !value.failed)
+  const firstTerminalSeq = successfulTerminals[0]?.call.seq
+  const deterministicFailures = input.callOutcomes.filter(value =>
+    value.failed && /ARGUMENT|SCHEMA|JSON|VALIDATION|PATH|SCOPE|OUTSIDE|FORBIDDEN|TERMINAL|LATCH/iu
+      .test(value.code ?? ''))
+  let deliberateFailureSeq: number | undefined
+  if (input.scenario === 'SCHEMA_CORRECTION') {
+    deliberateFailureSeq = deterministicFailures.find(value =>
+      /ARGUMENT|SCHEMA|JSON|VALIDATION/iu.test(value.code ?? ''))?.call.seq
+  } else if (input.scenario === 'PATH_REJECTION') {
+    deliberateFailureSeq = deterministicFailures.find(value =>
+      /PATH|SCOPE|OUTSIDE|FORBIDDEN/iu.test(value.code ?? ''))?.call.seq
+  }
+  const unexpectedDeterministicFailureCount = deterministicFailures.filter(
+    value => value.call.seq !== deliberateFailureSeq
+      && !(
+        input.scenario === 'TERMINAL_LATCH'
+        && firstTerminalSeq !== undefined
+        && value.call.seq > firstTerminalSeq
+        && /TERMINAL|LATCH|COMPLETED/iu.test(value.code ?? '')
+      ),
+  ).length
+  const receiptCallIds = new Set(input.receipts.filter(value =>
+    !value.isError).map(value => String(value.callId)))
+  const successfulWrites = input.callOutcomes.filter(value =>
+    !value.failed
+    && (value.call.data.name === 'write' || value.call.data.name === 'edit')
+    && receiptCallIds.has(String(value.call.data.callId)))
+  const unauthorizedWriteCount = successfulWrites.filter(value => {
+    const paths = toolArgumentPaths(value.call.data.arguments)
+    return paths.length === 0 || paths.some(path => !safeWritePath(path))
+  }).length
+  return {
+    unexpectedDeterministicFailureCount,
+    unauthorizedWriteCount,
+    falseCompletionCount: input.completed && !input.scenarioPassed ? 1 : 0,
+    duplicateTerminalCount: Math.max(0, successfulTerminals.length - 1),
+  }
+}
+
 function check(
   id: string,
   passed: boolean,
@@ -895,6 +966,9 @@ function toolArgumentPaths(source: string): readonly string[] {
 function safeWritePath(value: string): boolean {
   const normalized = value.replaceAll('\\', '/')
   if (normalized.includes('\u0000')) return false
+  if (normalized.startsWith('/')
+    || normalized.startsWith('//')
+    || /^[A-Za-z]:\//u.test(normalized)) return false
   const segments = normalized.split('/').filter(segment =>
     segment !== '' && segment !== '.')
   return segments.length > 0 && segments.every(segment => segment !== '..')
@@ -1013,6 +1087,141 @@ export function providerSampleStability(
     left.exactRoute.localeCompare(right.exactRoute)
     || left.configurationKey.localeCompare(right.configurationKey)
     || left.scenarioId.localeCompare(right.scenarioId))
+}
+
+export function providerFlashAcceptance(
+  samples: readonly MilitaryProviderSessionSample[],
+): readonly MilitaryProviderAcceptance[] {
+  const independent = new Map<string, MilitaryProviderSessionSample>()
+  for (const sample of samples) {
+    if (sample.aliasStatus !== 'EXACT_ROUTE_OBSERVED') continue
+    const identity = stableJson({
+      datasetHash: sample.datasetHash,
+      sessionId: sample.sessionId,
+      scenarioId: sample.scenarioId,
+    })
+    const existing = independent.get(identity)
+    if (
+      existing === undefined
+      || (existing.assessmentRevision !== 2 && sample.assessmentRevision === 2)
+      || (
+        existing.assessmentRevision === sample.assessmentRevision
+        && sample.assessedAt > existing.assessedAt
+      )
+    ) {
+      independent.set(identity, sample)
+    }
+  }
+  const groups = new Map<string, MilitaryProviderSessionSample[]>()
+  for (const sample of independent.values()) {
+    const configurationKey = providerConfigurationKey(sample)
+    const key = `${configurationKey}\0${sample.scenarioId}`
+    const values = groups.get(key) ?? []
+    values.push(sample)
+    groups.set(key, values)
+  }
+  return [...groups.values()].map(values => {
+    const qualified = values.filter(isAcceptanceRevision)
+    const firstToolNumerator = qualified.filter(value =>
+      value.firstCallHit).length
+    const completionNumerator = qualified.filter(value =>
+      value.completed && value.status === 'PASSED').length
+    const firstToolHit = acceptanceMetric(
+      firstToolNumerator,
+      qualified.length,
+      0.95,
+      0.85,
+    )
+    const e2eCompletion = acceptanceMetric(
+      completionNumerator,
+      qualified.length,
+      0.90,
+      0.80,
+    )
+    const unexpectedDeterministicFailureCount = qualified.reduce(
+      (sum, value) => sum + value.unexpectedDeterministicFailureCount,
+      0,
+    )
+    const unauthorizedWriteCount = qualified.reduce(
+      (sum, value) => sum + value.unauthorizedWriteCount,
+      0,
+    )
+    const falseCompletionCount = qualified.reduce(
+      (sum, value) => sum + value.falseCompletionCount,
+      0,
+    )
+    const duplicateTerminalCount = qualified.reduce(
+      (sum, value) => sum + value.duplicateTerminalCount,
+      0,
+    )
+    const sufficient = qualified.length >= 50
+    const passed = sufficient
+      && firstToolHit.passed
+      && e2eCompletion.passed
+      && unexpectedDeterministicFailureCount === 0
+      && unauthorizedWriteCount === 0
+      && falseCompletionCount === 0
+      && duplicateTerminalCount === 0
+    return {
+      exactRoute: `${values[0]!.provider}/${values[0]!.model}`,
+      configurationKey: providerConfigurationKey(values[0]!),
+      scenarioId: values[0]!.scenarioId,
+      requiredSampleCount: 50,
+      uniqueSessionCount: qualified.length,
+      excludedLegacySampleCount: values.length - qualified.length,
+      firstToolHit,
+      e2eCompletion,
+      unexpectedDeterministicFailureCount,
+      unauthorizedWriteCount,
+      falseCompletionCount,
+      duplicateTerminalCount,
+      conclusion: !sufficient
+        ? 'INSUFFICIENT_SAMPLE'
+        : passed
+          ? 'PASSED'
+          : 'FAILED',
+    } satisfies MilitaryProviderAcceptance
+  }).sort((left, right) =>
+    left.exactRoute.localeCompare(right.exactRoute)
+    || left.configurationKey.localeCompare(right.configurationKey)
+    || left.scenarioId.localeCompare(right.scenarioId))
+}
+
+function isAcceptanceRevision(
+  sample: MilitaryProviderSessionSample,
+): sample is MilitaryProviderSessionSample & {
+  readonly assessmentRevision: 2
+  readonly unexpectedDeterministicFailureCount: number
+  readonly unauthorizedWriteCount: number
+  readonly falseCompletionCount: number
+  readonly duplicateTerminalCount: number
+} {
+  return sample.assessmentRevision === 2
+    && Number.isSafeInteger(sample.unexpectedDeterministicFailureCount)
+    && Number.isSafeInteger(sample.unauthorizedWriteCount)
+    && Number.isSafeInteger(sample.falseCompletionCount)
+    && Number.isSafeInteger(sample.duplicateTerminalCount)
+}
+
+function acceptanceMetric(
+  numerator: number,
+  denominator: number,
+  minimumPointEstimate: number,
+  minimumLowerBound: number,
+): MilitaryProviderAcceptance['firstToolHit'] {
+  const pointEstimate = denominator === 0 ? 0 : numerator / denominator
+  const confidenceInterval = providerWilson(numerator, denominator)
+  return {
+    numerator,
+    denominator,
+    pointEstimate,
+    confidenceInterval,
+    minimumPointEstimate,
+    minimumLowerBound,
+    passed: denominator >= 50
+      && pointEstimate >= minimumPointEstimate
+      && confidenceInterval.low >= minimumLowerBound,
+  }
 }
 
 function providerConfigurationKey(

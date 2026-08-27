@@ -71,3 +71,4 @@
 | 66 | [Legacy → RC.2 升级运行手册](66-legacy-to-rc2-upgrade-runbook.md) | 备份、迁移、Fixture、回滚和数据边界 |
 | 67 | [Military 控制中心、Flash 工作台与可访问性](67-military-control-center-flash-workbench-and-accessibility.md) | 15 项设置、诊断、恢复、工作区、知识、评测与浏览器交付 |
 | 68 | [General 全流程、DSH 全模型与设置持久化](68-general-workflow-live-models-and-settings-persistence.md) | Host 工作流义务、live catalog 可用性、reasoning 适配、原子保存与 71fe 回归 |
+| 69 | [执行活性、Flash 外部验收与生产可信度](69-execution-liveness-flash-and-production-readiness.md) | Execution aggregates、Command Saga、Runtime Center、Flash gate 与 Production Plane |

@@ -56,7 +56,10 @@ const taskDraft = source('packages/tools/src/task-draft.ts')
 const settingsHost = source('packages/plugin-host/src/settings.ts')
 const settingsCenter = source('packages/webui/src/client/settings-center.tsx')
 const roleWorkbench = source('packages/webui/src/client/role-workbench.tsx')
-const controlPlane = source('packages/plugin-host/src/control-plane-remote.ts')
+const controlPlane = [
+  source('packages/plugin-host/src/control-plane-remote.ts'),
+  source('packages/plugin-host/src/control-plane-support.ts'),
+].join('\n')
 const operationsRemote = source('packages/plugin-host/src/operations-remote.ts')
 const workspaceRemote = source('packages/plugin-host/src/workspace-remote.ts')
 const benchmarkRemote = source('packages/plugin-host/src/benchmark-remote.ts')
@@ -69,14 +72,18 @@ const lightweightSpecs = source('packages/tools/src/engineer.ts')
 const pkg = JSON.parse(read('package.json'))
 
 add(
-  'C1-atomic-mission-uow',
+  'C1-durable-command-saga',
   missionKernel.includes('ledger.transactCommand(')
-    && sqliteLedger.includes('transactionAsync(')
+    && !sqliteLedger.includes('transactionAsync(')
+    && sqliteLedger.includes('mission_command_operations')
+    && sqliteLedger.includes('PENDING_EFFECT')
+    && sqliteLedger.includes('EFFECT_APPLIED')
     && sqliteDatabase.includes('BEGIN IMMEDIATE')
     && sqliteDatabase.includes('ROLLBACK')
+    && sqliteDatabase.includes('transaction callbacks must be synchronous')
     && sqliteLedger.includes('mission_command_receipts')
     && sqliteLedger.includes('result_json'),
-  'Mission admission, domain operation, durable result/receipt, and outbox share one SQLite transaction with rollback.',
+  'Mission admission, external effect, durable checkpoint, receipt, and outbox use a crash-recoverable Saga while SQLite transactions remain synchronous and short.',
 )
 
 const canonical = toolAuthorization.indexOf('await authorizeToolPath(')
@@ -190,7 +197,7 @@ add(
     && web.includes("'sidebar.footer.action'")
     && web.includes("'shell.overlay'")
     && !web.includes("'settings.section'")
-    && settingsCenter.includes('data-role-prompt-editor')
+    && roleWorkbench.includes('data-role-prompt-editor')
     && exists('scripts/build-webui-rc2.mjs')
     && exists('tests/webui-reactivity.test.ts'),
   'WebUI uses stable RC.2 snapshots, adopts external values, owns explicit HMR cleanup, and exposes its modal role-prompt editor through behavior-tested sidebar/overlay surfaces.',
@@ -301,7 +308,9 @@ add(
 add(
   'H23-admitted-tool-settlement',
   toolPipeline.includes('const admittedCalls = new Set<string>()')
-    && /if \(admitted\) \{[\s\S]*settleToolExecutionBudget/u.test(toolPipeline)
+    && /if \(admitted\) \{[\s\S]*toolExecutionUsageReceipt/u.test(toolPipeline)
+    && toolPipeline.includes('Promise.allSettled')
+    && toolPipeline.includes("topic: 'tool-execution.settle'")
     && toolPipeline.includes("policies.toolProfile('general-tools')"),
   'Only admitted Tool calls settle a reservation, while General is also constrained by its immutable ToolProfile.',
 )
@@ -328,9 +337,11 @@ add(
     && completionInterlock.includes('maximumNoProgressTurns')
     && requestRouting.includes('USER_CANCELLED')
     && specialHost.includes('abortMilitaryAgent')
-    && specialHost.includes('application.runtime.cancelTask')
+    && !specialHost.includes('application.runtime.cancelTask')
+    && operationsRemote.includes('application.runtime.cancelMission')
+    && operationsRemote.includes('forgetDepartmentChild')
     && taskReducer.includes("case 'task/cancelled'"),
-  'Step/no-progress/user abort boundaries terminate Agents, cancel Tasks and release governed resources.',
+  'Invocation abort settles only its Activation, while explicit Mission cancellation passes through the Kernel and releases every governed child resource.',
 )
 
 add(
@@ -387,8 +398,8 @@ add(
     && localGit.includes("'--only'")
     && specialHost.includes('materialStatusPaths')
     && rc2E2e.includes('initialEngineerRequest')
-    && rc2E2e.includes("'write'")
-    && rc2E2e.includes("'edit'")
+    && rc2E2e.includes('military_workspace_write')
+    && rc2E2e.includes('military_workspace_edit')
     && exists('tests/fixtures/4844-session-regression.json')
     && exists('tests/4844-session-regression.test.ts'),
   '4844 first-request parity, Task tool ceiling, one-action Engineer Specs flow, directory reads, metadata-safe Git and real RC.2 Worker write/edit are regression-locked.',
@@ -419,7 +430,8 @@ add(
     && !web.includes("'settings.section'")
     && web.includes('connection={connection}')
     && settingsCenter.includes('<RoleWorkbench')
-    && roleWorkbench.includes('militaryControlPlane/snapshot')
+    && roleWorkbench.includes("'militaryControlPlane'")
+    && roleWorkbench.includes("'snapshot'")
     && roleWorkbench.includes('data-role-prompt-editor')
     && roleWorkbench.includes('恢复自带提示词')
     && controlPlane.includes('ctx.llm.listModels(provider.id)')
@@ -440,8 +452,8 @@ add(
     && workerTools.includes("event.type !== 'radio/requested'")
     && lightweightSpecs.includes('military_specs_stage_chunk')
     && exists('tests/lightweight-specs-staging.test.ts')
-    && rc2E2e.includes('Task toolCalls budget did not narrow')
-    && rc2E2e.includes('Task wallClockSeconds did not narrow')
+    && rc2E2e.includes('Host-derived Task tool budget did not narrow')
+    && rc2E2e.includes('Host-derived Task wall-clock budget did not narrow')
     && rc2E2e.includes('Task default must cap the Flash-primary'),
   'Task step/tool/Radio/wall-clock/output limits execute at Host boundaries, while staged Specs preserve large-document capability.',
 )
@@ -517,7 +529,7 @@ add(
 
 const failed = checks.filter(check => !check.ok)
 const report = {
-  version: '0.9.0-alpha.24',
+  version: '0.9.0-alpha.25',
   generatedAt: new Date().toISOString(),
   baseline: {
     release: '0.1.1-rc.2',

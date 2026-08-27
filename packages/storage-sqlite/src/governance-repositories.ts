@@ -217,8 +217,16 @@ export class SqliteMilitaryPolicyRegistry implements MilitaryPolicyRegistry {
     return this.#get<PermissionProfile>('permission', id, revision)
   }
 
-  async modelCapability(provider: string, model: string): Promise<ModelCapabilityProfile> {
-    return this.#get<ModelCapabilityProfile>('model', `${provider}\u0000${model}`)
+  async modelCapability(
+    provider: string,
+    model: string,
+    revision?: number,
+  ): Promise<ModelCapabilityProfile> {
+    return this.#get<ModelCapabilityProfile>(
+      'model',
+      `${provider}\u0000${model}`,
+      revision,
+    )
   }
 
   async verifierProfile(id: string, revision?: number): Promise<VerifierProfile> {
@@ -257,8 +265,10 @@ interface TemplateState {
 
 /** Durable versioned department template provider. */
 export class SqliteAgentTemplateRegistry implements MilitaryAgentTemplates {
+  readonly #database: SqliteMilitaryDatabase
   readonly #records: SqliteStateRecords
   constructor(database: SqliteMilitaryDatabase, tenantId: string) {
+    this.#database = database
     this.#records = new SqliteStateRecords(database, tenantId)
   }
 
@@ -305,7 +315,14 @@ export class SqliteAgentTemplateRegistry implements MilitaryAgentTemplates {
 
   async revise(profile: AgentTemplateProfile, expectedRevision: Revision): Promise<void> {
     validateTemplate(profile)
-    await this.#records.update<TemplateState | null, null>(
+    this.#reviseSync(profile, expectedRevision)
+  }
+
+  #reviseSync(
+    profile: AgentTemplateProfile,
+    expectedRevision: Revision,
+  ): void {
+    this.#records.updateSync<TemplateState | null, null>(
       'agent-template',
       String(profile.templateId),
       () => null,
@@ -322,6 +339,31 @@ export class SqliteAgentTemplateRegistry implements MilitaryAgentTemplates {
         }
       },
     )
+  }
+
+  async reviseBatch(
+    revisions: readonly {
+      readonly profile: AgentTemplateProfile
+      readonly expectedRevision: Revision
+    }[],
+  ): Promise<void> {
+    const seen = new Set<string>()
+    for (const change of revisions) {
+      validateTemplate(change.profile)
+      const id = String(change.profile.templateId)
+      if (seen.has(id)) throw new MilitaryError('INVALID_ARGUMENT', `duplicate template ${id}`)
+      seen.add(id)
+      const current = await this.get(change.profile.templateId)
+      if (Number(current.revision) !== Number(change.expectedRevision)
+        || Number(change.profile.revision) !== Number(change.expectedRevision) + 1) {
+        throw new MilitaryError('REVISION_CONFLICT')
+      }
+    }
+    this.#database.transaction(() => {
+      for (const change of revisions) {
+        this.#reviseSync(change.profile, change.expectedRevision)
+      }
+    })
   }
 
   async setStatus(templateId: AgentTemplateId, status: AgentTemplateProfile['status']): Promise<void> {

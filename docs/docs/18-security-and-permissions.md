@@ -151,10 +151,13 @@ Agent/Model/API/Artifact 各有 classification ceiling。路由到外部模型�
 
 Workspace 路径授权必须处理绝对路径、符号链接、大小写、Git worktree 和临时文件。普通 Session 与 Military Session 同 cwd 不代表互相获得会话控制权。
 
-## 0.9.0-alpha.24 Web 控制面安全
+## 0.9.0-alpha.25 Web 控制面安全
 
 - Client 只提交角色草稿、用户选择的 lint 位置、不透明 workspace ID、已有
   Session ID 和受限 operation intent；
+- Remote 每次从 DSH connection/Host authority 解析 principal 与 tenant；本地
+  单用户 Profile 使用明确 local principal boundary，不使用硬编码 `web-user`
+  冒充企业身份；
 - actor、tenant、authority、revision、hash、时间、absolute path、receipt 和
   capability 状态均由 Host 解析或生成；
 - 在线 Canary 固定为显式确认的只读工具面，不获得 Workspace 写权限；
@@ -164,6 +167,8 @@ Workspace 路径授权必须处理绝对路径、符号链接、大小写、Git 
 - recall simulation 不创建 Task、不调用模型、不授予工具，只保存输入 hash；
 - benchmark assessment 只读既有 Session/receipt，不自动发起付费 Provider 请求
   或晋升模型；
+- benchmark evidence export 只包含脱敏评估字段；真实 Flash acceptance 对每个
+  exact configuration/scenario 执行 N≥50、Wilson 和零安全失败门；
 - Evaluation Client 只能提交结构化筛选、报告/Job id、申诉文本和已有 Evidence id，
   不能提交权威 actor、dataset hash、configuration、指标、decision 或 receipt；
 - Dataset Builder 只读取 actual preset=`military` 且通过 Host
@@ -178,3 +183,22 @@ Workspace 路径授权必须处理绝对路径、符号链接、大小写、Git 
   RBAC、独立 Examiner 身份隔离或双人审批；
 - 恢复操作必须预览、精确确认、幂等并写 receipt，UI 不提供原始 SQLite/Git
   控制。
+
+### Artifact Reference 授权
+
+Content Blob 与 Artifact Reference 是两个对象。Blob hash 只用于完整性和去重；
+Reference 另绑定 tenant、workflow/Mission/Task、classification、owner、
+audience/grant、scope、expiry、retention 和 lineage。知道 hash 不等于读取授权。
+相同内容被不同分类引用时按最高分类传播，低分类 Reference 不能降级内容。
+
+restricted/raw Artifact 支持加密、密钥轮换、legal hold、retention cleanup、
+deletion receipt 和 orphan GC。每次模型 Dispatch 记录实际 provider/model、
+classification、residency、redaction policy 与 policy revision；不得在通用路径
+硬编码 `internal`。
+
+读取 Blob 时必须同时存在 metadata，并在解密后重新验证 SHA-256 与
+`byteLength`；密文认证失败、内容漂移和 metadata 漂移统一 fail closed。
+GC 以 metadata 重新构造 Reference Index，修复“metadata 已提交但索引未提交”
+的崩溃窗口；无 metadata 的 Blob 作为不可达孤儿删除。若仍有 active/retention/
+legal-hold authority 的 metadata 丢失 Blob，GC 必须报
+`PERSISTENCE_FAILED`，不得把数据丢失伪装成正常清理。

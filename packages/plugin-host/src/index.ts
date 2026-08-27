@@ -9,6 +9,7 @@ import { provideMilitaryServices } from './context.js'
 import { DefaultMilitaryHostRuntime } from './host-runtime.js'
 import { installMilitarySettings } from './settings.js'
 import { installMilitaryPromptSurface } from './prompt-surface.js'
+import { initialPhaseVisibleTools } from './agent-lifecycle.js'
 import { installPrivateSkillProvider } from './private-skill-provider.js'
 import { PrivateSkillRemoteService } from './private-skill-remote.js'
 import { MilitaryControlPlaneRemoteService } from './control-plane-remote.js'
@@ -16,6 +17,7 @@ import { MilitaryOperationsRemoteService } from './operations-remote.js'
 import { MilitaryWorkspaceRemoteService } from './workspace-remote.js'
 import { MilitaryBenchmarkRemoteService } from './benchmark-remote.js'
 import { MilitaryEvaluationRemoteService } from './evaluation-remote.js'
+import { MilitaryRuntimeRemoteService } from './runtime-remote.js'
 import './session-events.js'
 
 export const name = 'dsh-military-host'
@@ -23,6 +25,7 @@ export const inject = ['agents', 'tools', 'settings', 'agentPresets', 'subagents
 export const Config = ConfigSchema
 export type { PluginConfig }
 export * from './context.js'
+export * from './coordination-maintenance.js'
 export * from './identity.js'
 export * from './application-factory.js'
 export * from './host-runtime.js'
@@ -30,6 +33,7 @@ export * from './specs-control.js'
 export * from './defaults.js'
 export * from './rc2-adapter.js'
 export * from './tool-authorization.js'
+export * from './tool-error.js'
 export * from './model-budget.js'
 export * from './model-catalog-bridge.js'
 export * from './dsh-call-controls.js'
@@ -52,6 +56,9 @@ export * from './evaluation-remote.js'
 export * from './performance-narrative.js'
 export * from './session-adapters.js'
 export * from './role-usage.js'
+export * from './runtime-remote.js'
+export * from './agent-lifecycle.js'
+export * from './web-authority.js'
 
 export async function apply(ctx: Context, config: PluginConfig): Promise<void> {
   const effective: PluginConfig = {
@@ -81,7 +88,11 @@ export async function apply(ctx: Context, config: PluginConfig): Promise<void> {
     const profileRef = identity === undefined
       ? 'department-tools@pending'
       : `${identity.role}-tools@pending`
-    return installMilitaryPromptSurface(agent, profileRef)
+    return installMilitaryPromptSurface(
+      agent,
+      profileRef,
+      async () => initialPhaseVisibleTools(identity?.role),
+    )
   })
   const disposeServices = provideMilitaryServices(ctx, host)
   const privateSkillRemote = new PrivateSkillRemoteService(ctx, host)
@@ -90,6 +101,7 @@ export async function apply(ctx: Context, config: PluginConfig): Promise<void> {
   void new MilitaryWorkspaceRemoteService(ctx, host)
   void new MilitaryBenchmarkRemoteService(ctx, host)
   void new MilitaryEvaluationRemoteService(ctx, host)
+  void new MilitaryRuntimeRemoteService(ctx, host)
   installPrivateSkillProvider(ctx, host.application.ingestion)
   installMilitarySettings(ctx, host, privateSkillRemote)
   const report = await host.application.compatibility.probe(new AbortController().signal)

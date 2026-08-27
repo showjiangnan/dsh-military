@@ -11,12 +11,17 @@ import {
 } from '@dsh-military/contracts'
 import {
   buildDiagnosticReport,
+  localSingleUserWebPrincipal,
   MilitaryOperationsRemoteService,
   redactDiagnosticText,
   redactToolArguments,
   type MilitaryHostRuntime,
 } from '@dsh-military/plugin-host'
-import { SqliteMilitaryDatabase } from '@dsh-military/storage-sqlite'
+import { LocalEd25519AssetSigner } from '@dsh-military/infrastructure'
+import {
+  SqliteMilitaryDatabase,
+  createSqliteProductionPlane,
+} from '@dsh-military/storage-sqlite'
 import { temporaryDirectory } from '@dsh-military/testkit'
 import { identity, stamp } from './helpers.js'
 
@@ -204,6 +209,10 @@ test('recovery RPC exposes previewed idempotent database verification and no raw
   })
   try {
     const currentGeneration = `military@sha256:${'a'.repeat(64)}`
+    const missionForCancellation = 'mission-explicit-cancellation'
+    const cancellationCalls: unknown[] = []
+    const forgottenChildren: string[] = []
+    let abortAfterMissionCommit: (() => void) | undefined
     database.db.prepare(`
       INSERT INTO preset_generations(
         generation, public_preset_id, hidden_archive_id, asset_hash,
@@ -216,8 +225,86 @@ test('recovery RPC exposes previewed idempotent database verification and no raw
       'b150a551b8d465e31e418e1b2eaf5e79bbb7d28e',
       '2026-08-26T00:00:00.000Z',
     )
+    const missionActor = identity('general')
+    database.transaction(() => {
+      database.db.prepare(`
+        INSERT INTO mission_streams(
+          tenant_id, mission_id, aggregate_revision, last_seq, status,
+          created_at, updated_at
+        ) VALUES (?, ?, 1, 1, 'ACTIVE', ?, ?)
+      `).run(
+        'tenant-recovery',
+        missionForCancellation,
+        stamp(),
+        stamp(),
+      )
+      database.db.prepare(`
+        INSERT INTO mission_events(
+          tenant_id, mission_id, seq, aggregate_revision, event_id,
+          event_type, schema_version, actor_json, payload_json,
+          occurred_at, event_hash
+        ) VALUES (?, ?, 1, 1, ?, 'mission/started', '2.0.0', ?, ?, ?, ?)
+      `).run(
+        'tenant-recovery',
+        missionForCancellation,
+        'event-mission-started-cancellation',
+        JSON.stringify(missionActor),
+        JSON.stringify({
+          title: '显式取消回归 Mission',
+          rootSessionId: String(missionActor.sessionId),
+          authorityContextRef: 'authority-fixture',
+        }),
+        stamp(),
+        'a'.repeat(64),
+      )
+      const executionBinding = {
+        schemaVersion: '1.0.0',
+        bindingId: 'binding-cancel-child',
+        tenantId: 'tenant-recovery',
+        missionId: missionForCancellation,
+        rootSessionId: String(missionActor.sessionId),
+        agent: {
+          ...identity('worker'),
+          sessionId: 'session-cancel-child',
+        },
+        templateId: 'worker-default',
+        templateRevision: 1,
+        presetGeneration: currentGeneration,
+        provider: 'provider-fixture',
+        model: 'model-fixture',
+        reasoningEffort: 'low',
+        capabilityGrantId: 'grant-cancel-child',
+        concurrencyReservationId: 'capacity-cancel-child',
+        toolProfile: { id: 'worker-tools', revision: 1 },
+        permissionProfile: { id: 'worker-permission', revision: 1 },
+        resourceBudgetPolicy: { id: 'budget-default', revision: 1 },
+        createdAt: stamp(),
+      }
+      database.db.prepare(`
+        INSERT INTO agent_execution_bindings(
+          tenant_id, binding_id, root_session_id, mission_id, agent_id,
+          agent_generation, template_id, template_revision,
+          preset_generation, provider, model, reasoning_effort,
+          binding_json, created_at
+        ) VALUES (?, ?, ?, ?, ?, 1, ?, 1, ?, ?, ?, ?, ?, ?)
+      `).run(
+        'tenant-recovery',
+        executionBinding.bindingId,
+        executionBinding.rootSessionId,
+        executionBinding.missionId,
+        executionBinding.agent.agentId,
+        executionBinding.templateId,
+        executionBinding.presetGeneration,
+        executionBinding.provider,
+        executionBinding.model,
+        executionBinding.reasoningEffort,
+        JSON.stringify(executionBinding),
+        executionBinding.createdAt,
+      )
+    })
     const host = {
       tenantId: 'tenant-recovery',
+      webPrincipal: localSingleUserWebPrincipal('tenant-recovery'),
       database,
       config: {
         dataRoot: temporary.path,
@@ -226,7 +313,19 @@ test('recovery RPC exposes previewed idempotent database verification and no raw
       isMilitaryAgent() {
         return false
       },
+      async forgetDepartmentChild(childSessionId: string) {
+        forgottenChildren.push(childSessionId)
+      },
       application: {
+        production: createSqliteProductionPlane({
+          database,
+          databasePath: `${temporary.path}/military.sqlite`,
+          dataRoot: temporary.path,
+          tenantId: 'tenant-recovery',
+          signer: new LocalEd25519AssetSigner(
+            `${temporary.path}/signing-keys`,
+          ),
+        }),
         presetGenerations: {
           async current() {
             return {
@@ -238,6 +337,64 @@ test('recovery RPC exposes previewed idempotent database verification and no raw
                 commit: 'b150a551b8d465e31e418e1b2eaf5e79bbb7d28e',
               },
             }
+          },
+        },
+        ledger: {
+          async readMission() {
+            const row = database.db.prepare(`
+              SELECT aggregate_revision FROM mission_streams
+              WHERE tenant_id = ? AND mission_id = ?
+            `).get(
+              'tenant-recovery',
+              missionForCancellation,
+            ) as { readonly aggregate_revision: number }
+            return {
+              missionId: brand<string, 'MissionId'>(missionForCancellation),
+              revision: brand<number, 'Revision'>(row.aggregate_revision),
+              events: [],
+            }
+          },
+        },
+        missionKernel: {
+          async execute(command: unknown, operation: () => Promise<unknown>) {
+            return {
+              receipt: { command },
+              value: await operation(),
+            }
+          },
+        },
+        runtime: {
+          async cancelMission(input: unknown) {
+            cancellationCalls.push(input)
+            database.transaction(() => {
+              database.db.prepare(`
+                INSERT INTO mission_events(
+                  tenant_id, mission_id, seq, aggregate_revision, event_id,
+                  event_type, schema_version, actor_json, payload_json,
+                  occurred_at, event_hash
+                ) VALUES (?, ?, 2, 2, ?, 'mission/cancelled', '2.0.0',
+                  ?, ?, ?, ?)
+              `).run(
+                'tenant-recovery',
+                missionForCancellation,
+                'event-mission-cancelled-fixture',
+                JSON.stringify((input as { actor: unknown }).actor),
+                JSON.stringify({
+                  reason: (input as { reason: string }).reason,
+                  cancellationReceiptRef: (input as {
+                    cancellationReceiptRef: string
+                  }).cancellationReceiptRef,
+                }),
+                stamp(),
+                'b'.repeat(64),
+              )
+              database.db.prepare(`
+                UPDATE mission_streams
+                SET aggregate_revision = 2, last_seq = 2, updated_at = ?
+                WHERE tenant_id = ? AND mission_id = ?
+              `).run(stamp(), 'tenant-recovery', missionForCancellation)
+            })
+            abortAfterMissionCommit?.()
           },
         },
       },
@@ -253,8 +410,8 @@ test('recovery RPC exposes previewed idempotent database verification and no raw
     assert.equal(snapshot.recovery.items.find(value => value.id === 'SQLITE')?.status, 'HEALTHY')
     const presetHealth = snapshot.recovery.items.find(value => value.id === 'PRESET')
     assert.equal(presetHealth?.status, 'HEALTHY')
-    assert.match(presetHealth?.summary ?? '', /0\.9\.0-alpha\.24/u)
-    assert.ok(presetHealth?.details.includes('运行 Bundle 0.9.0-alpha.24'))
+    assert.match(presetHealth?.summary ?? '', /0\.9\.0-alpha\.25/u)
+    assert.ok(presetHealth?.details.includes('运行 Bundle 0.9.0-alpha.25'))
     assert.ok(presetHealth?.details.some(value => value.includes('初始归档 0.9.0-alpha.14')))
     assert.equal(snapshot.recovery.databasePathLabel, 'military.sqlite')
     assert.doesNotMatch(JSON.stringify(snapshot), new RegExp(escapeRegex(temporary.path), 'u'))
@@ -267,13 +424,18 @@ test('recovery RPC exposes previewed idempotent database verification and no raw
     const preview = await service.execute(
       action,
       AbortSignal.timeout(5_000),
-    ) as { readonly confirmationPhrase: string; readonly scope: string }
+    ) as {
+      readonly confirmationPhrase: string
+      readonly scope: string
+      readonly previewHash: string
+    }
     assert.equal(preview.scope, 'tenant:tenant-recovery')
     await assert.rejects(
       service.execute({
         type: 'EXECUTE_RECOVERY',
         operation: 'VERIFY_DATABASE',
         operationId: 'verify-fixture-1',
+        previewHash: preview.previewHash,
         confirmation: 'wrong phrase',
       }, AbortSignal.timeout(5_000)),
       /确认短语不匹配/u,
@@ -282,12 +444,14 @@ test('recovery RPC exposes previewed idempotent database verification and no raw
       type: 'EXECUTE_RECOVERY',
       operation: 'VERIFY_DATABASE',
       operationId: 'verify-fixture-1',
+      previewHash: preview.previewHash,
       confirmation: preview.confirmationPhrase,
     }, AbortSignal.timeout(5_000))
     const duplicate = await service.execute({
       type: 'EXECUTE_RECOVERY',
       operation: 'VERIFY_DATABASE',
       operationId: 'verify-fixture-1',
+      previewHash: preview.previewHash,
       confirmation: preview.confirmationPhrase,
     }, AbortSignal.timeout(5_000))
     assert.deepEqual(duplicate, executed)
@@ -303,15 +467,49 @@ test('recovery RPC exposes previewed idempotent database verification and no raw
       1,
     )
 
+    const stalePreview = await service.execute({
+      type: 'PREVIEW_RECOVERY',
+      operation: 'VERIFY_DATABASE',
+      operationId: 'verify-stale-fixture',
+    }, AbortSignal.timeout(5_000)) as {
+      readonly previewHash: string
+      readonly confirmationPhrase: string
+    }
+    database.db.prepare(`
+      INSERT INTO durable_state_records(
+        tenant_id, namespace, record_key, storage_revision, value_json,
+        updated_at
+      ) VALUES (?, ?, ?, 1, '{}', ?)
+    `).run(
+      'tenant-recovery',
+      'external-authoritative-drift',
+      'fixture',
+      new Date().toISOString(),
+    )
+    await assert.rejects(
+      service.execute({
+        type: 'EXECUTE_RECOVERY',
+        operation: 'VERIFY_DATABASE',
+        operationId: 'verify-stale-fixture',
+        previewHash: stalePreview.previewHash,
+        confirmation: stalePreview.confirmationPhrase,
+      }, AbortSignal.timeout(5_000)),
+      /权威状态已变化/u,
+    )
+
     const backupPreview = await service.execute({
       type: 'PREVIEW_RECOVERY',
       operation: 'CREATE_BACKUP',
       operationId: 'backup-fixture-1',
-    }, AbortSignal.timeout(5_000)) as { readonly confirmationPhrase: string }
+    }, AbortSignal.timeout(5_000)) as {
+      readonly confirmationPhrase: string
+      readonly previewHash: string
+    }
     const backup = await service.execute({
       type: 'EXECUTE_RECOVERY',
       operation: 'CREATE_BACKUP',
       operationId: 'backup-fixture-1',
+      previewHash: backupPreview.previewHash,
       confirmation: backupPreview.confirmationPhrase,
     }, AbortSignal.timeout(5_000)) as {
       readonly status: string
@@ -319,10 +517,63 @@ test('recovery RPC exposes previewed idempotent database verification and no raw
     }
     assert.equal(backup.status, 'COMPLETED')
     assert.ok(backup.evidence.some(value => /^backup-sha256:[a-f0-9]{64}$/u.test(value)))
-    assert.ok(backup.evidence.includes('backup-integrity-check:ok'))
-    assert.deepEqual(await readdir(`${temporary.path}/backups`), [
-      'military-backup-fixture-1.sqlite',
-    ])
+    assert.ok(backup.evidence.includes('sqlite-integrity:ok'))
+    const backupFiles = await readdir(`${temporary.path}/backups`)
+    assert.equal(
+      backupFiles.filter(value => value.endsWith('.sqlite')).length,
+      1,
+    )
+    assert.equal(
+      backupFiles.filter(value =>
+        value.endsWith('.manifest.json')).length,
+      1,
+    )
+
+    const cancelPreview = await service.execute({
+      type: 'PREVIEW_RECOVERY',
+      operation: 'CANCEL_MISSION',
+      operationId: 'cancel-mission-fixture-1',
+      scope: missionForCancellation,
+      reason: '用户确认该测试 Mission 不再继续执行',
+    }, AbortSignal.timeout(5_000)) as {
+      readonly confirmationPhrase: string
+      readonly previewHash: string
+      readonly risk: string
+      readonly reason: string
+      readonly changes: readonly string[]
+    }
+    assert.equal(cancelPreview.risk, 'HIGH')
+    assert.equal(cancelPreview.reason, '用户确认该测试 Mission 不再继续执行')
+    assert.ok(cancelPreview.changes.some(value =>
+      value.includes('1 个已绑定 Activation')))
+    const cancellationController = new AbortController()
+    abortAfterMissionCommit = () => {
+      cancellationController.abort(new Error('browser disconnected after commit'))
+    }
+    const cancellation = await service.execute({
+      type: 'EXECUTE_RECOVERY',
+      operation: 'CANCEL_MISSION',
+      operationId: 'cancel-mission-fixture-1',
+      scope: missionForCancellation,
+      previewHash: cancelPreview.previewHash,
+      confirmation: cancelPreview.confirmationPhrase,
+    }, cancellationController.signal) as {
+      readonly status: string
+      readonly evidence: readonly string[]
+    }
+    assert.equal(cancellation.status, 'COMPLETED')
+    assert.equal(cancellationCalls.length, 1)
+    assert.deepEqual(forgottenChildren, ['session-cancel-child'])
+    assert.ok(cancellation.evidence.some(value =>
+      value.startsWith('mission-cancellation-receipt:')))
+    const afterCancellation = await service.snapshot(
+      AbortSignal.timeout(5_000),
+    )
+    assert.equal(
+      afterCancellation.missions.find(value =>
+        value.missionId === missionForCancellation)?.state,
+      'CANCELLED',
+    )
 
     restartedContext = new Context()
     const restarted = new MilitaryOperationsRemoteService(restartedContext, host)
@@ -331,6 +582,7 @@ test('recovery RPC exposes previewed idempotent database verification and no raw
         type: 'EXECUTE_RECOVERY',
         operation: 'CREATE_BACKUP',
         operationId: 'backup-fixture-1',
+        previewHash: backupPreview.previewHash,
         confirmation: backupPreview.confirmationPhrase,
       }, AbortSignal.timeout(5_000)),
       backup,

@@ -48,6 +48,9 @@
     "missionId": {
       "$ref": "common-defs.schema.json#/$defs/id"
     },
+    "dataClassification": {
+      "$ref": "common-defs.schema.json#/$defs/classification"
+    },
     "agent": {
       "$ref": "common-defs.schema.json#/$defs/agentIdentity"
     },
@@ -90,6 +93,39 @@
     },
     "modelCapabilityProfileId": {
       "$ref": "common-defs.schema.json#/$defs/id"
+    },
+    "modelCapabilityProfileRevision": {
+      "$ref": "common-defs.schema.json#/$defs/revision"
+    },
+    "execution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "attemptId",
+        "attemptNo",
+        "activationId",
+        "dispatchId",
+        "dispatchSequence"
+      ],
+      "properties": {
+        "attemptId": {
+          "$ref": "common-defs.schema.json#/$defs/id"
+        },
+        "attemptNo": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "activationId": {
+          "$ref": "common-defs.schema.json#/$defs/id"
+        },
+        "dispatchId": {
+          "$ref": "common-defs.schema.json#/$defs/id"
+        },
+        "dispatchSequence": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
     },
     "toolProfile": {
       "type": "object",

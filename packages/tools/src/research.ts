@@ -1,4 +1,4 @@
-import type {} from '@dsh-military/plugin-host'
+import type {} from '@dsh-military/runtime'
 import type { Context } from '@deepseek-ai/cordis'
 import type { ToolDefinition } from '@deepseek-ai/dsh-tools'
 import { brand } from '@dsh-military/contracts'
@@ -39,6 +39,8 @@ export function researchTools(ctx: Context): readonly ToolDefinition[] {
       const title = asString(args.title, 'title')
       const content = asString(args.content, 'content')
       const mediaType = String(args.mediaType ?? 'text/markdown')
+      const binding = await ctx.militaryHost.application.executionBindings
+        .forAgent(String(identity.agentId), identity.generation)
       const terminal = await runDurableTerminalMutation(ctx, {
         identity,
         actionKey: `research:${sha256(stableJson({
@@ -55,6 +57,22 @@ export function researchTools(ctx: Context): readonly ToolDefinition[] {
           mediaType,
           classification: classification as 'public' | 'internal' | 'confidential' | 'restricted',
           description: title,
+          tenantId: ctx.militaryHost.tenantId,
+          ...(binding === null ? {} : { missionId: binding.missionId }),
+          ...(binding?.workspace === undefined
+            ? {}
+            : { taskId: binding.workspace.taskId }),
+          ownerPrincipalId: String(identity.agentId),
+          audiencePrincipalIds: ['military-host', String(identity.agentId)],
+          audienceScopes: ['artifact:read', 'military:research'],
+          ...(binding === null
+            ? {}
+            : {
+                grantId: binding.capabilityGrantId,
+                residencyPolicyRef: `${binding.dataResidencyPolicy.id}@${Number(
+                  binding.dataResidencyPolicy.revision,
+                )}`,
+              }),
         }),
       })
       const artifact = terminal.value

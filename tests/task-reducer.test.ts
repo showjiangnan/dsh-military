@@ -18,7 +18,7 @@ test('a leased Worker may submit a corrected Candidate directly from REWORK', ()
   assert.equal(reduceTaskTransition('REWORK', 'CANDIDATE_SUBMITTED'), 'CANDIDATE_SUBMITTED')
 })
 
-test('a user abort is a terminal Task cancellation in every ledger projection', async () => {
+test('an explicit Task cancellation command is terminal in every ledger projection', async () => {
   const temp = await temporaryDirectory('military-task-cancelled-')
   const database = new SqliteMilitaryDatabase({ path: `${temp.path}/military.sqlite` })
   try {

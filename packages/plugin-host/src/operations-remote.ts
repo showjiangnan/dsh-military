@@ -1,6 +1,5 @@
 import { createHash } from 'node:crypto'
-import { createReadStream } from 'node:fs'
-import { mkdir, readdir, stat } from 'node:fs/promises'
+import { readdir, stat } from 'node:fs/promises'
 import { basename, join, resolve } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-session-persistence'
@@ -13,9 +12,12 @@ import { Remote, TypertRemoteService } from '@deepseek-ai/dsh-typert-protocol'
 import {
   MILITARY_OPERATIONS_SCHEMA_VERSION,
   MilitaryError,
+  brand,
   type AgentExecutionBinding,
+  type AgentIdentity,
   type MilitaryDiagnosticReport,
   type MilitaryDiagnosticSession,
+  type MilitaryOperationMission,
   type MilitaryOperationsSnapshot,
   type MilitarySessionBinding,
   type RecoveryHealthItem,
@@ -23,13 +25,20 @@ import {
   type RecoveryOperationPreview,
   type RecoveryOperationReceipt,
 } from '@dsh-military/contracts'
+import { createMissionCommand, sha256, stableJson } from '@dsh-military/core'
 import { SqliteStateRecords } from '@dsh-military/storage-sqlite'
 import type { MilitaryHostRuntime } from './context.js'
-import { buildDiagnosticReport } from './session-diagnostics.js'
+import { requireWebAuthority } from './web-authority.js'
+import {
+  buildDiagnosticReport,
+  redactDiagnosticText,
+} from './session-diagnostics.js'
 
 const RECOVERY_RECEIPT_NAMESPACE = 'military-recovery-operation'
+const RECOVERY_PREVIEW_NAMESPACE = 'military-recovery-preview'
+const RECOVERY_PREVIEW_TTL_MS = 5 * 60 * 1_000
 const OPERATION_ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/
-const SOURCE_VERSION = '0.9.0-alpha.24'
+const SOURCE_VERSION = '0.9.0-alpha.25'
 
 interface PersistenceInspection {
   readonly meta: SessionHeader
@@ -61,21 +70,81 @@ export class MilitaryOperationsRemoteService extends TypertRemoteService {
 
   @Remote
   async snapshot(signal: AbortSignal): Promise<MilitaryOperationsSnapshot> {
+    requireWebAuthority(this.host, 'military.recovery.manage')
     signal.throwIfAborted()
-    const [sessions, recovery] = await Promise.all([
+    const [sessions, missions, recovery] = await Promise.all([
       this.sessions(signal),
+      this.missions(signal),
       this.recoveryHealth(signal),
     ])
     return {
       schemaVersion: MILITARY_OPERATIONS_SCHEMA_VERSION,
       sessions,
+      missions,
       recovery,
       generatedAt: new Date().toISOString(),
     }
   }
 
+  private missions(signal: AbortSignal): readonly MilitaryOperationMission[] {
+    signal.throwIfAborted()
+    const rows = this.host.database.db.prepare(`
+      SELECT
+        stream.mission_id,
+        stream.aggregate_revision,
+        stream.updated_at,
+        started.payload_json AS started_payload,
+        terminal.event_type AS terminal_type
+      FROM mission_streams AS stream
+      LEFT JOIN mission_events AS started
+        ON started.tenant_id = stream.tenant_id
+        AND started.mission_id = stream.mission_id
+        AND started.event_type = 'mission/started'
+      LEFT JOIN mission_events AS terminal
+        ON terminal.tenant_id = stream.tenant_id
+        AND terminal.mission_id = stream.mission_id
+        AND terminal.event_type IN ('mission/completed', 'mission/cancelled')
+      WHERE stream.tenant_id = ?
+      ORDER BY stream.updated_at DESC, stream.mission_id
+    `).all(this.host.tenantId) as unknown as Array<{
+      readonly mission_id: string
+      readonly aggregate_revision: number
+      readonly updated_at: string
+      readonly started_payload?: string | null
+      readonly terminal_type?: string | null
+    }>
+    return rows.map(row => {
+      let title = row.mission_id
+      if (row.started_payload !== null && row.started_payload !== undefined) {
+        try {
+          const payload = JSON.parse(row.started_payload) as {
+            readonly title?: unknown
+          }
+          if (typeof payload.title === 'string' && payload.title.trim() !== '') {
+            title = payload.title
+          }
+        } catch {
+          // Corrupt payload remains visible by Mission ID; health checks report
+          // the underlying database drift separately.
+        }
+      }
+      return {
+        missionId: row.mission_id,
+        title,
+        state: row.terminal_type === 'mission/completed'
+          ? 'COMPLETED'
+          : row.terminal_type === 'mission/cancelled'
+            ? 'CANCELLED'
+            : 'ACTIVE',
+        revision: Number(row.aggregate_revision),
+        updatedAt: row.updated_at,
+      }
+    })
+  }
+
   @Remote
   async execute(action: unknown, signal: AbortSignal): Promise<unknown> {
+    requireWebAuthority(this.host, 'military.recovery.manage')
     signal.throwIfAborted()
     const value = record(action, 'Military operations action')
     const type = text(value.type, 'Military operations action.type', 64)
@@ -144,6 +213,7 @@ export class MilitaryOperationsRemoteService extends TypertRemoteService {
         ...(sessionBinding.parentSessionId === undefined
           ? {}
           : { parentSessionId: String(sessionBinding.parentSessionId) }),
+        ...(execution === undefined ? {} : { missionId: execution.missionId }),
         roleId: execution?.templateId ?? 'general',
         displayName: execution?.templateId ?? 'General 总指挥',
         templateRevision: Number(execution?.templateRevision ?? 0),
@@ -207,10 +277,9 @@ export class MilitaryOperationsRemoteService extends TypertRemoteService {
   ): Promise<MilitaryOperationsSnapshot['recovery']> {
     signal.throwIfAborted()
     const databasePath = this.databasePath()
-    const [databaseBytes, walBytes, backups, worktrees] = await Promise.all([
+    const [databaseBytes, walBytes, worktrees] = await Promise.all([
       fileBytes(databasePath),
       fileBytes(`${databasePath}-wal`),
-      directoryNames(join(this.host.config.dataRoot, 'backups')),
       directoryNames(join(this.host.config.dataRoot, 'workspace-state', 'worktrees')),
     ])
     const quickCheck = this.host.database.db.prepare('PRAGMA quick_check(1)').get() as
@@ -267,13 +336,159 @@ export class MilitaryOperationsRemoteService extends TypertRemoteService {
     const grantStates = countJsonStates(grantRows)
     const outbox = this.host.database.db.prepare(`
       SELECT
-        SUM(CASE WHEN delivered_at IS NULL THEN 1 ELSE 0 END) AS pending,
-        SUM(CASE WHEN delivered_at IS NULL AND claimed_until IS NOT NULL
+        SUM(CASE WHEN delivered_at IS NULL AND dead_lettered_at IS NULL
+          THEN 1 ELSE 0 END) AS pending,
+        SUM(CASE WHEN delivered_at IS NULL AND dead_lettered_at IS NULL
+          AND claimed_until IS NOT NULL
           AND claimed_until < ? THEN 1 ELSE 0 END) AS stale
+        ,SUM(CASE WHEN dead_lettered_at IS NOT NULL THEN 1 ELSE 0 END) AS dead
+        ,MIN(CASE WHEN delivered_at IS NULL AND dead_lettered_at IS NULL
+          THEN available_at END) AS oldest_at
       FROM transactional_outbox WHERE tenant_id = ?
     `).get(new Date().toISOString(), this.host.tenantId) as
-      | { readonly pending?: number; readonly stale?: number }
+      | {
+          readonly pending?: number
+          readonly stale?: number
+          readonly dead?: number
+          readonly oldest_at?: string | null
+        }
       | undefined
+    const commandEffectCounts = groupedCounts(
+      this.host.database.db.prepare(`
+        SELECT state, COUNT(*) AS count
+        FROM mission_command_operations
+        WHERE tenant_id = ? AND state <> 'COMMITTED'
+        GROUP BY state
+      `).all(this.host.tenantId),
+    )
+    const commandEffects = this.host.database.db.prepare(`
+      SELECT
+        COUNT(*) AS pending,
+        SUM(CASE WHEN state = 'PENDING_EFFECT'
+          AND lease_until IS NOT NULL AND lease_until <= ? THEN 1 ELSE 0 END)
+          AS expired_leases,
+        MIN(updated_at) AS oldest_at
+      FROM mission_command_operations
+      WHERE tenant_id = ? AND state <> 'COMMITTED'
+    `).get(new Date().toISOString(), this.host.tenantId) as
+      | {
+          readonly pending?: number
+          readonly expired_leases?: number
+          readonly oldest_at?: string | null
+        }
+      | undefined
+    const radioState = this.state.readSync<{
+      readonly entries?: Readonly<Record<string, {
+        readonly state?: string
+        readonly attempts?: number
+        readonly leaseUntil?: number
+        readonly request?: {
+          readonly createdAt?: string
+          readonly expiresAt?: string
+        }
+      }>>
+    }>('radio', 'state')
+    const radioEntries = Object.values(radioState?.entries ?? {})
+    const queuedRadio = radioEntries.filter(value =>
+      value.state === 'QUEUED' || value.state === 'LEASED')
+    const deadRadio = radioEntries.filter(value =>
+      value.state === 'DEAD_LETTERED')
+    const radioOldestAt = queuedRadio
+      .map(value => value.request?.createdAt)
+      .filter((value): value is string => value !== undefined)
+      .sort()[0]
+    const nowMs = Date.now()
+    const expiredWorkspaceLeases = activeLeases.filter(value =>
+      Date.parse(value.expires_at) <= nowMs)
+    const expiredRadioLeases = radioEntries.filter(value =>
+      value.state === 'LEASED'
+      && value.leaseUntil !== undefined
+      && value.leaseUntil <= nowMs)
+    const recoveryReceipts = [...this.state.listSync<RecoveryOperationReceipt>(
+      RECOVERY_RECEIPT_NAMESPACE,
+    )].sort((left, right) =>
+      right.completedAt.localeCompare(left.completedAt))
+    const recoveryFailures = recoveryReceipts.filter(value =>
+      value.status === 'FAILED')
+    const outboxOldestAgeMs = ageMs(outbox?.oldest_at)
+    const radioOldestAgeMs = ageMs(radioOldestAt)
+    const commandEffectOldestAgeMs = ageMs(commandEffects?.oldest_at)
+    const expiredCommandLeases = Number(commandEffects?.expired_leases ?? 0)
+    const stalledCommandEffects = Number(commandEffectCounts.RETRYABLE ?? 0)
+      + Number(commandEffectCounts.EFFECT_APPLIED ?? 0)
+      + expiredCommandLeases
+    this.host.application.production.telemetry.recordMetric({
+      name: 'military.outbox.pending',
+      kind: 'GAUGE',
+      value: Number(outbox?.pending ?? 0),
+      unit: 'messages',
+      attributes: { tenantId: this.host.tenantId },
+    })
+    this.host.application.production.telemetry.recordMetric({
+      name: 'military.outbox.oldest_age',
+      kind: 'GAUGE',
+      value: outboxOldestAgeMs,
+      unit: 'ms',
+      attributes: { tenantId: this.host.tenantId },
+    })
+    this.host.application.production.telemetry.recordMetric({
+      name: 'military.radio.oldest_age',
+      kind: 'GAUGE',
+      value: radioOldestAgeMs,
+      unit: 'ms',
+      attributes: { tenantId: this.host.tenantId },
+    })
+    this.host.application.production.telemetry.recordMetric({
+      name: 'military.command_saga.pending',
+      kind: 'GAUGE',
+      value: Number(commandEffects?.pending ?? 0),
+      unit: 'operations',
+      attributes: { tenantId: this.host.tenantId },
+    })
+    this.host.application.production.telemetry.recordMetric({
+      name: 'military.lease.expired',
+      kind: 'GAUGE',
+      value: expiredWorkspaceLeases.length
+        + expiredRadioLeases.length
+        + expiredCommandLeases,
+      unit: 'leases',
+      attributes: { tenantId: this.host.tenantId },
+    })
+    this.host.application.production.telemetry.recordMetric({
+      name: 'military.recovery.drift',
+      kind: 'GAUGE',
+      value: orphanWorktrees.length
+        + recoveryFailures.length
+        + stalledCommandEffects,
+      unit: 'items',
+      attributes: { tenantId: this.host.tenantId },
+    })
+    const production = await this.host.application.production.snapshot(
+      this.host.tenantId,
+    )
+    const backups = production.backups
+    const maximumSaturation = Math.max(
+      ...Object.values(production.capacity.saturation),
+      0,
+    )
+    const unhealthyProviders = production.providers.filter(value =>
+      value.status !== 'READY')
+    const sloBreaches = [
+      ...(outboxOldestAgeMs > 30_000
+        ? [`Outbox oldest ${formatDuration(outboxOldestAgeMs)} > 30 秒`]
+        : []),
+      ...(radioOldestAgeMs > 120_000
+        ? [`Radio oldest ${formatDuration(radioOldestAgeMs)} > 120 秒`]
+        : []),
+      ...(expiredWorkspaceLeases.length + expiredRadioLeases.length > 0
+        ? ['存在已过期但尚未收敛的 lease']
+        : []),
+      ...(commandEffectOldestAgeMs > 60_000
+        ? [`Command Saga oldest ${formatDuration(
+          commandEffectOldestAgeMs,
+        )} > 60 秒`]
+        : []),
+    ]
     const liveChildren = this.ctx.agents?.list().filter(agent =>
       agent.session.header.parentSession !== undefined
       && this.host.isMilitaryAgent(agent)) ?? []
@@ -298,7 +513,10 @@ export class MilitaryOperationsRemoteService extends TypertRemoteService {
         status: backups.length === 0 ? 'ATTENTION' : 'HEALTHY',
         summary: `${backups.length} 份`,
         count: backups.length,
-        details: backups.slice(-3).map(name => safeFileLabel(name)),
+        details: backups.slice(0, 3).map(value =>
+          `${value.backupId} · ${value.status} · ${formatBytes(
+            value.byteLength,
+          )}`),
       },
       {
         id: 'PRESET',
@@ -369,10 +587,149 @@ export class MilitaryOperationsRemoteService extends TypertRemoteService {
       {
         id: 'OUTBOX',
         label: '事务 Outbox',
-        status: Number(outbox?.stale ?? 0) > 0 ? 'ATTENTION' : 'HEALTHY',
-        summary: `${Number(outbox?.pending ?? 0)} 待投递，${Number(outbox?.stale ?? 0)} 过期 claim`,
+        status: Number(outbox?.stale ?? 0) > 0
+          || Number(outbox?.dead ?? 0) > 0
+          || outboxOldestAgeMs > 30_000
+          ? 'ATTENTION'
+          : 'HEALTHY',
+        summary: `${Number(outbox?.pending ?? 0)} 待投递，${Number(
+          outbox?.stale ?? 0,
+        )} 过期 claim，${Number(outbox?.dead ?? 0)} dead letter`,
         count: Number(outbox?.pending ?? 0),
-        details: ['只能释放已过期 claim；不会伪造 delivered 状态。'],
+        details: [
+          `最老待投递 ${formatDuration(outboxOldestAgeMs)}`,
+          '只能释放已过期 claim；不会伪造 delivered 状态。',
+        ],
+      },
+      {
+        id: 'COMMAND_SAGA',
+        label: 'Command Saga',
+        status: stalledCommandEffects > 0 || commandEffectOldestAgeMs > 60_000
+          ? 'ATTENTION'
+          : 'HEALTHY',
+        summary: `${Number(commandEffects?.pending ?? 0)} 未收敛，${
+          stalledCommandEffects
+        } 需恢复`,
+        count: Number(commandEffects?.pending ?? 0),
+        details: [
+          renderCounts(commandEffectCounts),
+          `${expiredCommandLeases} 个 effect lease 已过期`,
+          `最老操作 ${formatDuration(commandEffectOldestAgeMs)}`,
+          '恢复时必须以原 idempotency key 重试；不会猜测外部副作用。',
+        ],
+      },
+      {
+        id: 'RADIO',
+        label: 'Staff Radio',
+        status: deadRadio.length > 0 || radioOldestAgeMs > 120_000
+          ? 'ATTENTION'
+          : 'HEALTHY',
+        summary: `${queuedRadio.length} 待处理，${deadRadio.length} dead letter`,
+        count: queuedRadio.length,
+        details: [
+          `最老请求 ${formatDuration(radioOldestAgeMs)}`,
+          `${expiredRadioLeases.length} 个过期 advisor lease`,
+        ],
+      },
+      {
+        id: 'LEASES',
+        label: 'Lease 与并发占位',
+        status: expiredWorkspaceLeases.length
+          + expiredRadioLeases.length
+          + expiredCommandLeases > 0
+          ? 'ATTENTION'
+          : 'HEALTHY',
+        summary: `${activeLeases.length} workspace active，${
+          expiredWorkspaceLeases.length
+            + expiredRadioLeases.length
+            + expiredCommandLeases
+        } 已过期`,
+        count: activeLeases.length,
+        details: [
+          ...expiredWorkspaceLeases.slice(0, 4).map(value =>
+            `过期 workspace：${value.workspace_lease_id}`),
+          ...expiredRadioLeases.slice(0, 4).map(value =>
+            `过期 Radio lease，attempts=${Number(value.attempts ?? 0)}`),
+          ...(expiredCommandLeases > 0
+            ? [`${expiredCommandLeases} 个过期 Command effect lease`]
+            : []),
+        ],
+      },
+      {
+        id: 'RECOVERY_DRIFT',
+        label: '恢复漂移',
+        status: orphanWorktrees.length
+          + recoveryFailures.length
+          + stalledCommandEffects > 0
+          ? 'ATTENTION'
+          : 'HEALTHY',
+        summary: `${orphanWorktrees.length} orphan worktree，${
+          recoveryFailures.length
+        } 失败恢复，${stalledCommandEffects} Command Saga`,
+        count: orphanWorktrees.length
+          + recoveryFailures.length
+          + stalledCommandEffects,
+        details: [
+          ...recoveryFailures.slice(0, 4).map(value =>
+            `${value.operation}/${value.operationId}：${value.error ?? '失败'}`),
+          ...(stalledCommandEffects > 0
+            ? [`Command Saga：${renderCounts(commandEffectCounts)}`]
+            : []),
+        ],
+      },
+      {
+        id: 'CAPACITY',
+        label: '租户容量与 Backpressure',
+        status: maximumSaturation >= 1
+          ? 'BLOCKED'
+          : maximumSaturation >= 0.8
+            ? 'ATTENTION'
+            : 'HEALTHY',
+        summary: `峰值饱和度 ${(maximumSaturation * 100).toFixed(1)}%`,
+        count: production.capacity.activeReservations,
+        details: Object.entries(production.capacity.saturation).map(
+          ([key, value]) => `${key} ${(value * 100).toFixed(1)}%`,
+        ),
+      },
+      {
+        id: 'TELEMETRY',
+        label: 'Trace / Metric / Log',
+        status: production.telemetry.exporter === 'OTEL_DEGRADED'
+          ? 'ATTENTION'
+          : 'HEALTHY',
+        summary: `${production.telemetry.exporter} · ${production.telemetry.spans.length} spans`,
+        count: production.telemetry.droppedRecords,
+        details: [
+          `${production.telemetry.metrics.length} metrics`,
+          `${production.telemetry.logs.length} logs`,
+          `${production.telemetry.droppedRecords} dropped`,
+        ],
+      },
+      {
+        id: 'PROVIDERS',
+        label: 'Production Provider 拓扑',
+        status: unhealthyProviders.some(value =>
+          value.status === 'UNCONFIGURED')
+          ? 'BLOCKED'
+          : unhealthyProviders.length > 0
+            ? 'ATTENTION'
+            : 'HEALTHY',
+        summary: `${production.providers.length} providers，${unhealthyProviders.length} 非 READY`,
+        count: production.providers.length,
+        details: production.providers.map(value =>
+          `${value.kind} · ${value.implementation} · ${value.deployment}/${value.durability}`),
+      },
+      {
+        id: 'SLO',
+        label: '关键运行 SLO',
+        status: sloBreaches.length > 0 ? 'ATTENTION' : 'HEALTHY',
+        summary: sloBreaches.length === 0
+          ? 'Outbox、Radio 与 lease 目标内'
+          : `${sloBreaches.length} 项超标`,
+        count: sloBreaches.length,
+        details: sloBreaches.length === 0
+          ? ['Outbox oldest < 30 秒；Radio oldest < 120 秒；无过期 lease。']
+          : sloBreaches,
       },
     ]
     return {
@@ -382,9 +739,8 @@ export class MilitaryOperationsRemoteService extends TypertRemoteService {
       dshRelease: '0.1.1-rc.2',
       dshCommit: 'b150a551b8d465e31e418e1b2eaf5e79bbb7d28e',
       items,
-      recentReceipts: [...this.state.listSync<RecoveryOperationReceipt>(
-        RECOVERY_RECEIPT_NAMESPACE,
-      )].sort((left, right) => right.completedAt.localeCompare(left.completedAt)).slice(0, 20),
+      production,
+      recentReceipts: recoveryReceipts.slice(0, 20),
     }
   }
 
@@ -395,15 +751,26 @@ export class MilitaryOperationsRemoteService extends TypertRemoteService {
     signal.throwIfAborted()
     const operation = recoveryOperation(action.operation)
     const operationId = operationIdentifier(action.operationId)
-    const scope = operation === 'WAKE_PARENT'
+    const scope = recoveryOperationUsesTarget(operation)
       ? recoveryScope(action.scope)
       : `tenant:${this.host.tenantId}`
-    const changes = await this.plannedChanges(operation, scope)
-    return {
+    const reason = operation === 'CANCEL_MISSION'
+      ? missionCancellationReason(action.reason)
+      : undefined
+    const changes = await this.plannedChanges(operation, scope, reason)
+    const generatedAt = new Date().toISOString()
+    const expiresAt = new Date(
+      Date.parse(generatedAt) + RECOVERY_PREVIEW_TTL_MS,
+    ).toISOString()
+    const expectedStateHash = await this.recoveryStateHash(operation, scope)
+    const body = {
       schemaVersion: MILITARY_OPERATIONS_SCHEMA_VERSION,
       operation,
       operationId,
       scope,
+      ...(reason === undefined ? {} : { reason }),
+      expectedStateHash,
+      expiresAt,
       confirmationPhrase: confirmationPhrase(operation, scope),
       risk: recoveryRisk(operation),
       changes,
@@ -412,20 +779,41 @@ export class MilitaryOperationsRemoteService extends TypertRemoteService {
         '不会标记 Mission、Task、验证或子 Agent 为完成。',
         '不会删除无法由过期 lease/claim 证明安全的 worktree 或文件。',
       ],
-      idempotent: true,
-      generatedAt: new Date().toISOString(),
+      idempotent: true as const,
+      generatedAt,
     }
+    const preview: RecoveryOperationPreview = {
+      ...body,
+      previewHash: sha256Json(body),
+    }
+    this.state.putSync(
+      RECOVERY_PREVIEW_NAMESPACE,
+      operationId,
+      preview,
+    )
+    return preview
   }
 
   private async plannedChanges(
     operation: RecoveryOperationKind,
     scope: string,
+    reason?: string,
   ): Promise<readonly string[]> {
     switch (operation) {
       case 'VERIFY_DATABASE':
         return ['运行 SQLite integrity_check；只写审计 receipt。']
       case 'CREATE_BACKUP':
-        return ['使用 SQLite VACUUM INTO 创建一致性副本；不覆盖已有文件。']
+        return [
+          '使用 SQLite VACUUM INTO 创建一致性副本，计算 SHA-256 并用 Ed25519 签名；不覆盖已有文件。',
+        ]
+      case 'VERIFY_BACKUP':
+        return [
+          `验证备份 ${scope} 的字节长度、SHA-256、SQLite integrity_check 与 Ed25519 签名。`,
+        ]
+      case 'DRILL_BACKUP_RESTORE':
+        return [
+          `将备份 ${scope} 复制到隔离临时数据库，执行完整性与模式演练，然后删除临时副本；不覆盖 live 数据库。`,
+        ]
       case 'RECONCILE':
         return ['重放未完成的本地 integration reconciliation；不触发远程 Git 写入。']
       case 'REQUEUE_STALE_OUTBOX':
@@ -434,6 +822,18 @@ export class MilitaryOperationsRemoteService extends TypertRemoteService {
         return ['撤销已到期的预算/Grant，并释放已到期的 workspace lease。']
       case 'WAKE_PARENT':
         return [`由 live child ${scope} 发送一次 Host-authored next-step 恢复通知。`]
+      case 'CANCEL_MISSION': {
+        await this.host.application.ledger.readMission(
+          brand<string, 'MissionId'>(scope),
+        )
+        const bindings = this.missionExecutionBindings(scope)
+        return [
+          `显式取消 Mission ${scope}；原因：${reason ?? '未提供'}。`,
+          '取消所有非终态 Task，关闭 Radio/Decision continuation，并写入权威 mission/cancelled receipt。',
+          `撤销并清理 ${bindings.length} 个已绑定 Activation 的 exact Grant、预算、容量和 Workspace lease；live child 将被选择性 drain。`,
+          '不会终止稳定 General identity，也不会把取消解释为完成。',
+        ]
+      }
     }
   }
 
@@ -441,10 +841,22 @@ export class MilitaryOperationsRemoteService extends TypertRemoteService {
     action: Record<string, unknown>,
     signal: AbortSignal,
   ): Promise<RecoveryOperationReceipt> {
-    const preview = await this.previewRecovery(action, signal)
-    const supplied = text(action.confirmation, 'recovery confirmation', 512)
-    if (supplied !== preview.confirmationPhrase) {
-      throw new MilitaryError('POLICY_DENIED', '恢复操作确认短语不匹配')
+    signal.throwIfAborted()
+    const operationId = operationIdentifier(action.operationId)
+    const suppliedPreviewHash = text(
+      action.previewHash,
+      'recovery previewHash',
+      128,
+    )
+    const preview = this.state.readSync<RecoveryOperationPreview>(
+      RECOVERY_PREVIEW_NAMESPACE,
+      operationId,
+    )
+    if (preview === null || preview.previewHash !== suppliedPreviewHash) {
+      throw new MilitaryError(
+        'REVISION_CONFLICT',
+        '恢复预览不存在或 previewHash 已失效；请重新预览当前 Diff',
+      )
     }
     const previous = this.state.readSync<RecoveryOperationReceipt>(
       RECOVERY_RECEIPT_NAMESPACE,
@@ -456,11 +868,47 @@ export class MilitaryOperationsRemoteService extends TypertRemoteService {
       }
       return previous
     }
+    if (Date.parse(preview.expiresAt) <= Date.now()) {
+      throw new MilitaryError(
+        'REVISION_CONFLICT',
+        '恢复预览已过期；请重新预览当前 Diff',
+      )
+    }
+    const actionOperation = recoveryOperation(action.operation)
+    const actionScope = recoveryOperationUsesTarget(actionOperation)
+      ? recoveryScope(action.scope)
+      : `tenant:${this.host.tenantId}`
+    if (actionOperation !== preview.operation || actionScope !== preview.scope) {
+      throw new MilitaryError(
+        'IDEMPOTENCY_CONFLICT',
+        '执行请求与已确认恢复预览的操作或作用域不一致',
+      )
+    }
+    const currentStateHash = await this.recoveryStateHash(
+      preview.operation,
+      preview.scope,
+    )
+    if (currentStateHash !== preview.expectedStateHash) {
+      throw new MilitaryError(
+        'REVISION_CONFLICT',
+        '预览后 Host 权威状态已变化；请重新展示 Diff 并确认',
+      )
+    }
+    const supplied = text(action.confirmation, 'recovery confirmation', 512)
+    if (supplied !== preview.confirmationPhrase) {
+      throw new MilitaryError('POLICY_DENIED', '恢复操作确认短语不匹配')
+    }
     const startedAt = new Date().toISOString()
     let changes: readonly string[] = []
     let evidence: readonly string[] = []
     try {
-      const result = await this.perform(preview.operation, preview.operationId, preview.scope, signal)
+      const result = await this.perform(
+        preview.operation,
+        preview.operationId,
+        preview.scope,
+        preview.reason,
+        signal,
+      )
       changes = result.changes
       evidence = result.evidence
       const receipt: RecoveryOperationReceipt = {
@@ -468,6 +916,7 @@ export class MilitaryOperationsRemoteService extends TypertRemoteService {
         operation: preview.operation,
         operationId: preview.operationId,
         scope: preview.scope,
+        ...(preview.reason === undefined ? {} : { reason: preview.reason }),
         status: 'COMPLETED',
         changes,
         evidence,
@@ -484,12 +933,15 @@ export class MilitaryOperationsRemoteService extends TypertRemoteService {
         operation: preview.operation,
         operationId: preview.operationId,
         scope: preview.scope,
+        ...(preview.reason === undefined ? {} : { reason: preview.reason }),
         status: 'FAILED',
         changes,
         evidence,
         startedAt,
         completedAt: new Date().toISOString(),
-        error: error instanceof Error ? error.message : String(error),
+        error: redactDiagnosticText(
+          error instanceof Error ? error.message : String(error),
+        ).slice(0, 1_000),
       }
       this.state.putSync(RECOVERY_RECEIPT_NAMESPACE, preview.operationId, receipt, {
         createOnly: true,
@@ -498,10 +950,123 @@ export class MilitaryOperationsRemoteService extends TypertRemoteService {
     }
   }
 
+  private async recoveryStateHash(
+    operation: RecoveryOperationKind,
+    scope: string,
+  ): Promise<string> {
+    const tables = operation === 'WAKE_PARENT'
+      ? ['military_session_bindings', 'agent_execution_bindings']
+      : operation === 'CANCEL_MISSION'
+        ? [
+            'mission_streams',
+            'mission_events',
+            'mission_command_operations',
+            'mission_command_receipts',
+            'mission_runtime_missions',
+            'mission_runtime_tasks',
+            'agent_execution_bindings',
+            'workspace_leases',
+            'transactional_outbox',
+            'durable_state_records',
+          ]
+      : operation === 'REQUEUE_STALE_OUTBOX'
+        ? ['transactional_outbox', 'outbox_delivery_receipts']
+        : operation === 'RELEASE_EXPIRED_RESOURCES'
+          ? ['workspace_leases', 'durable_state_records']
+          : operation === 'RECONCILE'
+            ? [
+                'integration_orders',
+                'integration_receipts',
+                'workspace_leases',
+                'workspace_snapshots',
+                'candidate_patches',
+              ]
+            : [
+                'mission_streams',
+                'mission_runtime_tasks',
+                'transactional_outbox',
+                'workspace_leases',
+                'integration_orders',
+                'integration_receipts',
+                'durable_state_records',
+              ]
+    const snapshots: Array<{
+      readonly table: string
+      readonly rows: readonly unknown[]
+    }> = []
+    for (const table of tables) {
+      const exists = this.host.database.db.prepare(`
+        SELECT 1 AS present FROM sqlite_master
+        WHERE type = 'table' AND name = ?
+      `).get(table)
+      if (exists === undefined) continue
+      const columns = this.host.database.db.prepare(
+        `PRAGMA table_info("${table}")`,
+      ).all() as unknown as Array<{ readonly name: string }>
+      const predicates: string[] = []
+      const parameters: string[] = []
+      if (columns.some(value => value.name === 'tenant_id')) {
+        predicates.push('tenant_id = ?')
+        parameters.push(this.host.tenantId)
+      }
+      if (operation === 'CANCEL_MISSION'
+        && columns.some(value => value.name === 'mission_id')) {
+        predicates.push('mission_id = ?')
+        parameters.push(scope)
+      }
+      // The preview and operation receipts are control-plane metadata, not
+      // part of the state being previewed. Including the just-written preview
+      // would invalidate its own CAS fence immediately.
+      if (table === 'durable_state_records') {
+        predicates.push('namespace NOT IN (?, ?)')
+        parameters.push(
+          RECOVERY_PREVIEW_NAMESPACE,
+          RECOVERY_RECEIPT_NAMESPACE,
+        )
+      }
+      const where = predicates.length === 0
+        ? ''
+        : ` WHERE ${predicates.join(' AND ')}`
+      const rows = this.host.database.db.prepare(
+        `SELECT * FROM "${table}"${where} ORDER BY rowid`,
+      ).all(...parameters) as readonly unknown[]
+      snapshots.push({ table, rows })
+    }
+    const cancellationSessions = operation === 'CANCEL_MISSION'
+      ? new Set(this.missionExecutionBindings(scope)
+          .map(value => String(value.agent.sessionId)))
+      : new Set<string>()
+    const live = operation === 'WAKE_PARENT' || operation === 'CANCEL_MISSION'
+      ? this.ctx.agents?.list()
+        .filter(agent => operation === 'WAKE_PARENT'
+          || cancellationSessions.has(String(agent.id)))
+        .map(agent => ({
+          id: String(agent.id),
+          parent: String(agent.session.header.parentSession ?? ''),
+        })).sort((left, right) => left.id.localeCompare(right.id)) ?? []
+      : []
+    const backups = operation === 'CREATE_BACKUP'
+      || operation === 'VERIFY_BACKUP'
+      || operation === 'DRILL_BACKUP_RESTORE'
+      ? await this.host.application.production.backups.list(
+          this.host.tenantId,
+        )
+      : []
+    return sha256Json({
+      tenantId: this.host.tenantId,
+      operation,
+      scope,
+      snapshots,
+      live,
+      backups,
+    })
+  }
+
   private async perform(
     operation: RecoveryOperationKind,
     operationId: string,
     scope: string,
+    reason: string | undefined,
     signal: AbortSignal,
   ): Promise<{ readonly changes: readonly string[]; readonly evidence: readonly string[] }> {
     signal.throwIfAborted()
@@ -519,29 +1084,48 @@ export class MilitaryOperationsRemoteService extends TypertRemoteService {
         }
       }
       case 'CREATE_BACKUP': {
-        const directory = join(this.host.config.dataRoot, 'backups')
-        await mkdir(directory, { recursive: true })
-        const target = join(directory, `military-${operationId}.sqlite`)
-        const previousBytes = await fileBytes(target)
-        if (previousBytes === 0) {
-          this.host.database.db.prepare('VACUUM INTO ?').run(target)
-        }
-        const bytes = await fileBytes(target)
-        if (bytes === 0) throw new Error('SQLite backup was not created')
-        this.verifyBackup(target)
-        const digest = await fileSha256(target)
+        const manifest = await this.host.application.production.backups.create({
+          operationId,
+          tenantId: this.host.tenantId,
+        })
         return {
           changes: [
-            previousBytes === 0
-              ? `创建 ${safeFileLabel(basename(target))}`
-              : `复用同一 operationId 已创建的 ${safeFileLabel(basename(target))}`,
+            `备份 ${manifest.backupId} 状态为 ${manifest.status}。`,
           ],
           evidence: [
-            `backup-bytes:${bytes}`,
-            `backup-sha256:${digest}`,
-            'sqlite-vacuum-into-consistent-snapshot',
-            'backup-integrity-check:ok',
+            `backup-bytes:${manifest.byteLength}`,
+            `backup-sha256:${manifest.sha256}`,
+            `backup-source-revision:${manifest.sourceRevision}`,
+            ...(manifest.signature === undefined
+              ? []
+              : [`backup-signature-key:${manifest.signature.keyId}`]),
+            ...manifest.evidence,
           ],
+        }
+      }
+      case 'VERIFY_BACKUP': {
+        const manifest = await this.host.application.production.backups.verify(
+          scope,
+          this.host.tenantId,
+        )
+        return {
+          changes: [`备份 ${manifest.backupId} 已验证。`],
+          evidence: manifest.evidence,
+        }
+      }
+      case 'DRILL_BACKUP_RESTORE': {
+        const manifest = await this.host.application.production.backups
+          .restoreDrill(scope, this.host.tenantId)
+        if (manifest.status !== 'DRILL_PASSED') {
+          throw new Error(
+            `backup restore drill failed: ${manifest.error ?? 'unknown'}`,
+          )
+        }
+        return {
+          changes: [
+            `备份 ${manifest.backupId} 已在隔离临时数据库完成恢复演练；live 数据库未修改。`,
+          ],
+          evidence: manifest.evidence,
         }
       }
       case 'RECONCILE': {
@@ -595,6 +1179,103 @@ export class MilitaryOperationsRemoteService extends TypertRemoteService {
           evidence: [`session-message:${messageId}`, `child-session:${scope}`],
         }
       }
+      case 'CANCEL_MISSION': {
+        const missionId = brand<string, 'MissionId'>(scope)
+        const cancellationReason = missionCancellationReason(reason)
+        const actor = this.missionCancellationActor()
+        const cancellationReceiptRef = `mission-cancellation-${sha256(stableJson({
+          tenantId: this.host.tenantId,
+          missionId: scope,
+          reason: cancellationReason,
+          principalId: this.host.webPrincipal.principalId,
+        })).slice(0, 40)}`
+        const snapshot = await this.host.application.ledger.readMission(missionId)
+        const command = createMissionCommand({
+          tenantId: this.host.tenantId,
+          missionId,
+          expectedRevision: snapshot.revision,
+          actor,
+          actorAuthorityRef: `web-principal:${this.host.webPrincipal.principalId}`,
+          type: 'mission.cancel',
+          payload: {
+            reason: cancellationReason,
+            cancellationReceiptRef,
+          },
+          idempotencyKey: cancellationReceiptRef,
+        })
+        await this.host.application.missionKernel.execute(
+          command,
+          () => this.host.application.runtime.cancelMission({
+            missionId,
+            actor,
+            reason: cancellationReason,
+            cancellationReceiptRef,
+          }),
+        )
+
+        const bindings = this.missionExecutionBindings(scope)
+        const released: string[] = []
+        for (const binding of bindings) {
+          // Mission cancellation is already committed and irreversible at
+          // this point. Browser disconnect/caller abort must not strand
+          // Grants, capacity, lifecycle rows or workspaces halfway through
+          // convergence; cleanup failures are recorded by the operation
+          // receipt and may be retried from a new authoritative preview.
+          const childSessionId = String(binding.agent.sessionId)
+          const child = this.ctx.agents?.get(childSessionId as DshSessionId)
+          if (child !== undefined && this.host.isMilitaryAgent(child)) {
+            await this.host.abortMilitaryAgent(
+              child,
+              `MISSION_CANCELLED:${cancellationReceiptRef}`,
+            )
+          } else {
+            await this.host.forgetDepartmentChild(
+              childSessionId,
+              `MISSION_CANCELLED:${cancellationReceiptRef}`,
+            )
+          }
+          released.push(childSessionId)
+        }
+        return {
+          changes: [
+            `Mission ${scope} 已显式取消；${bindings.length} 个 Activation 资源已收敛。`,
+          ],
+          evidence: [
+            `mission-cancellation-receipt:${cancellationReceiptRef}`,
+            `mission-command:${command.commandId}`,
+            `released-activation-count:${released.length}`,
+            ...released.map(value => `released-child-session:${value}`),
+          ],
+        }
+      }
+    }
+  }
+
+  private missionExecutionBindings(
+    missionId: string,
+  ): readonly AgentExecutionBinding[] {
+    const rows = this.host.database.db.prepare(`
+      SELECT binding_json
+      FROM agent_execution_bindings
+      WHERE tenant_id = ? AND mission_id = ?
+      ORDER BY created_at, binding_id
+    `).all(this.host.tenantId, missionId) as unknown as Array<{
+      readonly binding_json: string
+    }>
+    return rows.map(row => JSON.parse(row.binding_json) as AgentExecutionBinding)
+  }
+
+  private missionCancellationActor(): AgentIdentity {
+    return {
+      agentId: brand<string, 'AgentId'>(
+        `web-control:${this.host.webPrincipal.principalId}`,
+      ),
+      sessionId: brand<string, 'SessionId'>(
+        `web-operations:${this.host.tenantId}`,
+      ),
+      role: 'harness',
+      displayName: 'Military 本机受治理操作中心',
+      generation: 1,
     }
   }
 
@@ -647,12 +1328,6 @@ export class MilitaryOperationsRemoteService extends TypertRemoteService {
     for (const lease of leases) {
       signal.throwIfAborted()
       await this.host.application.workspaces.release(lease.workspace_lease_id)
-      this.host.database.db.prepare(`
-        UPDATE workspace_leases
-        SET state = 'RELEASED', lease_version = lease_version + 1
-        WHERE tenant_id = ? AND workspace_lease_id = ?
-          AND state = 'ACTIVE' AND expires_at <= ?
-      `).run(this.host.tenantId, lease.workspace_lease_id, new Date(now).toISOString())
       changes.push(`释放过期 workspace lease ${lease.workspace_lease_id}。`)
       evidence.push(`workspace-lease:${lease.workspace_lease_id}`)
     }
@@ -667,20 +1342,6 @@ export class MilitaryOperationsRemoteService extends TypertRemoteService {
     )
   }
 
-  private verifyBackup(path: string): void {
-    this.host.database.db.prepare('ATTACH DATABASE ? AS military_recovery_backup').run(path)
-    try {
-      const rows = this.host.database.db
-        .prepare('PRAGMA military_recovery_backup.integrity_check')
-        .all() as unknown as Array<Record<string, unknown>>
-      const values = rows.flatMap(row => Object.values(row).map(String))
-      if (values.length !== 1 || values[0] !== 'ok') {
-        throw new Error(`SQLite backup integrity_check failed: ${values.join('; ')}`)
-      }
-    } finally {
-      this.host.database.db.exec('DETACH DATABASE military_recovery_backup')
-    }
-  }
 }
 
 function recoveryOperation(value: unknown): RecoveryOperationKind {
@@ -688,10 +1349,13 @@ function recoveryOperation(value: unknown): RecoveryOperationKind {
   if (![
     'VERIFY_DATABASE',
     'CREATE_BACKUP',
+    'VERIFY_BACKUP',
+    'DRILL_BACKUP_RESTORE',
     'RECONCILE',
     'REQUEUE_STALE_OUTBOX',
     'RELEASE_EXPIRED_RESOURCES',
     'WAKE_PARENT',
+    'CANCEL_MISSION',
   ].includes(operation)) throw new TypeError(`unsupported recovery operation ${operation}`)
   return operation as RecoveryOperationKind
 }
@@ -706,14 +1370,36 @@ function recoveryScope(value: unknown): string {
   return text(value, 'recovery scope', 180)
 }
 
+function recoveryOperationUsesTarget(
+  operation: RecoveryOperationKind,
+): boolean {
+  return operation === 'WAKE_PARENT'
+    || operation === 'VERIFY_BACKUP'
+    || operation === 'DRILL_BACKUP_RESTORE'
+    || operation === 'CANCEL_MISSION'
+}
+
 function confirmationPhrase(operation: RecoveryOperationKind, scope: string): string {
   return `确认 ${operation} ${scope}`
 }
 
 function recoveryRisk(operation: RecoveryOperationKind): RecoveryOperationPreview['risk'] {
-  if (operation === 'VERIFY_DATABASE' || operation === 'CREATE_BACKUP') return 'LOW'
-  if (operation === 'WAKE_PARENT') return 'HIGH'
+  if (operation === 'VERIFY_DATABASE'
+    || operation === 'CREATE_BACKUP'
+    || operation === 'VERIFY_BACKUP'
+    || operation === 'DRILL_BACKUP_RESTORE') return 'LOW'
+  if (operation === 'WAKE_PARENT' || operation === 'CANCEL_MISSION') return 'HIGH'
   return 'MEDIUM'
+}
+
+function missionCancellationReason(value: unknown): string {
+  const reason = text(value, 'Mission cancellation reason', 500)
+    .trim()
+    .replace(/\s+/gu, ' ')
+  if (reason.length < 3) {
+    throw new TypeError('Mission cancellation reason must contain at least 3 characters')
+  }
+  return redactDiagnosticText(reason)
 }
 
 function sessionUsage(events: readonly SessionEvent[]): {
@@ -751,12 +1437,6 @@ async function fileBytes(path: string): Promise<number> {
   } catch {
     return 0
   }
-}
-
-async function fileSha256(path: string): Promise<string> {
-  const hash = createHash('sha256')
-  for await (const chunk of createReadStream(path)) hash.update(chunk)
-  return hash.digest('hex')
 }
 
 async function directoryNames(path: string): Promise<readonly string[]> {
@@ -809,14 +1489,29 @@ function sumCounts(counts: Readonly<Record<string, number>>): number {
   return Object.values(counts).reduce((sum, value) => sum + value, 0)
 }
 
-function safeFileLabel(value: string): string {
-  return value.replace(/[^A-Za-z0-9._:-]+/gu, '＿').slice(0, 160)
-}
-
 function formatBytes(value: number): string {
   if (value < 1_024) return `${value} B`
   if (value < 1_048_576) return `${(value / 1_024).toFixed(1)} KiB`
   return `${(value / 1_048_576).toFixed(1)} MiB`
+}
+
+function ageMs(value: string | null | undefined): number {
+  if (value === undefined || value === null) return 0
+  const parsed = Date.parse(value)
+  return Number.isFinite(parsed) ? Math.max(0, Date.now() - parsed) : 0
+}
+
+function formatDuration(value: number): string {
+  if (value < 1_000) return `${Math.round(value)} ms`
+  if (value < 60_000) return `${(value / 1_000).toFixed(1)} 秒`
+  if (value < 3_600_000) return `${(value / 60_000).toFixed(1)} 分钟`
+  return `${(value / 3_600_000).toFixed(1)} 小时`
+}
+
+function sha256Json(value: unknown): string {
+  return createHash('sha256')
+    .update(JSON.stringify(value))
+    .digest('hex')
 }
 
 function record(value: unknown, at: string): Record<string, unknown> {

@@ -9,7 +9,9 @@ import {
   type TaskId,
 } from '@dsh-military/contracts'
 import { sha256, stableJson, zeroCounters } from '@dsh-military/core'
-import type { MilitaryHostRuntime } from '@dsh-military/plugin-host'
+import type {
+  MilitaryToolHostRuntime as MilitaryHostRuntime,
+} from '@dsh-military/runtime'
 
 export type CountedExecutionResource = 'radioRounds' | 'reworkAttempts'
 

@@ -2,7 +2,7 @@
 
 ## 1. 交付范围
 
-`0.9.0-alpha.24` 保留并深化此前分散在 Settings、运行日志和设计文档中的 15 项产品能力，
+`0.9.0-alpha.25` 保留并深化此前分散在 Settings、运行日志和设计文档中的 15 项产品能力，
 收敛为两个 DSH RC.2 原生入口：
 
 ```text
@@ -165,8 +165,10 @@ dataset hash、Bundle/Preset、角色 revision、exact route、reasoning、
 ToolProfile 和预算进入每次结果。确定性运行与真实 Provider Session 评估分栏，
 指标包括首次命中、Schema 首次通过、纠正、完成、父唤醒、写 receipt、tokens
 和延迟。Provider 样本以 dataset + Session + scenario 为计数权威，parser
-revision 或重复解析不增加 N；相同 exact route/场景少于 10 个独立 Session，或
-Wilson 区间宽度大于 0.35 时，只能显示 `INSUFFICIENT_SAMPLE`。
+revision 或重复解析不增加 N。观察趋势在相同 exact route/场景少于 10 个独立
+Session，或 Wilson 区间宽度大于 0.35 时，只能显示
+`INSUFFICIENT_SAMPLE`；发布 acceptance 独立要求每个 exact
+configuration × scenario `N≥50`，并执行首次工具/E2E Wilson 门和四项零安全失败。
 
 每个场景验证完整因果链，而不是仅验证首工具和 Session 结束：创建/编辑场景要求
 Host receipt-bound path，多文件场景要求 distinct path，路径纠正要求最终安全相对
@@ -256,9 +258,12 @@ DSH_RC2_ROOT=/exact/built/deepseek-harness pnpm release:verify
 
 自动回归覆盖 12 个默认简体中文提示词、Host prompt compiler、revision/回滚、
 伪造简体中文回执拒绝、Workspace ID/path/Git rename、九场景 dataset hash、
-Provider 去重与 N<10/宽区间稳定性禁止、绩效七视图、知识透明度、
+Provider 去重与 N<10/宽区间趋势保护、绩效七视图、知识透明度、
+N≥50/Wilson/零安全失败外部 acceptance、evidence 导出与独立重算、
 真实/模拟召回同 renderer、RC.2 Web Profile 三次
 启动和原生 Web Client 注册。
 
-真实 DeepSeek Provider 仍是单独的部署验收：样本必须记录 exact route；模型
-别名、网络和服务端行为可能变化，不能由本地确定性 PASS 推导。
+真实 DeepSeek Provider 仍是单独的部署验收：样本必须记录 exact route；
+每场景 N≥50，首次工具和 E2E 同时满足点估计/Wilson 下界，且意外确定性错误、
+越权写入、假完成和重复终态为 0。模型别名、网络和服务端行为可能变化，不能由
+本地确定性 PASS 推导。

@@ -5,6 +5,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import type { Agent } from '@deepseek-ai/dsh-agent'
 import type { ToolRunContext } from '@deepseek-ai/dsh-tools'
 import { MilitaryError } from '@dsh-military/contracts'
+import { toolErrorEnvelope } from '@dsh-military/core'
 import {
   authoritativeSessionWorkspaceKey,
   MilitarySpecsControl,
@@ -164,6 +165,8 @@ test('Military domain failures cross the tool boundary as stable machine-readabl
     async execute() {
       throw new MilitaryError('INVALID_ARGUMENT', 'invalid regression input', {
         field: 'validation',
+        token: 'must-not-leak',
+        path: '/Users/example/private.ts',
       })
     },
   })
@@ -180,18 +183,66 @@ test('Military domain failures cross the tool boundary as stable machine-readabl
           readonly code: string
           readonly message: string
           readonly retryable: boolean
+          readonly nextTool: string
+          readonly correctedShape: {
+            readonly tool: string
+            readonly arguments: Readonly<Record<string, unknown>>
+            readonly required: readonly string[]
+            readonly optional: readonly string[]
+          }
           readonly recovery: string
-          readonly details: { readonly field: string }
+          readonly details: {
+            readonly field: string
+            readonly token: string
+            readonly path: string
+          }
         }
       }
       assert.equal(value.error.code, 'INVALID_ARGUMENT')
       assert.equal(value.error.message, 'invalid regression input')
       assert.equal(value.error.retryable, false)
+      assert.equal(value.error.nextTool, 'military_test_machine_error')
+      assert.deepEqual(value.error.correctedShape, {
+        tool: 'military_test_machine_error',
+        arguments: {},
+        required: [],
+        optional: [],
+      })
       assert.equal(typeof value.error.recovery, 'string')
       assert.equal(value.error.details.field, 'validation')
+      assert.equal(value.error.details.token, '＜redacted＞')
+      assert.equal(value.error.details.path, '＜host-path-redacted＞')
       return true
     },
   )
+})
+
+test('Military correction envelopes redact schema examples as well as diagnostic details', () => {
+  const value = toolErrorEnvelope({
+    code: 'INVALID_ARGUMENT',
+    message: 'api_key=plain-secret at /custom/workspace/private/file.ts',
+    retryable: false,
+    nextTool: 'military_workspace_write',
+    correctedShape: {
+      tool: 'military_workspace_write',
+      arguments: {
+        path: '/custom/workspace/private/file.ts',
+        token: 'shape-secret',
+      },
+      required: ['path', 'token'],
+      optional: [],
+    },
+    recovery: 'Bearer secret-bearer',
+  })
+  assert.equal(
+    value.error.message,
+    'api_key=＜redacted＞ at ＜host-path-redacted＞',
+  )
+  assert.deepEqual(value.error.correctedShape.arguments, {
+    path: '＜host-path-redacted＞',
+    token: '＜redacted＞',
+  })
+  assert.equal(value.error.recovery, 'Bearer ＜redacted＞')
 })
 
 function record(value: unknown): Record<string, unknown> {

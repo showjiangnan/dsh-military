@@ -201,7 +201,22 @@ min(template/preset budget, resolved model context, deployment safety cap)
 
 达到 trigger 必须创建可审计 `CompactionAttempt`。无安全区间或摘要不缩小则暂停/handoff，不能继续溢出。General 切换到更小上下文模型前应先评估当前 surface；无法安全适配则拒绝切换。
 
-## 0.9.0-alpha.24 能力目录与样本纪律
+## 0.9.0-alpha.25 能力目录与样本纪律
+
+模型控制面把四个概念独立存储：
+
+```text
+Catalog Presence
+Protocol Compatibility
+Policy Eligibility
+Performance Evidence
+```
+
+目录存在只证明 route 可发现；不得由此虚构 tool calling、reasoning、context、
+residency 或 `VALIDATED`。native tool route 直接走 DSH adapter；非 native
+route 只有受治理 Bridge 已启用并通过 exact canary 时才可执行。Dispatch 前绑定
+immutable capabilityProfileId/adapter revision，并写 route、分类、驻留、脱敏、
+policy 与价格状态 receipt。
 
 Settings 模型下拉不维护第二份 allowlist。Host 把 DSH live `llm.models` 与
 Military capability evidence 合并为 exact-route 目录，并记录
@@ -213,7 +228,11 @@ route 默认 `available/selectable`。上述状态只描述能力元数据或绩
 不再充当权限。只有不在 live 目录中的历史 route 才不可选择。
 
 固定工作台将 deterministic gate 与 Provider Session observation 分开保存；
-相同 exact route/场景 N<10 或置信区间过宽时不能输出稳定结论。别名未被
+相同 exact route/场景 N<10 或置信区间过宽时不能输出观察趋势的稳定结论；发布
+acceptance 仍按 exact configuration × scenario 要求 N≥50。别名未被
 request/header 证明时
 标记 `ALIAS_UNPROVEN`，不得与另一个 exact model 合并。模型状态变化是单独的
 受治理动作，评测运行本身不自动晋升、不自动 fallback，也不把 Pro 变成默认。
+发行 acceptance 进一步要求每个 exact configuration × scenario N≥50、首次
+工具/E2E Wilson 下界达标并且意外确定性错误、越权写入、假完成、重复终态全为
+0；未达到时准确报告 `INSUFFICIENT_SAMPLE/FAILED`。

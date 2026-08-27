@@ -8,7 +8,10 @@ import {
   type EvaluationAttemptRecord,
   type PerformanceEvaluationRequest,
 } from '@dsh-military/contracts'
-import { MilitaryEvaluationEngine } from '@dsh-military/core'
+import {
+  MilitaryEvaluationEngine,
+  wilson,
+} from '@dsh-military/core'
 import { LocalArtifactStore } from '@dsh-military/infrastructure'
 import {
   DeterministicPerformanceNarrative,
@@ -89,6 +92,18 @@ test('Military Evaluation Committee freezes one canonical dataset and reports ex
     6,
   )
   assert.ok((report.individualPerformance[0]?.capability.index ?? 0) > 0)
+  assert.equal(
+    report.individualPerformance[0]?.metricTruth[
+      'accuracy.finalAcceptanceRate'
+    ]?.status,
+    'AVAILABLE',
+  )
+  assert.equal(
+    report.individualPerformance[0]?.metricTruth[
+      'completion.blockerResolutionRate'
+    ]?.status,
+    'NOT_APPLICABLE',
+  )
   assert.equal((await engine.get(request.evaluationRequestId)).state, 'COMPLETED')
   assert.equal(
     (await engine.execute(
@@ -126,6 +141,22 @@ test('Military Evaluation Committee freezes one canonical dataset and reports ex
   assert.equal(committeeCalls, 1)
   assert.ok(fallback.limitations.some(value =>
     value.includes('已回退到确定性叙事')))
+})
+
+test('evaluation ratios distinguish measured zero, N/A and incomplete authoritative evidence', () => {
+  assert.deepEqual(wilson(0, 0, 0.95), {
+    status: 'NOT_APPLICABLE',
+    estimate: 0,
+    low: 0,
+    high: 1,
+    confidenceLevel: 0.95,
+    numerator: 0,
+    denominator: 0,
+  })
+  const measured = wilson(0, 10, 0.95)
+  assert.equal(measured.status, 'AVAILABLE')
+  assert.equal(measured.estimate, 0)
+  assert.equal(measured.denominator, 10)
 })
 
 test('evaluation dataset, in-flight run and report history survive SQLite restart', async t => {
@@ -633,7 +664,7 @@ function attempt(
         revision: template.capabilities.permissionProfileRevision,
       },
       presetGeneration: 'military@test',
-      bundleVersion: '0.9.0-alpha.24',
+      bundleVersion: '0.9.0-alpha.25',
       dshRelease: '0.1.1-rc.2',
       dshCommit: 'b150a551b8d465e31e418e1b2eaf5e79bbb7d28e',
     },

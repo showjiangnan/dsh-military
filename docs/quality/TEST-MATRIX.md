@@ -87,7 +87,7 @@
 | 模型/成本 | DSH live catalog、预算预设、历史 observed usage | unavailable/incompatible、未知价格/alias | status revision，不伪造价格 |
 | Operations | 权威时间线、健康快照、精确预览 | 原始 SQLite、错确认短语、跨范围 operationId | 幂等 receipt、重启重放 |
 | Specs Workspace | opaque ID、canonical root、Git rename destination | arbitrary absolute path、unknown ID、symlink escape | Session binding 重建、只读 projection |
-| 固定基准 | 九场景 hash、deterministic PASS、完整 sequence/receipt | dataset drift、parser revision 膨胀、alias/fallback 混入 | 既有 Session 复评、N<10/宽区间 insufficient |
+| 固定基准 | 九场景 hash、deterministic PASS、完整 sequence/receipt | dataset drift、parser revision 膨胀、alias/fallback 混入 | 既有 Session 复评、N<10 趋势保护与 N<50 发布 acceptance 拒绝 |
 | 知识透明度 | sanitized snapshot/chunk、lineage、exact recall | Raw Vault/Secret 泄漏、无权/过期版本 | SQLite simulation history、撤回影响 |
 | 模拟召回 | 与真实 resolver/renderer 同选中和 delivery block | 创建 Task/调用模型/授予工具 | 只持久化输入 hash/字符数 |
 | Web 可访问性 | tabs/listbox/dialog/状态 announcement | IME 快捷键误触、focus escape、长 ID overflow | focus return、200% zoom、forced colors |
@@ -108,7 +108,7 @@
 | Job | durable lease/fence、成功 shard | stale worker、timeout、第 N shard 失败 | 重启只补缺失 shard |
 | Narrative | deterministic 默认、严格 aggregate-only JSON | 额外字段、超长数组、调用失败 | deterministic fallback |
 | Appeal | finding/Evidence/exclusion/recompute | 原地改 Report、跨 Dataset Attempt、重复提交 | superseding lineage 幂等 |
-| Benchmark | 9 场景 sequence/path/receipt/terminal/wakeup | parser revision 样本膨胀、首工具假 PASS | >=10 unique Session + CI |
+| Benchmark | 9 场景 sequence/path/receipt/terminal/wakeup | parser revision 样本膨胀、首工具假 PASS | 趋势 >=10；发行 acceptance N>=50 + Wilson + zero safety violations |
 | UI | 七视图、目录选择、错误与 retry | 长 model id、无成本、空报告、多报告 | `IDLE/RUNNING→COMPLETED` 自动刷新、键盘、200% zoom、窄视口 |
 | Release | exact RC.2 空 Profile install/3 boots | 旧 profile/legacy report JSON | 本机升级、Web 浏览器验收 |
 
@@ -125,3 +125,24 @@
 | 角色保存 | provider/model/reasoning/output/context/多行 prompt 同 draft | stale revision、Settings watcher 与 RPC 竞态、NUL 控制字符 | CR/LF/TAB 合法；单次 CAS、串行 projection、权威 revision 回读 |
 | React | 第三方模型选择和预算自动收窄 | 五秒 poll 与保存回读竞态、旧 snapshot | revision 单调、dirty 清除、页面/进程重载 |
 | 私有技能 | 提炼模型使用 DSH live 目录 | 当前 route 下线 | provider/model 同步保存、缺失路线显式 |
+
+## 0.9.0-alpha.25 执行活性、恢复、Flash 与生产可信度专项
+
+| 领域 | 正向 | 负向/并发 | 恢复/证明 |
+|---|---|---|---|
+| Workflow correlation | 每条 request 对应 exact obligation/Task | 多 open Task、短“继续”、旧 wake cursor | request hash、唯一 nextTool、重启恢复 |
+| Execution lifecycle | Task Version→Attempt→Activation→Dispatch | 三次 Rework、迟到/重复/乱序 settlement | start/heartbeat/settlement；snapshot 不得假 RUNNING |
+| Cancellation | Stop 仅当前 Activation；Operations 选择 exact Mission + reason | Task/Mission Cancel、Freeze、Identity termination 混淆；stale/expired preview | Kernel command、state-hash CAS、exact Grant/Budget/Workspace/slot cleanup |
+| Radio/Decision | exact Task/Attempt delivery + acknowledge | TTL、dead-letter、双 answer、stale continuation | 新 Attempt resume、parent wake receipt |
+| Completion | Candidate→Verified→Integration→Completed | conflict/stale/regression/伪造 parent report | 唯一 Host completion invariant |
+| Command Saga | short intent/effect/finalization；standalone write 自动短事务 | async transaction、writer bypass、maintenance misuse、lease loss、effect failure | RETRYABLE/EFFECT_APPLIED restart、one receipt/outbox |
+| Outbox | partition order、delivery receipt | duplicate event、expired claim、dead letter | restart offset/retry |
+| Workspace | Task-rooted relative read/write/edit | escape、absolute、symlink、forbidden scope | operation status、adopt/quarantine |
+| Wave scheduler | dependency + barrier + capacity | unknown dependency、cycle、write conflict | authoritative Wave/Mission events |
+| Capability bridge | catalog/protocol/policy/evidence 四轴 | alias、non-native bridge、stale profile | exact immutable dispatch receipt |
+| Desired/Applied | 全角色一次收敛 | partial runtime apply、multi-tab CAS | exact field error、retry/rollback |
+| Runtime/Web query | 全 parent hierarchy、revision/staleness | stale response、offline、hidden、caller abort | backoff、dedupe、cross-tab invalidation |
+| Artifact governance | tenant/workflow/audience/classification | hash guessing、cross-tenant、lower classification | retention/legal hold/deletion/GC/key rotation |
+| Evaluation | ratio status + exact pricing snapshot | 0 denominator、missing authority、unknown cost | heartbeat/fence、N/A/INCOMPLETE |
+| Production Plane | local + injected provider descriptors | SQLite 冒充 Postgres、local queue/KMS 冒充 distributed | topology fail-closed、capacity/telemetry/signed restore |
+| Flash acceptance | N=50、96% first tool、92% E2E fixture PASS；唯一 nextTool/correctedShape | insufficient sample、Wilson lower-bound、secret/path 泄露、任一 safety violation | evidence export + independent offline recomputation |

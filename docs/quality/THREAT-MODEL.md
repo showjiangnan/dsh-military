@@ -132,7 +132,7 @@ Outcome 聚合，以及质量/安全硬门先于经济性。
 | Revoked knowledge reuse | 撤回后仍匹配 Guidance | derived impact graph、quarantine、registry deny、新请求 guard |
 | Evaluation data exfiltration | 委员会读取越权 Session/Restricted Artifact | Dataset Builder authority、deidentification、audit、classification |
 | Metric gaming | Agent 过度拆分/求援、删除失败或重复 Session 提高评分 | pre-execution difficulty、Mission cluster、stable identity、canonical dataset |
-| Route/sample laundering | fallback/alias 或 parser revision 冒充 exact Provider 新样本 | observed route strata、dataset+Session+scenario 去重、>=10 Session+CI |
+| Route/sample laundering | fallback/alias 或 parser revision 冒充 exact Provider 新样本 | observed route strata、dataset+Session+scenario 去重；趋势 >=10+CI；发行 N>=50+Wilson+零安全失败 |
 | Evaluation stale completion | 旧 Job/进程覆盖新 Report | revision、lease、fence、idempotent completion、Artifact digest |
 | Appeal tampering | Client 跨 Dataset 注入 exclusions 或原地改报告 | Host membership check、immutable Report、superseding revision |
 | Committee prompt injection | 聚合叙述模型越权改指标或调用工具 | opt-in、aggregate-only、no tools、strict JSON、deterministic fallback |

@@ -2,7 +2,7 @@
 
 ## 1. 实现状态
 
-`dsh-military 0.9.0-alpha.24` 已形成独立 npm workspace 源码工程，唯一完整兼容目标是：
+`dsh-military 0.9.0-alpha.25` 已形成独立 npm workspace 源码工程，唯一完整兼容目标是：
 
 ```text
 dsh@0.1.1-rc.2
@@ -16,14 +16,14 @@ commit b150a551b8d465e31e418e1b2eaf5e79bbb7d28e
 | 包 | 类型 | 权威职责 |
 |---|---|---|
 | `@dsh-military/contracts` | Service Definition / wire | ID、领域对象、Schema、事件、错误、服务接口 |
-| `@dsh-military/core` | 领域内核 | Ledger、CAS、规划、验收、督战、电台、Decision Broker、模板、预算 |
+| `@dsh-military/core` | 领域内核 | Ledger、CAS、Workflow/Execution lifecycle、Wave scheduler、验收、督战、电台、Decision Broker、模板、预算 |
 | `@dsh-military/infrastructure` | Provider | Artifact、受限进程、Git、worktree、Candidate Patch、Integration、specs |
-| `@dsh-military/storage-sqlite` | Provider | SQLite migration、Mission/Admin Ledger、Session/Agent Binding |
-| `@dsh-military/runtime` | Orchestrator | 完整应用服务图、部门 Agent 实例化、知识和评估运行时 |
-| `@dsh-military/plugin-host` | RC.2 adapter | Agent/Session/Request/Tool/Compaction/Settings 及控制面 Remote |
+| `@dsh-military/storage-sqlite` | Provider | SQLite migration、短事务 Command Saga、Mission/Admin Ledger、ordered outbox、Workspace/Execution state |
+| `@dsh-military/runtime` | Orchestrator | 完整应用服务图、稳定 Tool Host API、部门 Agent、知识和评估运行时 |
+| `@dsh-military/plugin-host` | RC.2 adapter | Agent/Session/Request/Tool/Compaction/Settings、Runtime/Operations Remote 与协调维护 |
 | `@dsh-military/tools` | Model Consumer | General、Staff、Worker、Engineer、Inspector、Research 工具 |
 | `@dsh-military/command-brainstorm` | Human Consumer | `/brainstorm` 命令和 General 问题中继 |
-| `@dsh-military/webui` | Client Consumer | 角色/诊断/恢复/Workspace/基准 Settings 与七视图 Knowledge Center |
+| `@dsh-military/webui` | Client Consumer | 角色/诊断/恢复/Workspace/基准、Runtime Center 与七视图 Knowledge Center |
 | `@dsh-military/preset` | Agent-plane assets | 固定 `military` preset 和 generation archive |
 | `@dsh-military/installer` | Lifecycle | preset 安装、验证、卸载和 profile 配置辅助 |
 | `@dsh-military/bundle` | Distribution | Host-plane Cordis patch |
@@ -49,7 +49,10 @@ plugin-host / tools / command / webui / installer / bundle
 - DSH 类型只出现在薄适配包；
 - Agent-plane 与 Web client 对 DSH、Cordis、Schemastery 使用 peer dependency；
 - 不复制 RC.2 运行时对象，避免 `Symbol`、`instanceof`、Service identity 分裂；
-- `contracts` 是跨进程和持久数据真源，不能让 UI 自定义另一套对象形状。
+- `contracts` 是跨进程和持久数据真源，不能让 UI 自定义另一套对象形状；
+- `tools` 只依赖 runtime 的稳定 Tool Host API，不反向导入 plugin-host；
+- production provider 通过 application composition root 注入，接口 descriptor
+  必须与实际 live instance 一致。
 
 ## 4. Host 启动顺序
 
@@ -57,10 +60,11 @@ plugin-host / tools / command / webui / installer / bundle
 读取 Config
 → 打开 SQLite 并执行 migration
 → 归档当前 preset generation
-→ 构造策略、模板和服务 Provider
+→ 构造策略、模板、Workspace/Execution Store 和 Production Plane Provider
 → 创建 MilitaryHostRuntime
 → 注册 Host Settings
-→ 注册 control/operations/workspace/benchmark/private-skill Remote
+→ 注册 control/operations/runtime/workspace/benchmark/private-skill Remote
+→ 启动 outbox/Radio/Decision coordination maintenance
 → Compatibility Probe
 → READY 或 fail closed
 ```
@@ -87,6 +91,22 @@ Host bundle 不注册 Military 模型工具；这些工具只存在于固定 `mi
 ```
 
 `AgentExecutionBinding` 在第一个 prompt 入队前持久化。模型不能在绑定之外修改 provider、model、reasoning、工具、权限、Verifier、上下文预算或 preset generation。
+每次实际派遣还持久化独立 Attempt、Activation、Dispatch 和 policy receipt；
+Rework/Guidance/Decision continuation 不复用已 settlement 的实例。
+
+为避免大型领域文件把不相关策略绑在一起，源码按稳定责任边界进一步拆分：
+
+- `evaluation.ts` 只保留 Job/lease/orchestration，
+  `evaluation-analytics.ts` 承担统计真值与报告不变量；
+- `ingestion.ts` 保留 supply-chain 状态机，
+  `ingestion-support.ts` 承担 rights、sanitize、chunk 与 Skill bundle 编译；
+- Control Plane、Session adapter 和 Host Runtime 分离 Remote/Reader/生命周期
+  façade 与纯验证/转换 helper；
+- SQLite coordination barrel 下的 Radio、Decision、Brainstorm、Appeal、
+  Compaction 与 Tactical Tag 各自拥有独立 repository。
+
+这些拆分不改变 package 依赖方向或公开 barrel；对应行为仍由相同的状态机、
+SQLite restart、RC.2 E2E 和文档门验证。
 
 ## 6. 权威状态
 

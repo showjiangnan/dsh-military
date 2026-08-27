@@ -165,6 +165,13 @@ test('all production governance and coordination providers survive SQLite restar
   try {
     let database = new SqliteMilitaryDatabase({ path })
     const policies = new SqliteMilitaryPolicyRegistry(database, tenantId)
+    const flash = defaultModelProfiles().find(profile =>
+      profile.model === 'deepseek-v4-flash')!
+    policies.registerModel({
+      ...flash,
+      revision: brand<number, 'Revision'>(1),
+      status: 'DRAFT',
+    })
     for (const profile of defaultModelProfiles()) policies.registerModel(profile)
     const routing = new GeneralRoutingService(defaultGeneralPolicy, policies, {
       selections: new SqliteGeneralModelSelectionStore(database, tenantId),
@@ -221,9 +228,25 @@ test('all production governance and coordination providers survive SQLite restar
         .modelCapability('deepseek-official', 'deepseek-v4-pro')).profileId,
       'deepseek-v4-pro-rc2',
     )
+    const reopenedPolicies = new SqliteMilitaryPolicyRegistry(database, tenantId)
+    assert.equal(
+      Number((await reopenedPolicies.modelCapability(
+        'deepseek-official',
+        'deepseek-v4-flash',
+      )).revision),
+      3,
+    )
+    assert.equal(
+      Number((await reopenedPolicies.modelCapability(
+        'deepseek-official',
+        'deepseek-v4-flash',
+        1,
+      )).revision),
+      1,
+    )
     const reopenedRouting = new GeneralRoutingService(
       defaultGeneralPolicy,
-      new SqliteMilitaryPolicyRegistry(database, tenantId),
+      reopenedPolicies,
       { selections: new SqliteGeneralModelSelectionStore(database, tenantId) },
     )
     assert.equal(reopenedRouting.current(root)?.model, 'deepseek-v4-flash')

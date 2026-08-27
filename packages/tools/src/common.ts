@@ -10,7 +10,7 @@ import {
   type ToolDefinition,
   type ToolRunContext,
 } from '@deepseek-ai/dsh-tools'
-import type {} from '@dsh-military/plugin-host'
+import type {} from '@dsh-military/runtime'
 import {
   MilitaryError,
   militaryErrorMetadata,
@@ -20,7 +20,13 @@ import {
   type TaskId,
   type TaskVersion,
 } from '@dsh-military/contracts'
-import { createMissionCommand, sha256, stableJson } from '@dsh-military/core'
+import {
+  createMissionCommand,
+  serializeToolErrorEnvelope,
+  sha256,
+  stableJson,
+  toolCorrectionShape,
+} from '@dsh-military/core'
 
 export function text(value: unknown): ContentBlock[] {
   return [{ type: 'text', text: JSON.stringify(value) }]
@@ -38,7 +44,12 @@ type JsonToolOptions<S extends ParameterSchemaSpec> =
  * the DSH registry validates, records and renders.
  */
 export function defineJsonTool<const S extends ParameterSchemaSpec>(options: JsonToolOptions<S>): ToolDefinition {
-  const { execute, ...definition } = options
+  const {
+    execute,
+    finalizeContent: userFinalizeContent,
+    ...definition
+  } = options
+  const correction = correctionForParameterSpec(options.name, options.parameters)
   return defineTool({
     ...definition,
     async execute(args, exec) {
@@ -48,14 +59,17 @@ export function defineJsonTool<const S extends ParameterSchemaSpec>(options: Jso
       } catch (error) {
         if (!(error instanceof MilitaryError)) throw error
         const failure = error.failure
-        throw new Error(JSON.stringify({
-          error: {
-            code: failure.code,
-            message: failure.message,
-            retryable: failure.retryable,
-            recovery: militaryErrorMetadata[failure.code].recovery,
-            ...(failure.details === undefined ? {} : { details: failure.details }),
-          },
+        throw new Error(serializeToolErrorEnvelope({
+          code: failure.code,
+          message: failure.message,
+          retryable: failure.retryable,
+          nextTool: options.name,
+          correctedShape: correction,
+          recovery: [
+            militaryErrorMetadata[failure.code].recovery,
+            `If correction is permitted, call only ${options.name} with the correctedShape; never resend identical arguments.`,
+          ].join(' '),
+          ...(failure.details === undefined ? {} : { details: failure.details }),
         }), { cause: error })
       }
       const value = snapshotJsonValue(executed)
@@ -64,7 +78,140 @@ export function defineJsonTool<const S extends ParameterSchemaSpec>(options: Jso
       }
       return value as JsonValue
     },
+    finalizeContent(exec, result) {
+      if (result.isError) {
+        const existing = existingMilitaryEnvelope(result)
+        if (existing !== undefined) return [{ type: 'text', text: existing }]
+        const info = asSchemaRecord(result.error.info)
+        const code = typeof info.code === 'string' ? info.code : 'TOOL_EXECUTION_FAILED'
+        const invalidArguments = code === 'INVALID_ARGS'
+          || /invalid arguments|is required|must be/iu.test(result.error.message)
+        const nextTool = invalidArguments ? options.name : 'WAIT_FOR_HOST'
+        return [{
+          type: 'text',
+          text: serializeToolErrorEnvelope({
+            code: invalidArguments ? 'INVALID_ARGUMENT' : code,
+            message: invalidArguments
+              ? 'tool arguments do not match the installed schema'
+              : result.error.message,
+            retryable: false,
+            nextTool,
+            correctedShape: invalidArguments
+              ? correction
+              : toolCorrectionShape(nextTool),
+            recovery: invalidArguments
+              ? `Call only ${options.name} with correctedShape; do not resend identical arguments.`
+              : 'Wait for a Host recovery receipt; do not repeat an operation whose outcome is unknown.',
+          }),
+        }]
+      }
+      return userFinalizeContent?.(exec, result)
+    },
   })
+}
+
+function existingMilitaryEnvelope(
+  result: Readonly<{ readonly content: readonly ContentBlock[] }>,
+): string | undefined {
+  for (const block of result.content) {
+    if (block.type !== 'text') continue
+    const source = block.text.startsWith('Error: ')
+      ? block.text.slice('Error: '.length)
+      : block.text
+    try {
+      const parsed = JSON.parse(source) as {
+        readonly error?: {
+          readonly code?: unknown
+          readonly nextTool?: unknown
+          readonly correctedShape?: unknown
+        }
+      }
+      if (typeof parsed.error?.code === 'string'
+        && typeof parsed.error.nextTool === 'string'
+        && parsed.error.correctedShape !== undefined) return source
+    } catch {
+      // Non-Military upstream failure: normalize below.
+    }
+  }
+  return undefined
+}
+
+/**
+ * Compile an author-facing RC.2 parameter map into a bounded correction
+ * example.  Required fields are concrete enough for a small model to copy,
+ * while the optional list preserves discoverability without bloating the
+ * retry payload.
+ */
+export function correctionForParameterSpec(
+  tool: string,
+  parameters: ParameterSchemaSpec,
+): ReturnType<typeof toolCorrectionShape> {
+  const entries = Object.entries(parameters)
+  const required = entries
+    .filter(([, value]) => value.required === true)
+    .map(([key]) => key)
+  const optional = entries
+    .filter(([, value]) => value.required !== true)
+    .map(([key]) => key)
+  const args = Object.fromEntries(
+    entries
+      .filter(([, value]) => value.required === true)
+      .map(([key, value]) => [
+        key,
+        parameterPlaceholder(key, asSchemaRecord(value)),
+      ]),
+  )
+  return toolCorrectionShape(tool, args, required, optional)
+}
+
+function parameterPlaceholder(
+  key: string,
+  schema: Record<string, unknown>,
+): unknown {
+  if ('const' in schema) return schema.const
+  if (Array.isArray(schema.enum) && schema.enum.length > 0) return schema.enum[0]
+  if ('default' in schema) return schema.default
+  if (Array.isArray(schema.examples) && schema.examples.length > 0) {
+    return schema.examples[0]
+  }
+  if (Array.isArray(schema.oneOf) && schema.oneOf.length > 0) {
+    return parameterPlaceholder(key, asSchemaRecord(schema.oneOf[0]))
+  }
+  switch (schema.type) {
+    case 'string':
+      if (/path|file|document/iu.test(key)) return 'project/relative/path'
+      if (/id|key/iu.test(key)) return '<host-issued-id>'
+      return `<${key}>`
+    case 'integer':
+    case 'number':
+      return typeof schema.minimum === 'number' ? schema.minimum : 0
+    case 'boolean':
+      return false
+    case 'array':
+      return []
+    case 'object': {
+      const properties = asSchemaRecord(schema.properties)
+      return Object.fromEntries(
+        Object.entries(properties)
+          .filter(([, value]) =>
+            typeof value === 'object'
+            && value !== null
+            && (value as Record<string, unknown>).required === true)
+          .map(([childKey, value]) => [
+            childKey,
+            parameterPlaceholder(childKey, asSchemaRecord(value)),
+          ]),
+      )
+    }
+    default:
+      return `<${key}>`
+  }
+}
+
+function asSchemaRecord(value: unknown): Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : {}
 }
 
 export function registerTools(ctx: Context, tools: readonly ToolDefinition[]): () => void {

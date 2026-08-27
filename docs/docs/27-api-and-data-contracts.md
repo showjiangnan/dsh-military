@@ -33,6 +33,9 @@ WaveId
 TaskId
 TaskVersion
 AttemptId
+WorkflowObligationId
+ActivationId
+DispatchId
 AgentId / SessionId
 AdvisorId
 TacticalRequestId
@@ -51,6 +54,12 @@ DecisionSetId
 ChiefAdviceId
 EvaluationRequestId
 PerformanceReportId
+WorkspaceSnapshotId / WorkspaceLeaseId
+CandidateSubmissionId / CandidatePatchId
+VerificationReceiptId / IntegrationReceiptId
+OperationId / OutboxRecordId
+PrincipalId / TenantId
+ArtifactContentId / ArtifactReferenceId
 ```
 
 不得把数组索引、显示名或 Agent 标签作为稳定身份。
@@ -59,9 +68,13 @@ PerformanceReportId
 
 ```ts
 startMission(input, authority)
+createWorkflowObligation(input, authority)
 ratifyDirection(command, expectedMissionRevision)
 openWave(command, expectedDirectionRevision)
 leaseTask(taskId, workerIdentity, expectedTaskVersion)
+startAttempt(command, expectedTaskVersion)
+activateAgent(command, expectedAttemptFence)
+recordDispatch(command, expectedActivationFence)
 submitCandidate(candidate, expectedTaskVersion)
 submitBlocker(blocker, expectedTaskVersion)
 requestTacticalGuidance(request)
@@ -89,6 +102,7 @@ cancelPerformanceEvaluation(command)
 
 ```ts
 getMissionSnapshot(missionId)
+getWorkflowObligation(obligationId)
 getDirection(directionId)
 getWave(waveId)
 getTask(taskId)
@@ -109,6 +123,9 @@ listPendingDecisionQuestionSets(rootSessionId)
 getChiefOfStaffAdvice(adviceId)
 getPerformanceEvaluation(evaluationRequestId)
 getMilitaryPerformanceReport(reportId)
+getRuntimeProjection(requestId)
+getCommandOperation(operationId)
+getArtifactReference(referenceId, principal)
 ```
 
 ## 5. 错误码
@@ -129,6 +146,9 @@ getMilitaryPerformanceReport(reportId)
 | `RESOURCE_LOCKED` | 写集合或环境被占用 |
 | `POLICY_DENIED` | 确定性策略拒绝 |
 | `PERSISTENCE_FAILED` | 事实未能持久化，状态不可声称已改变 |
+| `RECOVERY_REQUIRED` | Snapshot 存在但没有新鲜 start/heartbeat/settlement receipt |
+| `OPERATION_IN_PROGRESS` | 稳定 operationId 已被有 fence 的执行者租赁 |
+| `OPERATION_OUTCOME_UNKNOWN` | 外部副作用需先查询 postcondition/receipt |
 
 ### 验收
 
@@ -399,7 +419,7 @@ EVALUATION_APPEAL_EVIDENCE_REQUIRED
 
 所有回执必须在声明状态改变前持久化。模型不能构造 Authorization、Binding、Resume、Integration、Budget 或 Appeal resolution 的权威 Receipt；模型最多提出经过 Schema 校验的建议内容。
 
-## 11. 0.9.0-alpha.24 Web 控制面契约
+## 11. 0.9.0-alpha.25 Web 控制面契约
 
 Web Client 只通过六个窄 Typert Remote 访问 Host；每个 Remote 只有只读
 `snapshot` 和一个带判别字段的 `execute`，不暴露数据库、文件系统或 Git 对象。
@@ -459,8 +479,10 @@ ASSESS_PROVIDER_SESSION
 
 每个 run/sample 固定 dataset hash、Bundle/Preset、角色 revision、exact route、
 reasoning、ToolProfile 和预算。Provider 稳定性按 dataset + Session + scenario
-去重；exact-route 独立 Session 少于 10 或 Wilson 区间宽度大于 0.35 时只能是
-`INSUFFICIENT_SAMPLE`。
+去重。观察趋势标签在 exact-route 独立 Session 少于 10 或 Wilson 区间宽度大于
+0.35 时只能是 `INSUFFICIENT_SAMPLE`；发布 acceptance 是独立且更严格的合同，
+每个 exact configuration × scenario 少于 50 个独立 Session 时同样必须是
+`INSUFFICIENT_SAMPLE`，并且还要满足首次工具/E2E Wilson 门和四项零安全失败。
 
 ### `militaryPrivateSkills`
 

@@ -1,6 +1,6 @@
 {
   "name": "dsh-military-source",
-  "version": "0.9.0-alpha.24",
+  "version": "0.9.0-alpha.25",
   "private": true,
   "type": "module",
   "license": "Apache-2.0",
@@ -28,6 +28,7 @@
     "verify:rc2-profile": "node scripts/verify-rc2-profile.mjs",
     "all:rc2": "npm run all:local && npm run typecheck:rc2",
     "e2e:rc2": "node scripts/run-rc2-e2e.mjs",
+    "acceptance:flash": "npm run build && node --import ./scripts/alias-loader.mjs scripts/verify-flash-acceptance.mjs",
     "repair:regressions": "node scripts/run-repair-regressions.mjs",
     "semantic:audit": "node scripts/semantic-release-audit.mjs",
     "all:local": "npm run generate && npm run typecheck && npm run verify:rc2 && npm run build && npm test && npm run repair:regressions && npm run semantic:audit && npm run review && npm run validate",

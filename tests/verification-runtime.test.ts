@@ -122,3 +122,53 @@ test('a nonempty declared tool-call list is rejected without a host-observed rec
     await temp.dispose()
   }
 })
+
+test('a user Stop settles only the current Activation and leaves its Task resumable', async () => {
+  const ledger = new InMemoryMilitaryLedger()
+  const runtime = new MilitaryOrchestrator({
+    ledger,
+    verification: {
+      prepare(): void {},
+      async verify() {
+        throw new Error('verification is not used in this test')
+      },
+    },
+    oversight: new OversightController(),
+    brainstorm: new InMemoryMilitaryBrainstorm(),
+  })
+  const mission = missionId('mission-invocation-stop')
+  const general = identity('general')
+  const worker = identity('worker')
+  const order = task(mission, 'task-invocation-stop')
+  await runtime.registerMission({
+    missionId: mission,
+    rootSessionId: sessionId('general-invocation-stop'),
+    general,
+    title: 'Invocation stop',
+    authorityContextRef: 'authority:invocation-stop',
+  })
+  await runtime.registerTask(order, general)
+  await runtime.leaseTask(order.taskId, worker, 'lease-invocation-stop-1')
+
+  const state = await runtime.releaseTaskLease(
+    order.taskId,
+    worker,
+    'USER_INVOCATION_CANCELLED:USER_CANCELLED',
+  )
+  assert.equal(state, 'PAUSED')
+  const events = await ledger.readEvents(mission)
+  assert.equal(events.some(event => event.type === 'task/cancelled'), false)
+  assert.equal(
+    events.some(event =>
+      event.type === 'task/activation-settled'
+      && event.payload.outcome === 'PAUSED'),
+    true,
+  )
+
+  await runtime.leaseTask(
+    order.taskId,
+    identity('worker'),
+    'lease-invocation-stop-2',
+  )
+  assert.equal(runtime.taskState(order.taskId), 'EXECUTING')
+})

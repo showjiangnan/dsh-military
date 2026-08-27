@@ -16,10 +16,12 @@ export class SqliteVersionedJsonStore<T extends object> {
 
   put(id: string, revision: number, status: string, value: T): void {
     try {
-      this.#database.db.prepare(`
-        INSERT INTO policy_documents(tenant_id, policy_kind, policy_id, revision, status, document_json, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-      `).run(this.#tenantId, this.#kind, id, revision, status, stableJson(value), new Date().toISOString())
+      this.#database.transaction(() => {
+        this.#database.db.prepare(`
+          INSERT INTO policy_documents(tenant_id, policy_kind, policy_id, revision, status, document_json, created_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?)
+        `).run(this.#tenantId, this.#kind, id, revision, status, stableJson(value), new Date().toISOString())
+      })
     } catch (error) {
       throw new MilitaryError('REVISION_CONFLICT', `cannot store ${this.#kind} ${id}@${revision}`, undefined, { cause: error })
     }

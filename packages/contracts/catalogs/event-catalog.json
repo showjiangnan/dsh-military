@@ -447,6 +447,46 @@
       }
     },
     {
+      "type": "task/ready",
+      "title": "Task ready",
+      "description": "Scheduler admitted a created Task after its Wave and dependency barriers were satisfied.",
+      "payloadSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "taskId",
+          "taskVersion",
+          "waveId",
+          "satisfiedDependencyIds"
+        ],
+        "properties": {
+          "taskId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "taskVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "waveId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "satisfiedDependencyIds": {
+            "type": "array",
+            "items": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "uniqueItems": true
+          }
+        }
+      },
+      "examplePayload": {
+        "taskId": "task-auth-api",
+        "taskVersion": 1,
+        "waveId": "wave-auth-001",
+        "satisfiedDependencyIds": []
+      }
+    },
+    {
       "type": "task/leased",
       "title": "Task leased",
       "description": "A role-bound agent received an exclusive task lease.",
@@ -707,6 +747,232 @@
         "taskVersion": 1,
         "reasonCode": "USER_CANCELLED",
         "cancelledAgentId": "agent-worker-001"
+      }
+    },
+    {
+      "type": "task/activation-settled",
+      "title": "Task activation settled",
+      "description": "Host settled one exact Agent Activation without conflating child teardown with Task completion.",
+      "payloadSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "taskId",
+          "taskVersion",
+          "activationId",
+          "outcome",
+          "taskState",
+          "reason"
+        ],
+        "properties": {
+          "taskId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "taskVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "activationId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "outcome": {
+            "enum": [
+              "COMPLETED",
+              "PAUSED",
+              "RECOVERY_REQUIRED",
+              "CANCELLED",
+              "FAILED"
+            ]
+          },
+          "taskState": {
+            "enum": [
+              "CREATED",
+              "READY",
+              "LEASED",
+              "EXECUTING",
+              "CANDIDATE_SUBMITTED",
+              "VERIFYING",
+              "WAITING_INTEGRATION",
+              "INTEGRATING",
+              "INTEGRATION_FAILED",
+              "REWORK",
+              "BLOCKED",
+              "GUIDANCE_PENDING",
+              "WAITING_DECISION",
+              "PAUSED",
+              "RECOVERY_REQUIRED",
+              "FROZEN",
+              "ACCEPTED",
+              "CANCELLED",
+              "FAILED"
+            ]
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 240
+          }
+        }
+      },
+      "examplePayload": {
+        "taskId": "task-auth-api",
+        "taskVersion": 1,
+        "activationId": "agent-activation-001",
+        "outcome": "RECOVERY_REQUIRED",
+        "taskState": "RECOVERY_REQUIRED",
+        "reason": "child transport disappeared before a terminal receipt"
+      }
+    },
+    {
+      "type": "task/resumed",
+      "title": "Task resumed",
+      "description": "Harness explicitly resumed a paused or recovery-required Task into the scheduler.",
+      "payloadSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "taskId",
+          "taskVersion",
+          "fromState",
+          "reason"
+        ],
+        "properties": {
+          "taskId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "taskVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "fromState": {
+            "enum": [
+              "PAUSED",
+              "RECOVERY_REQUIRED",
+              "REWORK",
+              "INTEGRATION_FAILED"
+            ]
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 240
+          }
+        }
+      },
+      "examplePayload": {
+        "taskId": "task-auth-api",
+        "taskVersion": 1,
+        "fromState": "RECOVERY_REQUIRED",
+        "reason": "new durable Attempt reserved"
+      }
+    },
+    {
+      "type": "task/decision-waiting",
+      "title": "Task waiting for decision",
+      "description": "A Task suspended execution until the root General records a user-owned decision.",
+      "payloadSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "taskId",
+          "taskVersion",
+          "decisionSetId"
+        ],
+        "properties": {
+          "taskId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "taskVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "decisionSetId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          }
+        }
+      },
+      "examplePayload": {
+        "taskId": "task-auth-api",
+        "taskVersion": 1,
+        "decisionSetId": "decision-set-auth"
+      }
+    },
+    {
+      "type": "task/decision-resolved",
+      "title": "Task decision resolved",
+      "description": "The root General recorded the answer receipt and returned the waiting Task to scheduling.",
+      "payloadSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "taskId",
+          "taskVersion",
+          "decisionSetId",
+          "answerReceiptRef"
+        ],
+        "properties": {
+          "taskId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "taskVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "decisionSetId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "answerReceiptRef": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 240
+          }
+        }
+      },
+      "examplePayload": {
+        "taskId": "task-auth-api",
+        "taskVersion": 1,
+        "decisionSetId": "decision-set-auth",
+        "answerReceiptRef": "artifact-answer-001"
+      }
+    },
+    {
+      "type": "task/integration-failed",
+      "title": "Task integration failed",
+      "description": "A verified Candidate failed controlled integration and therefore did not complete its Task.",
+      "payloadSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "taskId",
+          "taskVersion",
+          "integrationReceiptId",
+          "disposition"
+        ],
+        "properties": {
+          "taskId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "taskVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "integrationReceiptId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "disposition": {
+            "enum": [
+              "CONFLICT",
+              "REGRESSION_FAILED",
+              "STALE"
+            ]
+          }
+        }
+      },
+      "examplePayload": {
+        "taskId": "task-auth-api",
+        "taskVersion": 1,
+        "integrationReceiptId": "integration-receipt-001",
+        "disposition": "CONFLICT"
       }
     },
     {
@@ -1194,6 +1460,45 @@
       }
     },
     {
+      "type": "radio/dead-lettered",
+      "title": "Radio request dead-lettered",
+      "description": "A blocked Task exhausted the Radio request TTL or advisor lease attempts and was explicitly escalated.",
+      "payloadSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "requestId",
+          "taskId",
+          "taskVersion",
+          "reason"
+        ],
+        "properties": {
+          "requestId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "taskId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "taskVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "reason": {
+            "enum": [
+              "REQUEST_EXPIRED",
+              "LEASE_ATTEMPTS_EXHAUSTED"
+            ]
+          }
+        }
+      },
+      "examplePayload": {
+        "requestId": "radio-request-001",
+        "taskId": "task-auth-api",
+        "taskVersion": 1,
+        "reason": "REQUEST_EXPIRED"
+      }
+    },
+    {
       "type": "decision/question-set-created",
       "title": "Decision question set created",
       "description": "A child or General created a durable user decision set.",
@@ -1215,9 +1520,15 @@
           "questionSetRef": {
             "$ref": "common-defs.schema.json#/$defs/id"
           },
+          "taskId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
           "taskVersion": {
             "type": "integer",
             "minimum": 1
+          },
+          "attemptId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
           }
         }
       },
@@ -1225,6 +1536,7 @@
         "decisionSetId": "decision-set-001",
         "originAgentId": "agent-chief-001",
         "questionSetRef": "artifact-question-set",
+        "taskId": "task-auth-api",
         "taskVersion": 1
       }
     },
@@ -1286,6 +1598,47 @@
         "decisionSetId": "decision-set-001",
         "answerReceiptRef": "answer-receipt-001",
         "answeredBy": "user-example"
+      }
+    },
+    {
+      "type": "decision/answer-acknowledged",
+      "title": "Decision answer acknowledged",
+      "description": "The exact continuation Worker received and acknowledged the durable answer receipt.",
+      "payloadSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "decisionSetId",
+          "taskId",
+          "taskVersion",
+          "answerReceiptRef",
+          "acknowledgedBy"
+        ],
+        "properties": {
+          "decisionSetId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "taskId": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "taskVersion": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "answerReceiptRef": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          },
+          "acknowledgedBy": {
+            "$ref": "common-defs.schema.json#/$defs/id"
+          }
+        }
+      },
+      "examplePayload": {
+        "decisionSetId": "decision-set-001",
+        "taskId": "task-auth-api",
+        "taskVersion": 1,
+        "answerReceiptRef": "answer-receipt-001",
+        "acknowledgedBy": "agent-worker-002"
       }
     },
     {

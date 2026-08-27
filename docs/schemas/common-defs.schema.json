@@ -110,6 +110,9 @@
         "artifactId": {
           "$ref": "#/$defs/id"
         },
+        "referenceId": {
+          "$ref": "#/$defs/id"
+        },
         "sha256": {
           "type": "string",
           "pattern": "^[a-f0-9]{64}$"
@@ -124,6 +127,15 @@
         },
         "classification": {
           "$ref": "#/$defs/classification"
+        },
+        "tenantId": {
+          "$ref": "#/$defs/id"
+        },
+        "missionId": {
+          "$ref": "#/$defs/id"
+        },
+        "taskId": {
+          "$ref": "#/$defs/id"
         },
         "description": {
           "type": "string",

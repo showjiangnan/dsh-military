@@ -2,7 +2,7 @@
 
 [简体中文（默认）](README.md) | [English](README.en.md)
 
-> 状态：`0.9.0-alpha.24`；已通过精确 DSH RC.2 类型检查、干净 Web Profile
+> 状态：`0.9.0-alpha.25`；已通过精确 DSH RC.2 类型检查、干净 Web Profile
 > 安装、真实 Loader 激活、三次启动恢复 E2E、全部 package pack/publint、
 > 可重复打包和校验和门禁。
 
@@ -26,8 +26,8 @@ General、参谋、Worker、工兵、督战、电台、战术记忆、绩效评�
 - `@dsh-military/core`：Mission/Task 状态机、Ledger、CAS、计划、验收、治理；
 - `@dsh-military/infrastructure`：Artifact、受限进程、Git worktree、Candidate、
   Integration、specs 和知识供应链；
-- `@dsh-military/storage-sqlite`：SQLite migration、原子 Unit of Work、持久化
-  Ledger、receipt、outbox 和运行态；
+- `@dsh-military/storage-sqlite`：SQLite migration、短事务 Command Saga、
+  持久 Ledger、ordered outbox、Workspace/Execution projection 和恢复状态；
 - `@dsh-military/runtime`：应用服务图、部门 Agent、研究与恢复协调；
 - `@dsh-military/plugin-host`：RC.2 Agent、Session、Tool、Compaction、
   Settings 和 Subagent 适配；
@@ -37,8 +37,8 @@ General、参谋、Worker、工兵、督战、电台、战术记忆、绩效评�
 - `@dsh-military/webui`：与 DSH 设置按钮使用同一 42px/36px 点击域的纵向
   Military 设置与知识入口、原生 Modal、七个左侧一级选项卡、General/11
   部门角色工作台、模型/预算/提示词 revision、Flash readiness/模拟、诊断/
-  恢复、Specs 工作区、固定评测、可访问性、完整七视图 Knowledge Center 与
-  七视图绩效决策中心；
+  恢复、Specs 工作区、Request→Integration Runtime Center、固定评测、
+  可访问性、完整七视图 Knowledge Center 与七视图绩效决策中心；
 - `@dsh-military/preset`：固定 `military` preset 与内容寻址 generation；
 - `@dsh-military/installer`：事务化 preset 安装、升级、验证与卸载；
 - `@dsh-military/bundle`：可由 DSH Profile 安装的自包含 Host/Client Bundle；
@@ -74,6 +74,20 @@ DSH_RC2_ROOT=/absolute/path/to/deepseek-harness pnpm release:verify
 测试使用确定性进程内 LLM adapter；真实外部 Provider 凭据、网络和部署环境仍是
 上线检查，不在测试中伪造。
 
+真实 Flash 发行验收同确定性测试严格分离。Military 绩效页从 immutable Session
+event 与 Host-observed receipt 生成并导出证据；每个 exact configuration ×
+场景需要 50 个独立 Session，并满足首次工具命中/E2E Wilson 下界及四类零安全
+失败。离线重算命令：
+
+```bash
+npm run acceptance:flash -- \
+  --evidence /absolute/path/provider-acceptance.json \
+  --route deepseek-official/deepseek-v4-flash
+```
+
+该命令不发起付费请求；样本不足返回 `INSUFFICIENT_SAMPLE`，目录可用或本地门禁
+通过都不会被写成真实 Provider 已验收。
+
 角色提示词的用户可编辑正文使用简体中文并保存在 Settings/模板 revision 中。
 Prompt Assembly 会在该正文之后强制追加 Host 拥有的工具白名单、工作区、能力
 授权、证据和终态边界；编辑提示词不能获得新工具、扩大文件权限或绕过验收。
@@ -83,10 +97,10 @@ Prompt Assembly 会在该正文之后强制追加 Host 拥有的工具白名单�
 - 每个 Military 结构参数向模型公开完整数组、枚举、对象和必填 Schema；
 - `military_task_create` 只接收浅层 Task 草稿，Mission/Direction/Wave/Task
   ID、版本、复杂度、证据条款和环境快照全部由 Host 确定性生成；
-- 每个 Military turn 先调用 `military_get_context`，复用返回的 Mission、
-  Brainstorm 和 Task ID；
-- 根 General 只看到 15 个角色允许的 Military 工具；Task-bound 部门 Agent
-  再按当前阶段收窄，Engineer Specs 首请求为 9 个工具，Worker 最多 14 个；
+- General 与部门 Agent 都只看到 Host 权威阶段所需的 1—4 个工具；固定
+  ToolProfile 仍是权限上限，Task grant 可把交集进一步收窄；
+- 模型只复用 Host 当前阶段返回的 ID；不得猜测 Mission、Task、Attempt、
+  Activation、Dispatch、Workspace 或版本/fence；
 - Task `allowedTools` 同时限制模型 Schema 与 Capability Grant；
 - 失败校验一次返回全部可见问题，Mission Snapshot 在工具边界转为稳定 JSON；
 - Candidate、Blocker、Guidance、Decision、Specs、Inspection 和 Research
@@ -98,6 +112,12 @@ Prompt Assembly 会在该正文之后强制追加 Host 拥有的工具白名单�
 - Task 的 step、tool call、Tactical Request、子代理墙钟和单次输出预算均进入
   实际执行边界；省略时采用 Flash 安全默认值，选择 Pro 时仍可在模板和模型能力
   上限内显式提高预算，不删减 Mission 流程。
+- `WorkflowObligation`、Task Version、Attempt、Activation 与 Dispatch 独立；
+  Session Snapshot 不再被当作 `RUNNING` 证据。
+- Mission 外部副作用通过 `PENDING_EFFECT → EFFECT_APPLIED → COMMITTED`
+  短事务 Saga 和 ordered outbox 恢复，SQLite 写锁不跨模型、Git 或文件系统。
+- Worker/工兵只向 Task-rooted 文件工具提交相对路径；超时先查询 operation
+  receipt，不盲目重复写入。
 
 私有 Skill 供应链也采用轻量优先边界：
 
@@ -168,7 +188,11 @@ DSH 主侧栏中提供与“知识与技能”相邻的 `Military 设置中心` 
 简体中文辅助检查的插件自带提示词；角色目录、六层有效 Prompt、确定性
 readiness、离线模拟、显式只读 Canary、immutable history、成本、Session
 诊断、受治理恢复、Host workspace 目录、固定九场景基准与浏览器可访问性均已
-接入。内部 JSON registry、ToolProfile、PermissionProfile、authority、终止
+接入。安全与恢复页还提供受 preview/CAS/过期时间/精确确认短语保护的显式
+Mission 取消，并由 Host 清理全部 child Grant、预算、容量和 Workspace 资源；
+它不等同于停止当前调用。轻量模型收到的 Military 错误统一为脱敏、有界且只有
+一个 `nextTool` 的纠错 envelope，`correctedShape` 来自实际 RC.2 Schema。
+内部 JSON registry、ToolProfile、PermissionProfile、authority、终止
 协议和父级 receipt 不暴露为可误配文本。完整 15 项合同见
 [`docs/docs/67-military-control-center-flash-workbench-and-accessibility.md`](docs/docs/67-military-control-center-flash-workbench-and-accessibility.md)。
 
@@ -186,6 +210,9 @@ readiness、离线模拟、显式只读 Canary、immutable history、成本、Se
 ## 安装
 
 GitHub 源码仓库不提交 `release/`、编译后的 `lib/`、依赖目录或本地门禁报告。
+需要离线交付源码时运行 `pnpm pack:source`；归档只读取
+`git ls-files --cached --others --exclude-standard`，所以即使刚执行过构建和
+发行门，也不会夹带编译产物、数据库、凭据或本地报告。
 先从源码生成经过验证的发布目录：
 
 ```bash
@@ -197,8 +224,8 @@ DSH_RC2_ROOT=/absolute/path/to/deepseek-harness pnpm release:verify
 
 ```text
 release/
-  dsh-military-bundle-0.9.0-alpha.24.tgz
-  dsh-military-installer-0.9.0-alpha.24.tgz
+  dsh-military-bundle-0.9.0-alpha.25.tgz
+  dsh-military-installer-0.9.0-alpha.25.tgz
   checksums.sha256
   INSTALL.md
   VERSION.json
@@ -214,7 +241,7 @@ cd release
 shasum -a 256 -c checksums.sha256
 
 dsh plugin --profile web add \
-  ./dsh-military-bundle-0.9.0-alpha.24.tgz
+  ./dsh-military-bundle-0.9.0-alpha.25.tgz
 
 pnpm --dir "${DSH_HOME:-$HOME/.dsh}/profiles/web" exec \
   dsh-military-install install \

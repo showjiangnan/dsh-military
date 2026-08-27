@@ -11,12 +11,14 @@ import {
 import type { MilitaryHostRuntime } from './context.js'
 import { defaultTemplates } from './defaults.js'
 import type { PrivateSkillRemoteService } from './private-skill-remote.js'
+import { redactDiagnosticText } from './session-diagnostics.js'
 import {
   ROLE_WORKBENCH_NAMESPACE,
   initialRoleWorkbenchDocument,
   parseRoleWorkbenchDocument,
   serializeRoleWorkbenchDocument,
   synchronizeRoleWorkbench,
+  synchronizeRoleWorkbenchReadiness,
 } from './role-workbench.js'
 
 const DEFAULT_TEMPLATE_JSON = JSON.stringify(defaultTemplates(), null, 2)
@@ -99,9 +101,13 @@ export function installMilitarySettings(
       applies: 'live',
       validate(value) { void parseRoleWorkbenchDocument(value.stateJson) },
     })
-    void synchronizeWorkbenchSettings(host, roleWorkbench.get().stateJson, ctx)
+    void scheduleWorkbenchSettings(
+      host,
+      roleWorkbench.get().stateJson,
+      ctx,
+    )
     roleWorkbench.watch(async next => {
-      await synchronizeWorkbenchSettings(host, next.stateJson, ctx)
+      await scheduleWorkbenchSettings(host, next.stateJson, ctx)
     })
 
     const staff = settings.register(settingsNamespace('military-staff'), z.object({
@@ -337,6 +343,19 @@ async function synchronizeWorkbenchSettings(
   }
 }
 
+function scheduleWorkbenchSettings(
+  host: MilitaryHostRuntime,
+  source: string,
+  ctx: Context,
+): Promise<void> {
+  return synchronizeRoleWorkbenchReadiness(
+    host,
+    async () => {
+      await synchronizeWorkbenchSettings(host, source, ctx)
+    },
+  )
+}
+
 function uniqueModelRoutes(
   roles: readonly { readonly provider: string; readonly model: string }[],
 ): readonly { readonly provider: string; readonly model: string }[] {
@@ -490,7 +509,7 @@ async function runEvaluationFromSettings(
   } catch (error) {
     await scope.update({
       lastRunState: 'FAILED',
-      lastError: error instanceof Error ? error.message : String(error),
+      lastError: safeSettingsError(error),
     })
     return
   }
@@ -559,9 +578,14 @@ async function runEvaluationFromSettings(
   } catch (error) {
     await scope.update({
       lastRunState: 'FAILED',
-      lastError: error instanceof Error ? error.message : String(error),
+      lastError: safeSettingsError(error),
     })
   }
+}
+
+function safeSettingsError(error: unknown): string {
+  const source = error instanceof Error ? error.message : String(error)
+  return redactDiagnosticText(source).slice(0, 1_000)
 }
 
 function parseEvaluationDate(source: string, fallback: Date): Date {
@@ -598,6 +622,13 @@ function parseTemplateProfiles(source: string): readonly AgentTemplateProfile[] 
     requireEnum(model, 'reasoningEffort', reasoning, `${at}.modelPolicy`)
     requirePositiveInteger(model, 'maxOutputTokens', `${at}.modelPolicy`)
     requireString(model, 'modelCapabilityProfileId', `${at}.modelPolicy`)
+    if (model.modelCapabilityProfileRevision !== undefined) {
+      requirePositiveInteger(
+        model,
+        'modelCapabilityProfileRevision',
+        `${at}.modelPolicy`,
+      )
+    }
     requireString(model, 'dataResidencyPolicyRef', `${at}.modelPolicy`)
     const context = requireRecord(value, 'contextPolicy', at)
     const budget = requirePositiveInteger(context, 'contextBudgetTokens', `${at}.contextPolicy`)

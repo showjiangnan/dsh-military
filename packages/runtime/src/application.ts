@@ -19,10 +19,12 @@ import type {
   MilitaryMissionKernel,
   MilitaryObservedEvidence,
   MilitaryContextCompiler,
+  MilitaryExecutionLifecycle,
   MilitaryExecutionRouter,
   MilitaryCapabilityGrants,
   MilitaryLedger,
   MilitaryPolicyRegistry,
+  MilitaryProductionPlane,
   MilitaryPresetGenerations,
   MilitaryRadio,
   MilitaryResourceBudgets,
@@ -40,9 +42,11 @@ import type { OversightController } from '@dsh-military/core'
  * and transport providers can be replaced without changing Military tools.
  */
 export interface MilitaryApplication {
+  readonly production: MilitaryProductionPlane
   readonly ledger: MilitaryLedger
   readonly missionKernel: MilitaryMissionKernel
   readonly contextCompiler: MilitaryContextCompiler
+  readonly executionLifecycle: MilitaryExecutionLifecycle
   readonly executionRouter: MilitaryExecutionRouter
   readonly capabilityGrants: MilitaryCapabilityGrants
   readonly administrativeLedger: MilitaryAdministrativeLedger
@@ -78,7 +82,7 @@ export interface MilitaryApplication {
 /** Validate that a manually assembled application has every mandatory seam. */
 export function assertCompleteApplication(application: MilitaryApplication): MilitaryApplication {
   const keys = [
-    'ledger', 'missionKernel', 'contextCompiler', 'executionRouter', 'capabilityGrants', 'administrativeLedger', 'artifacts', 'sessionGate', 'compatibility',
+    'production', 'ledger', 'missionKernel', 'contextCompiler', 'executionLifecycle', 'executionRouter', 'capabilityGrants', 'administrativeLedger', 'artifacts', 'sessionGate', 'compatibility',
     'presetGenerations', 'authorization', 'policies', 'generalRouting', 'templates',
     'executionBindings', 'resourceBudgets', 'verification', 'observedEvidence', 'oversight', 'radio',
     'decisionBroker', 'brainstorm', 'chiefOfStaff', 'tags', 'ingestion', 'knowledge',

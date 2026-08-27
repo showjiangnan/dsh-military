@@ -18,15 +18,20 @@
 Mission Trace
   Direction Span
     Wave Span
-      Task Attempt Span
-        Model Step Span
-        Tool Call Span
-        Verification Span
-        Radio Span
-        Specs/Git Span
+      Task Span
+        Attempt Span
+          Activation Span
+            Dispatch Span
+              Model Step Span
+              Tool Call Span
+          Verification Span
+          Radio/Decision Span
+          Integration/Specs Span
 ```
 
-关联 ID：mission/direction/wave/task/version/attempt/agent/session/request/guidance/candidate/event/artifact。
+关联 ID：request/obligation/mission/direction/wave/task/version/attempt/activation/
+dispatch/agent/session/guidance/decision/candidate/verification/integration/operation/
+outbox/event/artifact。
 
 ## 3. 核心指标
 
@@ -43,6 +48,9 @@ Mission Trace
 
 - Ready/Leased/Executing/Verify queues；
 - Radio queue age；
+- transactional outbox lag/dead-letter；
+- Command Saga pending/expired effect lease age；
+- Agent heartbeat/lease expiry 与 recovery drift；
 - Advisor/Verifier utilization；
 - Wave cycle time；
 - model/tool/verifier latency；
@@ -128,6 +136,8 @@ P(accepted | comparable blocker + guidance)
 - 用户可导出审计；
 - metrics 聚合避免重新识别；
 - OTel exporter 默认失败不能阻断核心 Ledger，但不得泄漏数据。
+- 错误标签只记录稳定 category/fingerprint，不记录原始路径、Provider payload、
+  Prompt、Secret 或高基数用户内容。
 
 ## Agent Template 与委员会指标
 
@@ -166,6 +176,14 @@ Integration queue p95
 Generation resume success rate
 Quarantine rate
 Outbox age
+Command Saga stalled effect age
+Agent activation heartbeat freshness
+Capacity admission rejection rate
 Projection lag
 Evaluation reproducibility rate
 ```
+
+生产 `OperationsHealthProjection` 将 Saga、outbox、Radio、lease/recovery、
+Workspace 和 Provider topology 统一映射为 health item、SLO drift 与
+`military.*` 指标。分布式部署的 readiness 只有在外部 Ledger、对象存储、队列和
+KMS descriptor 与探针全部匹配时为 READY；本地实现不得通过改标签伪装。

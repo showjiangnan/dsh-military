@@ -18,17 +18,23 @@ import {
   ExactRc2Compatibility,
   SingleWriterMissionKernel, LedgerMissionCommandHandler, DeterministicContextCompiler,
   AdaptiveExecutionRouter,
+  ExecutionLifecycleCoordinator,
   GeneralRoutingService,
 } from '@dsh-military/core'
 import {
   brand,
+  type AgentIdentity,
+  type ObservedToolCallReceipt,
   type PresetGenerationManifest,
+  type ResourceUsageReceipt,
   type TacticalTag,
+  type TaskId,
 } from '@dsh-military/contracts'
 import {
   FilePresetGenerationArchive,
   GitWorktreeManager,
   LocalArtifactStore,
+  LocalEd25519AssetSigner,
   LocalMainIntegration,
   LocalPrivateSkillBundleStore,
 } from '@dsh-military/infrastructure'
@@ -42,6 +48,7 @@ import {
   SqliteEvaluationAppeals,
   SqliteEvaluationDatasetArchive,
   SqliteEvaluationRecordStore,
+  SqliteExecutionLifecycleStateStore,
   SqliteGeneralModelSelectionStore,
   SqliteIntegrationStateStore,
   SqliteMilitaryAuthorization,
@@ -54,10 +61,14 @@ import {
   SqliteMilitaryRuntimeStateStore,
   SqliteMilitarySessionGate,
   SqliteObservedEvidenceStore,
+  SqliteOutboxDispatcher,
   SqliteOversightRecordStore,
   SqlitePrivateSkillRepository,
   SqliteTacticalProcedureStore,
   SqliteTacticalTagRegistry,
+  SqliteStateRecords,
+  SqliteWorkspaceStateStore,
+  createSqliteProductionPlane,
 } from '@dsh-military/storage-sqlite'
 import {
   ChiefOfStaffRuntime,
@@ -77,6 +88,11 @@ import { DshEvaluationObservationSource, DshSessionSourceReader } from './sessio
 import { DshFlashTacticalExtractor } from './private-skill-extractor.js'
 import { GovernedPerformanceNarrative } from './performance-narrative.js'
 import { MilitarySpecsControl } from './specs-control.js'
+import {
+  toolExecutionUsageReceiptFromIntent,
+  type ToolExecutionUsageIntent,
+} from './tool-authorization.js'
+import { MilitaryCoordinationMaintenance } from './coordination-maintenance.js'
 import {
   defaultBudgetPolicies,
   defaultGeneralPolicy,
@@ -111,6 +127,7 @@ export interface ApplicationFactoryResult {
   readonly tactics: InMemoryTacticalRegistry
   readonly specs: MilitarySpecsControl
   readonly privateSkillExtractor: DshFlashTacticalExtractor
+  readonly outbox: SqliteOutboxDispatcher
 }
 
 const require = createRequire(import.meta.url)
@@ -118,14 +135,46 @@ const require = createRequire(import.meta.url)
 export async function createMilitaryApplication(ctx: Context, config: ApplicationFactoryConfig): Promise<ApplicationFactoryResult> {
   const dataRoot = resolve(config.dataRoot)
   await mkdir(dataRoot, { recursive: true, mode: 0o700 })
-  const database = new SqliteMilitaryDatabase({ path: config.databasePath ?? join(dataRoot, 'military.sqlite') })
+  const databasePath = resolve(
+    config.databasePath ?? join(dataRoot, 'military.sqlite'),
+  )
+  const database = new SqliteMilitaryDatabase({ path: databasePath })
+  const outbox = new SqliteOutboxDispatcher(database, config.tenantId)
+  const outboxDeliveries = new SqliteStateRecords(database, config.tenantId)
+  outbox.register('mission-command.committed', async message => {
+    outboxDeliveries.putSync(
+      'mission-command-delivery',
+      message.eventId,
+      {
+        eventId: message.eventId,
+        partitionKey: message.partitionKey,
+        payload: message.payload,
+        deliveredAt: new Date().toISOString(),
+      },
+      { createOnly: true },
+    )
+  })
   const ledger = new SqliteMilitaryLedger(database, config.tenantId)
   const runtimeState = new SqliteMilitaryRuntimeStateStore(database, config.tenantId)
   const administrativeLedger = new SqliteAdministrativeLedger(database, config.tenantId)
   const artifacts = new LocalArtifactStore(join(dataRoot, 'artifacts'))
+  const signer = new LocalEd25519AssetSigner(
+    join(dataRoot, 'signing-keys'),
+  )
+  const production = createSqliteProductionPlane({
+    database,
+    databasePath,
+    dataRoot,
+    tenantId: config.tenantId,
+    signer,
+    queue: outbox,
+  })
   const missionKernel = new SingleWriterMissionKernel(new LedgerMissionCommandHandler(ledger))
   const contextCompiler = new DeterministicContextCompiler(new MilitaryContextMaterializer(artifacts))
   const executionRouter = new AdaptiveExecutionRouter()
+  const executionLifecycle = new ExecutionLifecycleCoordinator({
+    state: new SqliteExecutionLifecycleStateStore(database, config.tenantId),
+  })
   const capabilityGrants = new SqliteCapabilityGrantStore(database, config.tenantId)
   const packagedPresetManifest = JSON.parse(await readFile(join(config.presetAssetsRoot, 'generation-manifest.json'), 'utf8')) as PresetGenerationManifest
   const presetGenerations = new FilePresetGenerationArchive(join(dataRoot, 'preset-generations'))
@@ -210,6 +259,47 @@ export async function createMilitaryApplication(ctx: Context, config: Applicatio
     if (!existingTagIds.has(String(tag.tagId))) await tags.create(tag)
   }
   const observedEvidence = new SqliteObservedEvidenceStore(database, config.tenantId)
+  outbox.register('tool-execution.settle', async message => {
+    if (typeof message.payload !== 'object'
+      || message.payload === null
+      || Array.isArray(message.payload)) {
+      throw new TypeError('tool settlement outbox payload must be an object')
+    }
+    const payload = message.payload as {
+      readonly observedReceipt?: ObservedToolCallReceipt
+      readonly usageReceipt?: ResourceUsageReceipt
+      readonly usageIntent?: ToolExecutionUsageIntent
+    }
+    if (payload.observedReceipt === undefined) {
+      throw new TypeError('tool settlement outbox has no observed receipt')
+    }
+    await observedEvidence.recordToolCall(payload.observedReceipt)
+    const usageReceipt = payload.usageReceipt
+      ?? (payload.usageIntent === undefined
+        ? undefined
+        : await toolExecutionUsageReceiptFromIntent(
+            resourceBudgets,
+            payload.usageIntent,
+          ))
+    if (usageReceipt !== undefined) {
+      const reservation = await resourceBudgets.getReservation(
+        usageReceipt.reservationId,
+      )
+      if (reservation.state !== 'SETTLED') {
+        await resourceBudgets.settle(usageReceipt)
+      }
+    }
+    outboxDeliveries.putSync(
+      'tool-settlement-delivery',
+      message.eventId,
+      {
+        eventId: message.eventId,
+        callId: payload.observedReceipt.callId,
+        deliveredAt: new Date().toISOString(),
+      },
+      { createOnly: true },
+    )
+  })
   const verificationEngine = new VerificationEngine(artifacts, observedEvidence)
   verificationEngine.registerContract({
     contractId: 'default-acceptance', version: 1, requireIndependentVerification: true,
@@ -240,6 +330,7 @@ export async function createMilitaryApplication(ctx: Context, config: Applicatio
   const knowledge = new KnowledgeSupplyChainRuntime(artifacts, {
     repository: privateSkillRepository,
     tactics,
+    tenantId: config.tenantId,
   })
   const privateSkillExtractor = new DshFlashTacticalExtractor(ctx, {
     provider: 'deepseek-official',
@@ -249,7 +340,11 @@ export async function createMilitaryApplication(ctx: Context, config: Applicatio
   const ingestion = new TacticalIngestionRuntime({
     artifacts,
     rawVault: new LocalArtifactStore(join(dataRoot, 'private-skill-raw')),
-    bundles: new LocalPrivateSkillBundleStore(join(dataRoot, 'private-skills'), artifacts),
+    bundles: new LocalPrivateSkillBundleStore(
+      join(dataRoot, 'private-skills'),
+      artifacts,
+      config.tenantId,
+    ),
     tags,
     extractor: privateSkillExtractor,
     fallbackExtractor: new HeuristicTacticalExtractor(),
@@ -257,6 +352,7 @@ export async function createMilitaryApplication(ctx: Context, config: Applicatio
     repository: privateSkillRepository,
     tactics,
     knowledge,
+    tenantId: config.tenantId,
   })
   const observationCatalog = new ObservationCatalog()
   const evaluationSource = new CompositeEvaluationDataSource([
@@ -279,13 +375,21 @@ export async function createMilitaryApplication(ctx: Context, config: Applicatio
   )
   const evaluationAppeals = new SqliteEvaluationAppeals(database, config.tenantId)
   const compactionAttempts = new SqliteCompactionAttempts(database, config.tenantId)
-  const workspaces = new GitWorktreeManager({ repositoryRoot: config.repositoryRoot, stateRoot: join(dataRoot, 'workspace-state'), artifacts })
+  const workspaces = new GitWorktreeManager({
+    repositoryRoot: config.repositoryRoot,
+    stateRoot: join(dataRoot, 'workspace-state'),
+    artifacts,
+    state: new SqliteWorkspaceStateStore(database, config.tenantId),
+  })
+  await workspaces.reconcile(new AbortController().signal)
   const specs = new MilitarySpecsControl(config.regressionChecks)
   const integration = new LocalMainIntegration({
     repositoryRoot: config.repositoryRoot,
+    integrationRoot: join(dataRoot, 'integration-worktrees'),
     workspaces,
     artifacts,
     state: new SqliteIntegrationStateStore(database, config.tenantId),
+    tenantId: config.tenantId,
     ...(config.regressionChecks === undefined ? {} : { regressionChecks: config.regressionChecks }),
   })
   await integration.reconcilePending(new AbortController().signal)
@@ -295,10 +399,74 @@ export async function createMilitaryApplication(ctx: Context, config: Applicatio
     oversight,
     brainstorm,
     state: runtimeState,
+    radio,
+    decisions: decisionBroker,
   })
+  outbox.register('decision-answer.acknowledge', async message => {
+    if (
+      typeof message.payload !== 'object'
+      || message.payload === null
+      || Array.isArray(message.payload)
+    ) {
+      throw new TypeError('decision acknowledgement payload must be an object')
+    }
+    const payload = message.payload as {
+      readonly taskId?: unknown
+      readonly decisionSetId?: unknown
+      readonly worker?: unknown
+    }
+    if (
+      typeof payload.taskId !== 'string'
+      || typeof payload.decisionSetId !== 'string'
+      || typeof payload.worker !== 'object'
+      || payload.worker === null
+      || Array.isArray(payload.worker)
+    ) {
+      throw new TypeError('decision acknowledgement payload is incomplete')
+    }
+    await runtime.acknowledgeDecisionAnswer(
+      brand<string, 'TaskId'>(payload.taskId) as TaskId,
+      payload.decisionSetId,
+      payload.worker as AgentIdentity,
+    )
+    outboxDeliveries.putSync(
+      'decision-answer-ack-delivery',
+      message.eventId,
+      {
+        eventId: message.eventId,
+        taskId: payload.taskId,
+        decisionSetId: payload.decisionSetId,
+        deliveredAt: new Date().toISOString(),
+      },
+      { createOnly: true },
+    )
+  })
+  const decisionCoordinator: AgentIdentity = {
+    agentId: brand<string, 'AgentId'>(
+      'agent-harness-decision-expiry-coordinator',
+    ),
+    sessionId: brand<string, 'SessionId'>(
+      'session-harness-decision-expiry-coordinator',
+    ),
+    role: 'harness',
+    displayName: 'Decision Expiry Coordinator',
+    generation: 1,
+  }
+  const coordination = new MilitaryCoordinationMaintenance({
+    tenantId: config.tenantId,
+    outbox,
+    radio,
+    decisions: decisionBroker,
+    runtime,
+    lifecycle: executionLifecycle,
+    telemetry: production.telemetry,
+    coordinator: decisionCoordinator,
+  })
+  await coordination.runOnce()
+  coordination.start(ctx)
 
   const application: MilitaryApplication = assertCompleteApplication({
-    ledger, missionKernel, contextCompiler, executionRouter, capabilityGrants, administrativeLedger, artifacts, sessionGate, compatibility, presetGenerations,
+    production, ledger, missionKernel, contextCompiler, executionLifecycle, executionRouter, capabilityGrants, administrativeLedger, artifacts, sessionGate, compatibility, presetGenerations,
     authorization, policies, generalRouting, templates, executionBindings, resourceBudgets,
     verification: verificationEngine, observedEvidence, oversight, radio, decisionBroker, brainstorm, chiefOfStaff,
     tags, ingestion, knowledge, evaluationDataset, evaluation, evaluationAppeals,
@@ -315,6 +483,7 @@ export async function createMilitaryApplication(ctx: Context, config: Applicatio
     tactics,
     specs,
     privateSkillExtractor,
+    outbox,
   }
 }
 
@@ -325,16 +494,18 @@ function detectDshRelease(): string {
 }
 
 function indexPresetGeneration(database: SqliteMilitaryDatabase, manifest: PresetGenerationManifest): void {
-  database.db.prepare(`
-    INSERT INTO preset_generations(
-      generation, public_preset_id, hidden_archive_id, asset_hash, bundle_version,
-      dsh_commit, status, manifest_json, created_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    ON CONFLICT(generation) DO NOTHING
-  `).run(
-    manifest.generation, manifest.publicSelectionId, manifest.hiddenArchiveId, String(manifest.assetHash),
-    manifest.bundleVersion, manifest.dshBaseline.commit, manifest.status, JSON.stringify(manifest), String(manifest.createdAt),
-  )
+  database.transaction(() => {
+    database.db.prepare(`
+      INSERT INTO preset_generations(
+        generation, public_preset_id, hidden_archive_id, asset_hash, bundle_version,
+        dsh_commit, status, manifest_json, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(generation) DO NOTHING
+    `).run(
+      manifest.generation, manifest.publicSelectionId, manifest.hiddenArchiveId, String(manifest.assetHash),
+      manifest.bundleVersion, manifest.dshBaseline.commit, manifest.status, JSON.stringify(manifest), String(manifest.createdAt),
+    )
+  })
 }
 
 function defaultTags(): readonly TacticalTag[] {

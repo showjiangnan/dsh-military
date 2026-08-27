@@ -3,23 +3,32 @@ import { readFile, writeFile } from 'node:fs/promises'
 import { basename, dirname, resolve } from 'node:path'
 import { spawn } from 'node:child_process'
 
-const output = resolve(process.argv[2] ?? '../dsh-military-code-v0.9.0-alpha.24.zip')
+const output = resolve(process.argv[2] ?? '../dsh-military-code-v0.9.0-alpha.25.zip')
 const root = resolve('.')
-const python = String.raw`import os,sys,zipfile
-root=os.path.abspath(sys.argv[1]); out=os.path.abspath(sys.argv[2]); parent=os.path.dirname(root)
-exclude_dirs={'.build','.cache','node_modules','.git','.test-drafts','__pycache__'}
-exclude_suffixes=('.tsbuildinfo','.pyc')
+const python = String.raw`import os,subprocess,sys,zipfile
+root=os.path.abspath(sys.argv[1]); out=os.path.abspath(sys.argv[2])
+# The source archive is exactly the Git-visible source set: tracked files plus
+# new, non-ignored files. This makes .gitignore the single exclusion policy and
+# prevents a preceding build/test/release run from leaking lib/, release/,
+# caches, runtime databases, local reports or credentials into the archive.
+listed=subprocess.check_output([
+  'git','-C',root,'ls-files','-z','--cached','--others','--exclude-standard',
+])
+relative_entries=sorted(
+  value.decode('utf-8','surrogateescape')
+  for value in listed.split(b'\0') if value
+)
 entries=[]
-for base,dirs,files in os.walk(root):
-  dirs[:]=sorted(d for d in dirs if d not in exclude_dirs)
-  for name in sorted(files):
-    if name.endswith(exclude_suffixes): continue
-    path=os.path.join(base,name)
-    if os.path.abspath(path)==out: continue
-    entries.append(path)
+for relative in relative_entries:
+  path=os.path.abspath(os.path.join(root,relative))
+  if os.path.commonpath((root,path)) != root:
+    raise SystemExit('git reported a path outside the source root')
+  if path == out or not os.path.isfile(path):
+    continue
+  entries.append((relative,path))
 with zipfile.ZipFile(out,'w',zipfile.ZIP_DEFLATED,compresslevel=9) as archive:
-  for path in entries:
-    info=zipfile.ZipInfo(os.path.relpath(path,parent).replace(os.sep,'/'))
+  for relative,path in entries:
+    info=zipfile.ZipInfo(os.path.join(os.path.basename(root),relative).replace(os.sep,'/'))
     info.date_time=(2026,8,19,0,0,0); info.compress_type=zipfile.ZIP_DEFLATED
     info.external_attr=(0o100644 & 0xFFFF)<<16
     with open(path,'rb') as source: archive.writestr(info,source.read(),compress_type=zipfile.ZIP_DEFLATED,compresslevel=9)

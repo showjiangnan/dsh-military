@@ -16,6 +16,9 @@ export const generalMilitaryToolNames = [
 export const workerMilitaryToolNames = [
   ...commonMilitaryToolNames,
   'military_get_order', 'military_get_tactical_directive',
+  'military_workspace_read', 'military_workspace_list',
+  'military_workspace_search', 'military_workspace_write',
+  'military_workspace_edit', 'military_workspace_operation_status',
   'military_record_observation', 'military_submit_candidate', 'military_submit_blocker',
   'military_radio_request', 'military_submit_decision_questions',
 ] as const

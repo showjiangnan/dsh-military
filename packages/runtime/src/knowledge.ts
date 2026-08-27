@@ -20,17 +20,20 @@ export class KnowledgeSupplyChainRuntime implements MilitaryKnowledgeSupplyChain
   readonly #artifacts: MilitaryArtifacts
   readonly #repository: PrivateSkillRepository
   readonly #tactics: InMemoryTacticalRegistry | undefined
+  readonly #tenantId: string
 
   constructor(
     artifacts: MilitaryArtifacts,
     options?: {
       readonly repository?: PrivateSkillRepository
       readonly tactics?: InMemoryTacticalRegistry
+      readonly tenantId?: string
     },
   ) {
     this.#artifacts = artifacts
     this.#repository = options?.repository ?? new InMemoryPrivateSkillRepository()
     this.#tactics = options?.tactics
+    this.#tenantId = options?.tenantId ?? 'local'
   }
 
   registerSource(snapshot: TacticalSourceSnapshot): void {
@@ -54,7 +57,7 @@ export class KnowledgeSupplyChainRuntime implements MilitaryKnowledgeSupplyChain
       if (stableJson(existing) !== stableJson(order)) throw new MilitaryError('IDEMPOTENCY_CONFLICT')
       return
     }
-    await this.#repository.transaction(async () => {
+    await this.#repository.transaction(() => {
       const source = this.#repository.source(brand<string, 'PrivateSkillSourceHandle'>(order.snapshotId))
       if (source !== null) {
         this.#repository.putSource({
@@ -106,6 +109,10 @@ export class KnowledgeSupplyChainRuntime implements MilitaryKnowledgeSupplyChain
       mediaType: 'application/json',
       classification: 'confidential',
       description: 'Derived private Skill revocation impact report',
+      tenantId: this.#tenantId,
+      ownerPrincipalId: order.requestedBy,
+      audiencePrincipalIds: ['military-host', order.requestedBy],
+      audienceScopes: ['artifact:read', 'military:private-skill-governance'],
     })
   }
 }

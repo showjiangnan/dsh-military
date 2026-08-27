@@ -233,6 +233,19 @@ test('path and downstream denials do not consume grants; concurrent admission is
       async () => ({ kind: 'allow' }),
     )
     assert.equal(outsideScope.kind, 'deny')
+    if (outsideScope.kind === 'deny') {
+      const failure = JSON.parse(outsideScope.reason) as {
+        readonly error: {
+          readonly code: string
+          readonly nextTool: string
+          readonly correctedShape: { readonly tool: string }
+        }
+      }
+      assert.equal(failure.error.code, 'FORBIDDEN_SCOPE')
+      assert.equal(failure.error.nextTool, 'write')
+      assert.equal(failure.error.correctedShape.tool, 'write')
+      assert.doesNotMatch(outsideScope.reason, new RegExp(escapeRegex(temp.path), 'u'))
+    }
     assert.equal((await grants.get(grant.grantId)).uses, 0)
     await assert.rejects(
       budgets.getReservation(toolBudgetReservationId(worker, execution(`${root}/docs/denied.ts`))),
@@ -294,3 +307,7 @@ test('path and downstream denials do not consume grants; concurrent admission is
     await temp.dispose()
   }
 })
+
+function escapeRegex(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&')
+}

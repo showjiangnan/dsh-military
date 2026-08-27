@@ -1,4 +1,5 @@
 export * from './artifacts.js'
+export * from './asset-signer.js'
 export * from './git.js'
 export * from './process.js'
 export * from './workspaces.js'

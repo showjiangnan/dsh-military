@@ -152,10 +152,14 @@ CANCELLED
 
 - Event 已提交但 projection/outbox 未处理；
 - Artifact 文件存在但 metadata 未提交；
+- Artifact metadata 已提交但 Reference Index 未提交；
+- active/retained Artifact metadata 存在但 Blob 丢失；
 - Radio lease holder 崩溃；
 - Evaluation dataset 读取中断。
 
-处置：幂等 consumer、checkpoint、orphan sweep、visibility timeout 和 immutable dataset shard。
+处置：幂等 consumer、checkpoint、metadata-authoritative index rebuild、
+orphan sweep、active Blob 完整性 fail-closed、visibility timeout 和 immutable
+dataset shard。
 
 ### Performance Evaluation
 
@@ -201,7 +205,34 @@ Attempt missingness 中分别归因。
 
 所有故障注入必须得到有限终态：`RECOVERED/PAUSED/QUARANTINED/CANCELLED/FAILED`，不得停留在未知“可能已完成”。
 
-## 0.9.0-alpha.24 控制中心恢复合同
+## 0.9.0-alpha.25 Command Saga 恢复合同
+
+Mission command 的外部 operation 具有稳定 idempotency key 和 durable state：
+
+```text
+PENDING_EFFECT
+├─ effect failure/crash before checkpoint → RETRYABLE
+├─ valid active lease                    → wait / RESOURCE_LOCKED
+└─ result checkpoint                     → EFFECT_APPLIED → COMMITTED
+```
+
+恢复调用必须提交原语义 command；Host 校验 semantic fingerprint、tenant、
+Mission、payload hash 和 idempotency key。`EFFECT_APPLIED` 不重跑 effect，
+只补 command receipt/outbox；`RETRYABLE` 只能调用同一可查询/幂等 operation。
+Operations health 公开 state 计数、过期 lease 和最老年龄，但不显示可能含秘密的
+Provider 错误正文，也不会凭 UI 猜测副作用。
+
+故障注入覆盖：
+
+- admission commit 后、effect 前崩溃；
+- effect 报错并进入 RETRYABLE；
+- effect 成功后、checkpoint 前中止；
+- EFFECT_APPLIED 后、receipt/outbox 前崩溃；
+- finalization CAS 丢失；
+- 同 idempotency key 使用不同 authority/semantic payload；
+- async SQLite transaction callback 的同步前缀 rollback。
+
+## 0.9.0-alpha.25 控制中心恢复合同
 
 浏览器恢复流程是三步协议：
 

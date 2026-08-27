@@ -6,11 +6,17 @@ import {
   resolveDepartmentRolePrompt,
   type AgentExecutionBinding,
   type AgentTemplateProfile,
+  type MilitaryRole,
   type ToolProfile,
 } from '@dsh-military/contracts'
 import type { MilitaryHostRuntime } from './context.js'
 import { defaultToolProfileRevision, rc2GeneralToolNames } from './defaults.js'
-import { clearAgentPlaneState, type AgentPlaneState } from './agent-plane-state.js'
+import {
+  clearAgentPlaneState,
+  type AgentPlaneState,
+  type DepartmentToolPhase,
+  type GeneralWorkflowStage,
+} from './agent-plane-state.js'
 import { reconcileModelRequestBudgets } from './model-budget.js'
 import { installMilitaryPromptSurface } from './prompt-surface.js'
 
@@ -35,7 +41,7 @@ export function registerAgentLifecycle(
         agent,
         rc2GeneralToolNames,
         `general-tools@${Number(defaultToolProfileRevision)}`,
-        () => phaseVisibleTools(host, agent, state),
+        () => resolvePhaseVisibleTools(host, agent, state),
         () => generalPersona(host.generalRolePrompt()),
       )
     }
@@ -80,7 +86,7 @@ export function registerAgentLifecycle(
     restrictMilitaryToolVisibility(
       agent,
       profile,
-      () => phaseVisibleTools(lifecycleHost, agent, state),
+      () => resolvePhaseVisibleTools(lifecycleHost, agent, state),
       () => departmentPersona(template, binding, profile.allowTools),
     )
     const concurrency = await lifecycleHost.application.resourceBudgets.getReservation(
@@ -173,38 +179,228 @@ export function departmentPersona(
   }).text
 }
 
-const TERMINAL_PHASE_TOOLS = new Set([
-  'military_submit_candidate',
-  'military_submit_blocker',
-  'military_radio_request',
-  'military_submit_decision_questions',
-  'military_specs_apply_order',
-  'military_radio_issue',
-  'military_staff_issue_guidance',
-  'military_submit_inspection',
-  'military_submit_research_artifact',
-  'report',
-])
-
-const GENERAL_BOOTSTRAP_TOOLS = new Set([
+const GENERAL_IDLE_TOOLS = new Set([
   'ask_user_question',
-  'military_get_context',
-  'military_mission_start',
   'military_tactical_ingest',
   'military_tactical_review',
   'military_status',
 ])
 
-async function phaseVisibleTools(
+const GENERAL_WORKFLOW_STAGE_TOOLS: Readonly<
+  Record<GeneralWorkflowStage, ReadonlySet<string>>
+> = Object.freeze({
+  START_MISSION: new Set(['military_mission_start']),
+  CREATE_TASK: new Set(['military_task_create']),
+  READ_DEPARTMENT_STATUS: new Set(['military_status']),
+  SPAWN_DEPARTMENT: new Set(['military_spawn_department_agent']),
+  POLL_TACTICAL_REQUEST: new Set(['military_radio_poll']),
+  ISSUE_TACTICAL_GUIDANCE: new Set(['military_radio_issue']),
+  PRESENT_DECISION: new Set(['military_decision_present']),
+  ASK_USER_DECISION: new Set(['ask_user_question']),
+  RECORD_DECISION: new Set(['military_decision_answer']),
+})
+
+/**
+ * Synchronous first-request surface used while a continuable child is still
+ * unpublished. RC.2 may start that request before the asynchronous binding
+ * lookup settles, so this safe role-derived phase cannot depend on SQLite.
+ */
+export function initialPhaseVisibleTools(
+  role: MilitaryRole | undefined,
+): ReadonlySet<string> {
+  if (role === 'worker') return WORKER_PHASE_TOOLS.ORDER
+  if (role === 'engineer') return ENGINEER_PHASE_TOOLS.ORDER
+  if (role === 'advisor' || role === 'chief-of-staff') {
+    return STAFF_PHASE_TOOLS.DISCOVER
+  }
+  if (role === 'inspector') return INSPECTOR_PHASE_TOOLS
+  if (role === 'trajectory'
+    || role === 'effectiveness'
+    || role === 'museum'
+    || role === 'evaluation-examiner'
+    || role === 'evaluation-chair') {
+    return RESEARCH_PHASE_TOOLS
+  }
+  if (role === 'general') return GENERAL_IDLE_TOOLS
+  return HARNESS_PHASE_TOOLS
+}
+
+export async function resolvePhaseVisibleTools(
   host: MilitaryHostRuntime,
   agent: Agent,
   state: AgentPlaneState,
 ): Promise<ReadonlySet<string> | undefined> {
-  if (state.finalizationOnlyAgents.has(String(agent.id))) {
-    return TERMINAL_PHASE_TOOLS
-  }
   const identity = await host.identityFor(agent)
-  if (identity.role !== 'general') return undefined
-  const missionId = await host.application.runtime.missionForSession(identity.sessionId)
-  return missionId === null ? GENERAL_BOOTSTRAP_TOOLS : undefined
+  if (state.finalizationOnlyAgents.has(String(agent.id))) {
+    return TERMINAL_PHASE_TOOLS_BY_ROLE[identity.role]
+  }
+  if (identity.role === 'worker') {
+    const phase = state.departmentPhaseByAgent.get(String(agent.id)) ?? 'ORDER'
+    return WORKER_PHASE_TOOLS[phase]
+  }
+  if (identity.role === 'engineer') {
+    const phase = state.departmentPhaseByAgent.get(String(agent.id)) ?? 'ORDER'
+    return ENGINEER_PHASE_TOOLS[phase]
+  }
+  if (identity.role === 'advisor' || identity.role === 'chief-of-staff') {
+    const phase = state.departmentPhaseByAgent.get(String(agent.id)) ?? 'DISCOVER'
+    return STAFF_PHASE_TOOLS[phase]
+  }
+  if (identity.role !== 'general') {
+    return initialPhaseVisibleTools(identity.role)
+  }
+  const stage = state.generalWorkflowStageByAgent.get(String(agent.id))
+  return stage === undefined
+    ? GENERAL_IDLE_TOOLS
+    : GENERAL_WORKFLOW_STAGE_TOOLS[stage]
 }
+
+export const WORKER_PHASE_TOOLS: Readonly<
+  Record<DepartmentToolPhase, ReadonlySet<string>>
+> = Object.freeze({
+  ORDER: new Set([
+    'military_get_order',
+    'military_get_tactical_directive',
+    'military_submit_blocker',
+    'military_submit_decision_questions',
+  ]),
+  DISCOVER: new Set([
+    'military_workspace_read',
+    'military_workspace_list',
+    'military_workspace_search',
+    'military_submit_blocker',
+  ]),
+  MUTATE: new Set([
+    'military_workspace_write',
+    'military_workspace_edit',
+    'military_submit_candidate',
+    'military_submit_blocker',
+  ]),
+  VERIFY: new Set([
+    'military_workspace_read',
+    'military_workspace_search',
+    'military_submit_candidate',
+    'military_submit_blocker',
+  ]),
+  RECOVER: new Set([
+    'military_workspace_operation_status',
+    'military_submit_blocker',
+  ]),
+})
+
+export const ENGINEER_PHASE_TOOLS: Readonly<
+  Record<DepartmentToolPhase, ReadonlySet<string>>
+> = Object.freeze({
+  ORDER: new Set([
+    'military_get_order',
+    'military_get_tactical_directive',
+    'military_submit_blocker',
+    'military_submit_decision_questions',
+  ]),
+  DISCOVER: new Set([
+    'military_specs_read',
+    'read',
+    'grep',
+    'military_submit_blocker',
+  ]),
+  MUTATE: new Set([
+    'military_specs_read',
+    'military_specs_stage_chunk',
+    'military_specs_apply_order',
+    'military_submit_blocker',
+  ]),
+  VERIFY: new Set([
+    'military_specs_read',
+    'military_specs_apply_order',
+    'military_submit_blocker',
+  ]),
+  RECOVER: new Set([
+    'military_specs_read',
+    'military_submit_blocker',
+  ]),
+})
+
+export const STAFF_PHASE_TOOLS: Readonly<
+  Record<DepartmentToolPhase, ReadonlySet<string>>
+> = Object.freeze({
+  ORDER: new Set([
+    'military_staff_read_mission',
+    'military_staff_retrieve_tactics',
+    'military_read_artifact',
+    'military_get_context',
+  ]),
+  DISCOVER: new Set([
+    'military_staff_read_mission',
+    'military_staff_retrieve_tactics',
+    'military_read_artifact',
+    'military_get_context',
+  ]),
+  MUTATE: new Set([
+    'military_staff_retrieve_tactics',
+    'military_staff_issue_guidance',
+    'military_staff_chief_advice',
+    'military_submit_decision_questions',
+  ]),
+  VERIFY: new Set([
+    'military_staff_read_mission',
+    'military_staff_issue_guidance',
+    'military_staff_chief_advice',
+    'military_submit_decision_questions',
+  ]),
+  RECOVER: new Set([
+    'military_staff_read_mission',
+    'military_submit_decision_questions',
+    'report',
+  ]),
+})
+
+export const INSPECTOR_PHASE_TOOLS = new Set([
+  'military_inspect_agent',
+  'military_submit_inspection',
+  'military_read_artifact',
+  'military_get_context',
+])
+
+export const RESEARCH_PHASE_TOOLS = new Set([
+  'military_read_accepted_ledger',
+  'military_submit_research_artifact',
+  'military_read_artifact',
+  'web_search',
+])
+
+const HARNESS_PHASE_TOOLS = new Set(['report'])
+
+const TERMINAL_PHASE_TOOLS_BY_ROLE = Object.freeze({
+  general: GENERAL_IDLE_TOOLS,
+  advisor: new Set([
+    'military_staff_issue_guidance',
+    'military_staff_chief_advice',
+    'military_submit_decision_questions',
+    'report',
+  ]),
+  'chief-of-staff': new Set([
+    'military_staff_issue_guidance',
+    'military_staff_chief_advice',
+    'military_submit_decision_questions',
+    'report',
+  ]),
+  worker: new Set([
+    'military_submit_candidate',
+    'military_submit_blocker',
+    'military_radio_request',
+    'military_submit_decision_questions',
+  ]),
+  engineer: new Set([
+    'military_specs_apply_order',
+    'military_submit_blocker',
+    'military_radio_request',
+    'military_submit_decision_questions',
+  ]),
+  inspector: new Set(['military_submit_inspection', 'report']),
+  trajectory: new Set(['military_submit_research_artifact', 'report']),
+  effectiveness: new Set(['military_submit_research_artifact', 'report']),
+  museum: new Set(['military_submit_research_artifact', 'report']),
+  'evaluation-examiner': new Set(['military_submit_research_artifact', 'report']),
+  'evaluation-chair': new Set(['military_submit_research_artifact', 'report']),
+  harness: HARNESS_PHASE_TOOLS,
+} as const)

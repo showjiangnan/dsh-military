@@ -6,7 +6,7 @@ The validator distinguishes syntax from cross-artifact conformance. It checks:
 - event/error catalog generation, payload coverage and Golden ledgers;
 - JSON Schema ↔ TypeScript top-level field parity;
 - immutable preset generation assets and RC.2 compatibility fixtures;
-- numbered documents 00..68, generated single-spec, links and Mermaid;
+- numbered documents 00..69, generated single-spec, links and Mermaid;
 - TypeScript compilation, SQL reference shape, state invariants and traces;
 - deterministic schema/example index freshness;
 - optional manifest regeneration/checking.
@@ -225,15 +225,15 @@ def validate_json_syntax() -> list[Result]:
 def validate_single_spec() -> list[Result]:
     path=ROOT/'dsh-military-design-specification.md'
     if not path.exists(): return [Result('single-spec',path.name,False,'missing')]
-    text=path.read_text(); missing=[f'part-{i:02d}' for i in range(69) if f'id="part-{i:02d}"' not in text]
+    text=path.read_text(); missing=[f'part-{i:02d}' for i in range(70) if f'id="part-{i:02d}"' not in text]
     freshness=run_check('build_single_spec.py',['--check'])
     ok=not missing and freshness.ok
-    detail='69 parts and current' if ok else (f'missing anchors: {missing}' if missing else freshness.detail)
+    detail='70 parts and current' if ok else (f'missing anchors: {missing}' if missing else freshness.detail)
     return [Result('single-spec',path.name,ok,detail)]
 
 def validate_numbered_docs() -> list[Result]:
-    docs=sorted(DOCS.glob('[0-9][0-9]-*.md')); actual=[int(p.name[:2]) for p in docs]; expected=list(range(69))
-    return [Result('documents','docs/00..68',actual==expected,'continuous numbering' if actual==expected else f'expected {expected}, got {actual}')]
+    docs=sorted(DOCS.glob('[0-9][0-9]-*.md')); actual=[int(p.name[:2]) for p in docs]; expected=list(range(70))
+    return [Result('documents','docs/00..69',actual==expected,'continuous numbering' if actual==expected else f'expected {expected}, got {actual}')]
 
 def markdown_without_fences(text: str) -> str:
     output=[]; in_fence=False; marker=''

@@ -7,7 +7,9 @@ import type {
   VerificationReceipt,
 } from '@dsh-military/contracts'
 import { matchTacticalTags } from '@dsh-military/core'
-import type { MilitaryHostRuntime } from '@dsh-military/plugin-host'
+import type {
+  MilitaryToolHostRuntime as MilitaryHostRuntime,
+} from '@dsh-military/runtime'
 
 export interface RecordTaskSkillUsageInput {
   readonly host: MilitaryHostRuntime

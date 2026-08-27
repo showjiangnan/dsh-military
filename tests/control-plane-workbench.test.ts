@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
 import test from 'node:test'
+import { MilitaryError } from '@dsh-military/contracts'
 import {
   GENERAL_ROLE_ID,
   MILITARY_CONTROL_SCHEMA_VERSION,
@@ -25,9 +26,12 @@ import {
   initialRoleWorkbenchDocument,
   parseRoleWorkbenchDocument,
   roleDraftFromUnknown,
+  requireRoleWorkbenchApplied,
+  roleWorkbenchApplicationState,
   serializeRoleWorkbenchDocument,
   synchronizeRoleWorkbench,
 } from '@dsh-military/plugin-host'
+import { SqliteMilitaryDatabase } from '@dsh-military/storage-sqlite'
 
 const SIMPLE_SCHEMA = {
   available: true,
@@ -69,6 +73,114 @@ test('role draft RPC accepts bundled multiline prompts and rejects non-whitespac
     }),
     /控制字符/u,
   )
+})
+
+test('Desired/Applied workbench state records the exact failure and converges on retry', async () => {
+  const database = new SqliteMilitaryDatabase({ path: ':memory:' })
+  try {
+    const templates = defaultTemplates()
+    const first = initialRoleWorkbenchDocument({
+      provider: 'deepseek-official',
+      model: 'deepseek-v4-flash',
+      reasoningEffort: 'high',
+      maxOutputTokens: 16_384,
+      generalPromptOverride: '',
+    }, templates)
+    const worker = first.roles.find(value =>
+      value.roleId === 'worker-default')!
+    const next = applyRoleDraft({
+      document: first,
+      draft: {
+        roleId: worker.roleId,
+        provider: worker.provider,
+        model: worker.model,
+        reasoningEffort: worker.reasoningEffort,
+        maxOutputTokens: worker.maxOutputTokens,
+        contextBudgetTokens: worker.contextBudgetTokens,
+        concurrencyLimit: worker.concurrencyLimit + 1,
+        prompt: effectiveRolePrompt(worker),
+      },
+      source: 'USER_SAVE',
+      toolSchemas: defaultToolProfiles().find(value =>
+        String(value.toolProfileId) === worker.toolProfileId)!.allowTools.map(summary),
+      modelStatus: 'VALIDATED',
+      ...(worker.modelCapabilityProfileId === undefined
+        ? {}
+        : { modelCapabilityProfileId: worker.modelCapabilityProfileId }),
+      ...(worker.modelCapabilityProfileRevision === undefined
+        ? {}
+        : { modelCapabilityProfileRevision: worker.modelCapabilityProfileRevision }),
+      createdAt: '2026-08-27T02:00:00.000Z',
+    })
+    const runtimeTemplates = new Map(templates.map(value =>
+      [String(value.templateId), value] as const))
+    let fail = true
+    const host = {
+      tenantId: 'tenant-workbench-retry',
+      database,
+      updateGeneralRolePrompt() {},
+      application: {
+        policies: {
+          async modelCapability(provider: string, model: string) {
+            const configuration = next.roles.find(value =>
+              value.provider === provider && value.model === model)!
+            return {
+              profileId: configuration.modelCapabilityProfileId,
+              revision: configuration.modelCapabilityProfileRevision ?? 1,
+            }
+          },
+        },
+        generalRouting: {
+          async updatePresetDefault() {},
+        },
+        templates: {
+          async get(id: string) {
+            return runtimeTemplates.get(String(id))!
+          },
+          async reviseBatch(values: readonly {
+            readonly profile: (typeof templates)[number]
+            readonly expectedRevision: (typeof templates)[number]['revision']
+          }[]) {
+            if (fail) {
+              fail = false
+              throw new Error('runtime adapter rejected worker concurrency')
+            }
+            for (const value of values) {
+              runtimeTemplates.set(
+                String(value.profile.templateId),
+                value.profile,
+              )
+            }
+          },
+        },
+      },
+    }
+    await assert.rejects(
+      synchronizeRoleWorkbench(host as never, next),
+      /runtime adapter rejected/u,
+    )
+    const failed = roleWorkbenchApplicationState(host as never, next.revision)
+    assert.equal(failed.state, 'FAILED')
+    assert.equal(failed.desiredRevision, next.revision)
+    assert.equal(failed.appliedRevision, 0)
+    assert.match(failed.error ?? '', /worker concurrency/u)
+    await assert.rejects(
+      requireRoleWorkbenchApplied(host as never),
+      militaryFailure('RESOURCE_LOCKED'),
+    )
+
+    await synchronizeRoleWorkbench(host as never, next)
+    const applied = roleWorkbenchApplicationState(host as never, next.revision)
+    assert.equal(applied.state, 'APPLIED')
+    assert.equal(applied.desiredRevision, next.revision)
+    assert.equal(applied.appliedRevision, next.revision)
+    assert.equal(applied.attempts, 2)
+    await assert.doesNotReject(
+      requireRoleWorkbenchApplied(host as never),
+    )
+  } finally {
+    database.close()
+  }
 })
 
 test('effective prompt preview is the exact six-layer Host compiler contract', () => {
@@ -246,6 +358,8 @@ test('role settings save atomically, retain immutable history and rollback as a 
 })
 
 test('concurrent settings watcher and save readback apply one runtime revision exactly once', async () => {
+  const database = new SqliteMilitaryDatabase({ path: ':memory:' })
+  try {
   const templates = defaultTemplates()
   const first = initialRoleWorkbenchDocument({
     provider: 'deepseek-official',
@@ -278,8 +392,23 @@ test('concurrent settings watcher and save readback apply one runtime revision e
     [String(value.templateId), value] as const))
   let revisions = 0
   const host = {
+    tenantId: 'tenant-role-workbench',
+    database,
     updateGeneralRolePrompt() {},
     application: {
+      policies: {
+        async modelCapability(provider: string, model: string) {
+          const configuration = next.roles.find(value =>
+            value.provider === provider && value.model === model)
+          if (configuration === undefined) {
+            throw new Error(`missing model ${provider}/${model}`)
+          }
+          return {
+            profileId: configuration.modelCapabilityProfileId,
+            revision: configuration.modelCapabilityProfileRevision ?? 1,
+          }
+        },
+      },
       generalRouting: {
         async updatePresetDefault() {},
       },
@@ -289,12 +418,16 @@ test('concurrent settings watcher and save readback apply one runtime revision e
           if (value === undefined) throw new Error(`missing ${id}`)
           return value
         },
-        async revise(value: (typeof templates)[number], expected: number) {
-          const current = runtimeTemplates.get(String(value.templateId))!
-          assert.equal(Number(current.revision), Number(expected))
-          await Promise.resolve()
-          runtimeTemplates.set(String(value.templateId), value)
-          revisions += 1
+        async reviseBatch(values: readonly {
+          readonly profile: (typeof templates)[number]
+          readonly expectedRevision: (typeof templates)[number]['revision']
+        }[]) {
+          for (const value of values) {
+            const current = runtimeTemplates.get(String(value.profile.templateId))!
+            assert.equal(Number(current.revision), Number(value.expectedRevision))
+            runtimeTemplates.set(String(value.profile.templateId), value.profile)
+            revisions += 1
+          }
         },
       },
     },
@@ -308,6 +441,9 @@ test('concurrent settings watcher and save readback apply one runtime revision e
   assert.equal(applied.modelPolicy.provider, 'third-party-provider')
   assert.equal(applied.modelPolicy.model, 'economy-model')
   assert.equal(Number(applied.revision), worker.templateRevision + 1)
+  } finally {
+    database.close()
+  }
 })
 
 test('Simplified-Chinese lint skips code, paths and identifiers and applies UTF-16 selections safely', () => {
@@ -384,3 +520,9 @@ test('bounded semantic prompt diff is stable', () => {
   })
   assert.equal(DEFAULT_GENERAL_ROLE_PROMPT.includes('立即停止'), true)
 })
+
+function militaryFailure(code: string): (error: unknown) => boolean {
+  return error =>
+    error instanceof MilitaryError
+    && error.failure.code === code
+}

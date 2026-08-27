@@ -142,6 +142,12 @@ budgets: {}
 - Task lease 有过期和 generation；
 - Worker crash 后先副作用对账，再重新派发。
 
+生产 `MissionScheduler` 对每次派发执行确定性准入：验证 Direction/Wave 状态、DAG
+无环、未知依赖、前置 Task 终态、Wave barrier、读写锁、Workspace/Verifier 容量和
+预算。它持久化 `wave/opened`、`wave/barrier-satisfied`、
+`mission/completed|cancelled` 事件；Trajectory、Effectiveness 和 Runtime Center
+只读取这些权威事件，不从模型正文或缺省状态推断进度。
+
 ## 11. Wave 进入条件
 
 - Direction/Wave 批准；
@@ -274,14 +280,17 @@ Task 计划新增：
 - 外部 drift 处置；
 - 需要的 Authority/Policy revision。
 
-写 Task 的完成条件不是 Candidate 被接受，而是：
+写 Task 的完成条件不是 Candidate 被接受或 Verification 单独通过，而是：
 
 ```text
-Candidate Accepted
+Candidate Submitted
+→ Verification Accepted
+→ Task VERIFIED / INTEGRATION_PENDING
 → Integration Applied
 → Global Regression Passed
 → local main Receipt
 → specs Trace Updated
+→ Task COMPLETED
 ```
 
 可以在同一 Wave 并行执行不冲突的隔离 Task，但 Integration 依据写集合、base snapshot 和依赖有序提交。

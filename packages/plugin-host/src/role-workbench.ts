@@ -1,6 +1,7 @@
 import {
   GENERAL_ROLE_ID,
   MILITARY_CONTROL_SCHEMA_VERSION,
+  MilitaryError,
   compileEffectivePrompt,
   diffPrompt,
   flashReadiness,
@@ -18,13 +19,18 @@ import {
   type ToolSchemaSummary,
 } from '@dsh-military/contracts'
 import type { MilitaryHostRuntime } from './context.js'
+import { SqliteStateRecords } from '@dsh-military/storage-sqlite'
 import {
   defaultGeneralPolicy,
+  defaultFlashModelRevision,
   defaultTemplates,
   defaultToolProfileRevision,
 } from './defaults.js'
+import { redactDiagnosticText } from './session-diagnostics.js'
 
 export const ROLE_WORKBENCH_NAMESPACE = 'military-role-workbench'
+export const ROLE_WORKBENCH_APPLICATION_NAMESPACE =
+  'military-role-workbench-application'
 export const ROLE_WORKBENCH_HISTORY_LIMIT = 480
 
 export interface LegacyGeneralRoleSettings {
@@ -75,6 +81,11 @@ export function generalRoleConfiguration(
     permissionProfileId: 'general-host-authority',
     permissionProfileRevision: 0,
     modelCapabilityProfileId: modelProfileId(value.provider, value.model),
+    modelCapabilityProfileRevision:
+      value.provider === 'deepseek-official'
+        && value.model === 'deepseek-v4-flash'
+        ? Number(defaultFlashModelRevision)
+        : 1,
     allowCanaryModel: value.model === 'deepseek-v4-flash',
   }
 }
@@ -101,6 +112,13 @@ export function templateRoleConfiguration(
     permissionProfileId: profile.capabilities.permissionProfileId,
     permissionProfileRevision: Number(profile.capabilities.permissionProfileRevision),
     modelCapabilityProfileId: profile.modelPolicy.modelCapabilityProfileId,
+    ...(profile.modelPolicy.modelCapabilityProfileRevision === undefined
+      ? {}
+      : {
+          modelCapabilityProfileRevision: Number(
+            profile.modelPolicy.modelCapabilityProfileRevision,
+          ),
+        }),
     allowCanaryModel: profile.modelPolicy.allowCanaryModel === true,
   }
 }
@@ -208,6 +226,9 @@ export function applyRoleDraft(input: {
   readonly actor?: RoleConfigurationRevision['actor']
   readonly toolSchemas: readonly ToolSchemaSummary[]
   readonly modelStatus: MilitaryModelValidationStatus
+  /** Production callers pass the exact live-catalog profile; optional only for legacy API replay. */
+  readonly modelCapabilityProfileId?: string
+  readonly modelCapabilityProfileRevision?: number
   readonly createdAt?: string
   readonly rollbackOfRevision?: number
   readonly simplifiedChineseReview?: SimplifiedChineseReviewReceipt
@@ -247,7 +268,21 @@ export function applyRoleDraft(input: {
     templateRevision: current.roleId === GENERAL_ROLE_ID
       ? 0
       : current.templateRevision + 1,
-    modelCapabilityProfileId: modelProfileId(input.draft.provider, input.draft.model),
+    modelCapabilityProfileId: normalizedIdentifier(
+      input.modelCapabilityProfileId
+        ?? modelProfileId(input.draft.provider, input.draft.model),
+      `${current.displayName} model capability profile`,
+    ),
+    ...(input.modelCapabilityProfileRevision === undefined
+      ? {}
+      : {
+          modelCapabilityProfileRevision: boundedInteger(
+            input.modelCapabilityProfileRevision,
+            1,
+            Number.MAX_SAFE_INTEGER,
+            `${current.displayName} model capability revision`,
+          ),
+        }),
     allowCanaryModel: input.modelStatus === 'CANARY',
   }
   const readiness = readinessForConfiguration(
@@ -282,7 +317,7 @@ export function applyRoleDraft(input: {
       warningCount: readiness.warningCount,
     },
     readinessReport: readiness,
-    actor: input.actor ?? 'web-user',
+    actor: input.actor ?? 'plugin-migration',
     ...(input.simplifiedChineseReview === undefined
       ? {}
       : { simplifiedChineseReview: input.simplifiedChineseReview }),
@@ -339,6 +374,99 @@ const roleWorkbenchSynchronizationTails = new WeakMap<
   MilitaryHostRuntime,
   Promise<void>
 >()
+const roleWorkbenchReadinessTails = new WeakMap<
+  MilitaryHostRuntime,
+  Promise<void>
+>()
+
+export interface RoleWorkbenchApplicationState {
+  readonly desiredRevision: number
+  readonly appliedRevision: number
+  readonly state: 'PENDING' | 'APPLYING' | 'APPLIED' | 'FAILED'
+  readonly attempts: number
+  readonly updatedAt: string
+  readonly appliedAt?: string
+  readonly error?: string
+}
+
+export function roleWorkbenchApplicationState(
+  host: MilitaryHostRuntime,
+  desiredRevision: number,
+): RoleWorkbenchApplicationState {
+  const records = new SqliteStateRecords(host.database, host.tenantId)
+  return records.readSync<RoleWorkbenchApplicationState>(
+    ROLE_WORKBENCH_APPLICATION_NAMESPACE,
+    'singleton',
+  ) ?? {
+    desiredRevision,
+    appliedRevision: 0,
+    state: 'PENDING',
+    attempts: 0,
+    updatedAt: '2026-08-26T00:00:00.000Z',
+  }
+}
+
+/**
+ * The Desired document may be durable while runtime reconciliation is still
+ * applying or has failed. Operational model/tool/child boundaries must stop
+ * there so a partially projected revision can never execute.
+ */
+export async function requireRoleWorkbenchApplied(
+  host: MilitaryHostRuntime,
+): Promise<void> {
+  // Settings registration performs catalog discovery before the Desired
+  // document can be applied. The readiness tail is installed synchronously,
+  // so the first model/tool/spawn request cannot race that startup work.
+  await roleWorkbenchReadinessTails.get(host)?.catch(() => undefined)
+  await roleWorkbenchSynchronizationTails.get(host)?.catch(() => undefined)
+  const state = new SqliteStateRecords(
+    host.database,
+    host.tenantId,
+  ).readSync<RoleWorkbenchApplicationState>(
+    ROLE_WORKBENCH_APPLICATION_NAMESPACE,
+    'singleton',
+  )
+  // No row is the pre-migration/default state. Startup synchronization creates
+  // the row before applying any user Desired revision.
+  if (state === null) return
+  if (
+    state.state !== 'APPLIED'
+    || state.desiredRevision !== state.appliedRevision
+  ) {
+    throw new MilitaryError(
+      'RESOURCE_LOCKED',
+      `Military role settings ${state.state}; Desired ${state.desiredRevision}, Applied ${state.appliedRevision}`,
+      {
+        desiredRevision: state.desiredRevision,
+        appliedRevision: state.appliedRevision,
+        reconciliationState: state.state,
+      },
+    )
+  }
+}
+
+/**
+ * Serialize the complete Settings -> catalog -> runtime reconciliation path.
+ * The wrapper records the promise before its first asynchronous operation and
+ * therefore also acts as the startup readiness barrier used by execution
+ * boundaries.
+ */
+export function synchronizeRoleWorkbenchReadiness(
+  host: MilitaryHostRuntime,
+  operation: () => Promise<void>,
+): Promise<void> {
+  const previous = roleWorkbenchReadinessTails.get(host)
+    ?? Promise.resolve()
+  const current = previous
+    .catch(() => undefined)
+    .then(operation)
+  roleWorkbenchReadinessTails.set(host, current)
+  return current.finally(() => {
+    if (roleWorkbenchReadinessTails.get(host) === current) {
+      roleWorkbenchReadinessTails.delete(host)
+    }
+  })
+}
 
 /**
  * Apply one persisted workbench to the exact runtime services that execute it.
@@ -355,7 +483,59 @@ export function synchronizeRoleWorkbench(
   const current = previous
     .catch(() => undefined)
     .then(async () => {
-      await applyRoleWorkbench(host, document)
+      const records = new SqliteStateRecords(host.database, host.tenantId)
+      const prior = roleWorkbenchApplicationState(host, document.revision)
+      if (prior.state === 'APPLIED'
+        && prior.appliedRevision === document.revision) return
+      const startedAt = new Date().toISOString()
+      host.database.transaction(() => {
+        records.putSync<RoleWorkbenchApplicationState>(
+          ROLE_WORKBENCH_APPLICATION_NAMESPACE,
+          'singleton',
+          {
+            desiredRevision: document.revision,
+            appliedRevision: prior.appliedRevision,
+            state: 'APPLYING',
+            attempts: prior.attempts + 1,
+            updatedAt: startedAt,
+          },
+        )
+      })
+      try {
+        await applyRoleWorkbench(host, document)
+        const appliedAt = new Date().toISOString()
+        host.database.transaction(() => {
+          records.putSync<RoleWorkbenchApplicationState>(
+            ROLE_WORKBENCH_APPLICATION_NAMESPACE,
+            'singleton',
+            {
+              desiredRevision: document.revision,
+              appliedRevision: document.revision,
+              state: 'APPLIED',
+              attempts: prior.attempts + 1,
+              updatedAt: appliedAt,
+              appliedAt,
+            },
+          )
+        })
+      } catch (error) {
+        const failedAt = new Date().toISOString()
+        host.database.transaction(() => {
+          records.putSync<RoleWorkbenchApplicationState>(
+            ROLE_WORKBENCH_APPLICATION_NAMESPACE,
+            'singleton',
+            {
+              desiredRevision: document.revision,
+              appliedRevision: prior.appliedRevision,
+              state: 'FAILED',
+              attempts: prior.attempts + 1,
+              updatedAt: failedAt,
+              error: boundedApplicationError(error),
+            },
+          )
+        })
+        throw error
+      }
     })
   roleWorkbenchSynchronizationTails.set(host, current)
   return current.finally(() => {
@@ -371,14 +551,27 @@ async function applyRoleWorkbench(
 ): Promise<void> {
   const general = document.roles.find(value => value.roleId === GENERAL_ROLE_ID)
   if (general === undefined) throw new TypeError('Military workbench has no General role')
-  host.updateGeneralRolePrompt(effectiveRolePrompt(general))
-  await host.application.generalRouting.updatePresetDefault({
-    provider: general.provider,
-    model: general.model,
-    reasoningEffort: general.reasoningEffort,
-    maxOutputTokens: general.maxOutputTokens,
-    contextBudgetTokens: general.contextBudgetTokens,
-  })
+  const exactGeneralCapability = await host.application.policies.modelCapability(
+    general.provider,
+    general.model,
+    general.modelCapabilityProfileRevision,
+  )
+  if (exactGeneralCapability.profileId !== general.modelCapabilityProfileId) {
+    throw new TypeError(
+      `General.modelCapabilityProfileId expected ${exactGeneralCapability.profileId}, received ${general.modelCapabilityProfileId}`,
+    )
+  }
+  if (general.modelCapabilityProfileRevision !== undefined
+    && Number(exactGeneralCapability.revision)
+      !== general.modelCapabilityProfileRevision) {
+    throw new TypeError(
+      `General.modelCapabilityProfileRevision expected ${Number(exactGeneralCapability.revision)}, received ${general.modelCapabilityProfileRevision}`,
+    )
+  }
+  const pending: Array<{
+    readonly profile: AgentTemplateProfile
+    readonly expectedRevision: AgentTemplateProfile['revision']
+  }> = []
   for (const configuration of document.roles) {
     if (configuration.roleId === GENERAL_ROLE_ID) continue
     const current = await host.application.templates.get(
@@ -390,7 +583,14 @@ async function applyRoleWorkbench(
         `workbench template ${configuration.roleId}@${configuration.templateRevision} is behind runtime @${Number(current.revision)}`,
       )
     }
-    if (configuration.templateRevision === Number(current.revision)) continue
+    if (configuration.templateRevision === Number(current.revision)) {
+      if (!configurationMatchesTemplate(configuration, current)) {
+        throw new TypeError(
+          `${configuration.roleId}@${configuration.templateRevision} does not match the applied immutable template`,
+        )
+      }
+      continue
+    }
     if (configuration.templateRevision !== Number(current.revision) + 1) {
       throw new TypeError(
         `workbench template ${configuration.roleId} must advance exactly one revision`,
@@ -411,6 +611,12 @@ async function applyRoleWorkbench(
         reasoningEffort: configuration.reasoningEffort,
         maxOutputTokens: configuration.maxOutputTokens,
         modelCapabilityProfileId: configuration.modelCapabilityProfileId,
+        ...(configuration.modelCapabilityProfileRevision === undefined
+          ? {}
+          : {
+              modelCapabilityProfileRevision:
+                configuration.modelCapabilityProfileRevision as AgentTemplateProfile['revision'],
+            }),
         allowCanaryModel: configuration.allowCanaryModel,
       },
       contextPolicy: {
@@ -425,8 +631,75 @@ async function applyRoleWorkbench(
       supersedesRevision: current.revision,
       updatedAt: document.updatedAt as NonNullable<AgentTemplateProfile['updatedAt']>,
     }
-    await host.application.templates.revise(next, current.revision)
+    const capability = await host.application.policies.modelCapability(
+      configuration.provider,
+      configuration.model,
+      configuration.modelCapabilityProfileRevision,
+    )
+    if (capability.profileId !== configuration.modelCapabilityProfileId) {
+      throw new TypeError(
+        `${configuration.roleId}.modelCapabilityProfileId expected ${capability.profileId}, received ${configuration.modelCapabilityProfileId}`,
+      )
+    }
+    if (configuration.modelCapabilityProfileRevision !== undefined
+      && Number(capability.revision)
+        !== configuration.modelCapabilityProfileRevision) {
+      throw new TypeError(
+        `${configuration.roleId}.modelCapabilityProfileRevision expected ${Number(capability.revision)}, received ${configuration.modelCapabilityProfileRevision}`,
+      )
+    }
+    pending.push({ profile: next, expectedRevision: current.revision })
   }
+  await host.application.templates.reviseBatch(pending)
+  await host.application.generalRouting.updatePresetDefault({
+    provider: general.provider,
+    model: general.model,
+    reasoningEffort: general.reasoningEffort,
+    maxOutputTokens: general.maxOutputTokens,
+    contextBudgetTokens: general.contextBudgetTokens,
+  })
+  host.updateGeneralRolePrompt(effectiveRolePrompt(general))
+}
+
+function configurationMatchesTemplate(
+  configuration: PortableRoleConfiguration,
+  template: AgentTemplateProfile,
+): boolean {
+  return configuration.status === template.status
+    && configuration.provider === template.modelPolicy.provider
+    && configuration.model === template.modelPolicy.model
+    && configuration.reasoningEffort
+      === reasoning(template.modelPolicy.reasoningEffort)
+    && configuration.maxOutputTokens === template.modelPolicy.maxOutputTokens
+    && configuration.contextBudgetTokens
+      === template.contextPolicy.contextBudgetTokens
+    && configuration.concurrencyLimit === template.concurrencyLimit
+    && configuration.promptOverride
+      === (template.rolePromptOverride?.trim() ?? '')
+    && configuration.toolProfileId === template.capabilities.toolProfileId
+    && configuration.toolProfileRevision
+      === Number(template.capabilities.toolProfileRevision)
+    && configuration.permissionProfileId
+      === template.capabilities.permissionProfileId
+    && configuration.permissionProfileRevision
+      === Number(template.capabilities.permissionProfileRevision)
+    && configuration.modelCapabilityProfileId
+      === template.modelPolicy.modelCapabilityProfileId
+    && (
+      configuration.modelCapabilityProfileRevision === undefined
+      || configuration.modelCapabilityProfileRevision
+        === Number(template.modelPolicy.modelCapabilityProfileRevision)
+    )
+    && configuration.allowCanaryModel
+      === (template.modelPolicy.allowCanaryModel === true)
+}
+
+function boundedApplicationError(error: unknown): string {
+  return redactDiagnosticText(
+    error instanceof Error ? error.message : String(error),
+  )
+    .replace(/\s+/gu, ' ')
+    .slice(0, 2_000)
 }
 
 export function roleDraftFromUnknown(value: unknown): RoleDraft {
@@ -483,6 +756,16 @@ function parseRoleConfiguration(
       value.modelCapabilityProfileId,
       `${at}.modelCapabilityProfileId`,
     ),
+    ...(value.modelCapabilityProfileRevision === undefined
+      ? {}
+      : {
+          modelCapabilityProfileRevision: boundedInteger(
+            value.modelCapabilityProfileRevision,
+            1,
+            Number.MAX_SAFE_INTEGER,
+            `${at}.modelCapabilityProfileRevision`,
+          ),
+        }),
     allowCanaryModel: value.allowCanaryModel === true,
   }
 }
@@ -503,7 +786,11 @@ function parseHistoryRevision(
     throw new TypeError(`${at}.source is invalid`)
   }
   const actor = String(value.actor)
-  if (!['web-user', 'plugin-migration'].includes(actor)) throw new TypeError(`${at}.actor is invalid`)
+  if (
+    actor.length < 1
+    || actor.length > 180
+    || !/^[A-Za-z0-9][A-Za-z0-9._:@/-]*$/u.test(actor)
+  ) throw new TypeError(`${at}.actor is invalid`)
   if (!isRecord(value.readiness)) throw new TypeError(`${at}.readiness must be an object`)
   if (!isRecord(value.promptDiff) || !Array.isArray(value.promptDiff.lines)) {
     throw new TypeError(`${at}.promptDiff must be a diff summary`)

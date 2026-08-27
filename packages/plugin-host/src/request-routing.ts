@@ -15,6 +15,7 @@ import {
 } from './model-budget.js'
 import { recordRoleRevisionUse } from './role-usage.js'
 import { resolveDshReasoningEffort } from './dsh-call-controls.js'
+import { requireRoleWorkbenchApplied } from './role-workbench.js'
 
 const COMPILED_GENERAL_PRESET = Object.freeze({
   provider: 'deepseek-official',
@@ -34,6 +35,7 @@ export function registerRequestRouting(
   ): Promise<LlmCallConfig> => {
     const base = await next()
     if (!host.isMilitaryAgent(payload.agent)) return base
+    await requireRoleWorkbenchApplied(host)
     const identity = await host.identityFor(payload.agent)
     host.application.oversight.requireAdmission(identity)
 
@@ -57,6 +59,7 @@ export function registerRequestRouting(
       const capability = await host.application.policies.modelCapability(
         binding.provider,
         binding.model,
+        binding.modelCapabilityProfileRevision,
       )
       const reasoning = await resolveDshReasoningEffort({
         ctx,

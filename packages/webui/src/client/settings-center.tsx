@@ -11,8 +11,6 @@ import {
 } from 'react'
 import type {
   ConnectionHandle,
-  IApiClient,
-  ModelProviderGroup,
 } from '@deepseek-ai/dsh-api-remotes/client'
 import type { SettingsScope } from '@deepseek-ai/dsh-client-runtime/client'
 import {
@@ -32,13 +30,6 @@ import type {
   MilitaryModelCatalogEntry,
 } from '@dsh-military/contracts/control-plane'
 import {
-  DEFAULT_GENERAL_ROLE_PROMPT,
-  ROLE_PROMPT_MAX_CHARS,
-  resolveDepartmentRolePrompt,
-  resolveGeneralRolePrompt,
-  validateRolePrompt,
-} from '@dsh-military/contracts/role-prompts'
-import {
   fetchMilitaryControlSnapshot,
   RoleWorkbench,
 } from './role-workbench.js'
@@ -49,6 +40,7 @@ import {
   MilitaryEvaluationCenter,
 } from './evaluation-center.js'
 import { useDialogFocus } from './dialog-accessibility.js'
+import { FormField, Input, Select } from './ui-adapter.js'
 
 type AnyScope = SettingsScope<Record<string, unknown>>
 const scopeMutationTails = new WeakMap<object, Promise<void>>()
@@ -153,33 +145,6 @@ export function MilitarySettingsOverlay({ scopes, connection }: Props): ReactNod
   )
 }
 
-export interface ApprovedModelOption {
-  readonly provider: string
-  readonly model: string
-  readonly capabilityProfileId: string
-  readonly label: string
-  readonly catalogConfirmed: boolean
-  readonly canary: boolean
-}
-
-/** Join Military-governed routes with the real DSH provider catalog. */
-export function approvedModelOptions(groups: readonly ModelProviderGroup[]): readonly ApprovedModelOption[] {
-  // Legacy visual-editor compatibility only. The active RoleWorkbench obtains
-  // validation/selectability from the Host `militaryControlPlane` catalog;
-  // this projection never invents a Military approval allowlist.
-  return groups.flatMap(group => group.models.map(model => ({
-    provider: group.id,
-    model: model.id,
-    capabilityProfileId: `unverified-${group.id}-${model.id}`.replace(
-      /[^A-Za-z0-9_.-]+/gu,
-      '-',
-    ),
-    label: `${model.name} · ${group.name}`,
-    catalogConfirmed: true,
-    canary: false,
-  })))
-}
-
 /** Parse the versioned registry for visual rendering; malformed Host data fails closed. */
 export function parseTemplateProfilesForUi(source: unknown): readonly AgentTemplateProfile[] {
   if (typeof source !== 'string') return []
@@ -192,21 +157,6 @@ export function parseTemplateProfilesForUi(source: unknown): readonly AgentTempl
       : []
   } catch {
     return []
-  }
-}
-
-/** Every visual template edit emits the next immutable revision. */
-export function reviseTemplateProfile(
-  profile: AgentTemplateProfile,
-  patch: (profile: AgentTemplateProfile) => AgentTemplateProfile,
-  timestamp = new Date().toISOString(),
-): AgentTemplateProfile {
-  const revised = patch(profile)
-  return {
-    ...revised,
-    revision: (Number(profile.revision) + 1) as AgentTemplateProfile['revision'],
-    supersedesRevision: profile.revision,
-    updatedAt: timestamp as NonNullable<AgentTemplateProfile['updatedAt']>,
   }
 }
 
@@ -441,433 +391,6 @@ function navigateSettingsTabs(
     `#military-settings-tab-${target}`,
   )
   tab?.focus()
-}
-
-function ModelsPanel(props: {
-  readonly routing: AnyScope
-  readonly templatesScope: AnyScope
-  readonly templates: readonly AgentTemplateProfile[]
-  readonly modelOptions: readonly ApprovedModelOption[]
-  readonly catalogStatus: 'loading' | 'ready' | 'error'
-  readonly catalogMessage: string
-  readonly onResult: (message: string) => void
-}): ReactNode {
-  const [promptResetEpoch, setPromptResetEpoch] = useState(0)
-  const route = useScopeValue(props.routing)
-  const selectedGeneral = routeKey(String(route.provider ?? ''), String(route.model ?? ''))
-  const generalPromptOverride = typeof route.generalPromptOverride === 'string'
-    ? route.generalPromptOverride
-    : ''
-  const catalogText = props.catalogStatus === 'loading'
-    ? '正在读取 DSH 模型目录…'
-    : props.catalogStatus === 'error'
-      ? `模型目录暂不可用：${props.catalogMessage}。仍可使用 Military 内置兼容路线。`
-      : '下拉选项已与当前 DSH 模型目录核对。'
-  const updateGeneralRoute = async (selected: string): Promise<void> => {
-    const option = props.modelOptions.find(candidate => routeKey(candidate.provider, candidate.model) === selected)
-    if (option === undefined) return
-    if (props.catalogStatus === 'ready' && !option.catalogConfirmed) {
-      throw new Error(`${option.label} 当前不在 DSH 模型目录中`)
-    }
-    await setMany(props.routing, [
-      ['provider', option.provider],
-      ['model', option.model],
-      ['maxOutputTokens', Math.min(Number(route.maxOutputTokens ?? 16_384), 256_000)],
-    ])
-    props.onResult(`General 默认已切换为 ${option.label}。新建且未显式选模的 Military 会话将使用该路线。`)
-  }
-  return (
-    <div style={stackStyle}>
-      <div style={rolePromptToolbarStyle}>
-        <div>
-          <strong style={toolbarHeadingStyle}>角色提示词</strong>
-          <p style={hintStyle}>默认内容由插件提供并使用简体中文；编辑只改变角色指导，不会扩大工具、文件或验收权限。</p>
-        </div>
-        <Button variant="outline" size="sm" onClick={() => {
-          runUiAction(
-            (async () => {
-              await resetAllRolePrompts(
-                props.routing,
-                props.templatesScope,
-                props.templates,
-                props.onResult,
-              )
-              setPromptResetEpoch(value => value + 1)
-            })(),
-            props.onResult,
-          )
-        }}>
-          恢复全部角色自带提示词
-        </Button>
-      </div>
-      <SettingsCard
-        title="General 总指挥模型"
-        description="用于拆解 Mission、派遣部门和汇总结果。Flash 为默认主力，Pro 仅是显式选项。"
-        onReset={() => {
-          runUiAction(
-            resetFields(props.routing, ['provider', 'model', 'reasoningEffort', 'maxOutputTokens'], props.onResult),
-            props.onResult,
-          )
-        }}
-      >
-        <div style={formGridStyle}>
-          <Labeled label="模型">
-            <select aria-label="General 模型" value={selectedGeneral} onChange={event => {
-              runUiAction(updateGeneralRoute(event.target.value), props.onResult)
-            }}>
-              {withCurrentRoute(props.modelOptions, selectedGeneral).map(option => (
-                <option
-                  key={routeKey(option.provider, option.model)}
-                  value={routeKey(option.provider, option.model)}
-                  disabled={props.catalogStatus === 'ready' && !option.catalogConfirmed && routeKey(option.provider, option.model) !== selectedGeneral}
-                >
-                  {option.label}{option.catalogConfirmed ? '' : '（目录未确认）'}
-                </option>
-              ))}
-            </select>
-          </Labeled>
-          <SelectSetting
-            label="推理强度"
-            field="reasoningEffort"
-            scope={props.routing}
-            value={String(route.reasoningEffort ?? 'high')}
-            options={[['high', 'High（推荐）'], ['max', 'Max（更慢、更贵）']]}
-            onResult={props.onResult}
-          />
-          <NumberSetting
-            label="最大输出 tokens"
-            field="maxOutputTokens"
-            scope={props.routing}
-            value={Number(route.maxOutputTokens ?? 16_384)}
-            min={1_024}
-            max={256_000}
-            step={1_024}
-            onResult={props.onResult}
-          />
-        </div>
-        <p style={hintStyle}>{catalogText}</p>
-        <RolePromptEditor
-          roleName="General 总指挥"
-          value={resolveGeneralRolePrompt(generalPromptOverride)}
-          bundledValue={DEFAULT_GENERAL_ROLE_PROMPT}
-          isBundled={generalPromptOverride.trim() === ''}
-          resetSignal={promptResetEpoch}
-          onSave={async value => {
-            await setField(props.routing, 'generalPromptOverride', value)
-            props.onResult('General 总指挥：角色提示词已保存，并将在下一次提示词组装时生效。')
-          }}
-          onReset={async () => {
-            await unsetField(props.routing, 'generalPromptOverride')
-            props.onResult('General 总指挥：已恢复插件自带的简体中文提示词。')
-          }}
-          onError={props.onResult}
-        />
-      </SettingsCard>
-
-      <div style={templateGridStyle}>
-        {props.templates.map(profile => (
-          <TemplateModelCard
-            key={String(profile.templateId)}
-            profile={profile}
-            profiles={props.templates}
-            scope={props.templatesScope}
-            modelOptions={props.modelOptions}
-            catalogReady={props.catalogStatus === 'ready'}
-            promptResetSignal={promptResetEpoch}
-            onResult={props.onResult}
-          />
-        ))}
-      </div>
-      <Button variant="outline" size="sm" onClick={() => {
-        runUiAction(
-          resetTemplateRegistry(props.templatesScope, props.templates, props.onResult),
-          props.onResult,
-        )
-      }}>
-        恢复全部部门默认模型与预算
-      </Button>
-    </div>
-  )
-}
-
-function TemplateModelCard(props: {
-  readonly profile: AgentTemplateProfile
-  readonly profiles: readonly AgentTemplateProfile[]
-  readonly scope: AnyScope
-  readonly modelOptions: readonly ApprovedModelOption[]
-  readonly catalogReady: boolean
-  readonly promptResetSignal: number
-  readonly onResult: (message: string) => void
-}): ReactNode {
-  const profile = props.profile
-  const { rolePromptOverride: _bundledOverride, ...bundledProfile } = profile
-  const bundledPrompt = resolveDepartmentRolePrompt(bundledProfile)
-  const selected = routeKey(profile.modelPolicy.provider, profile.modelPolicy.model)
-  const save = async (
-    mutate: (current: AgentTemplateProfile) => AgentTemplateProfile,
-    message: string,
-  ): Promise<void> => {
-    await mutateTemplateProfile(
-      props.scope,
-      props.profiles,
-      String(profile.templateId),
-      mutate,
-    )
-    props.onResult(`${profile.displayName}：${message}`)
-  }
-  const selectModel = async (value: string): Promise<void> => {
-    const option = props.modelOptions.find(candidate => routeKey(candidate.provider, candidate.model) === value)
-    if (option === undefined) return
-    if (props.catalogReady && !option.catalogConfirmed) {
-      throw new Error(`${option.label} 当前不在 DSH 模型目录中`)
-    }
-    await save(current => ({
-      ...current,
-      modelPolicy: {
-        ...current.modelPolicy,
-        provider: option.provider,
-        model: option.model,
-        modelCapabilityProfileId: option.capabilityProfileId,
-        allowCanaryModel: option.canary,
-      },
-    }), `模型已切换为 ${option.label}`)
-  }
-  return (
-    <article style={templateCardStyle} data-template-id={String(profile.templateId)}>
-      <div style={rowBetweenStyle}>
-        <div>
-          <h3 style={cardHeadingStyle}>{profile.displayName}</h3>
-          <p style={microStyle}>{departmentName(profile.department)} · {String(profile.templateId)}</p>
-        </div>
-        <Pill className="dshm-status">
-          <StateDot state={profile.status === 'ACTIVE' ? 'done' : profile.status === 'CANARY' ? 'ongoing' : 'warning'} />
-          {profile.status}
-        </Pill>
-      </div>
-      <Labeled label="执行模型">
-        <select aria-label={`${profile.displayName} 模型`} value={selected} onChange={event => {
-          runUiAction(selectModel(event.target.value), props.onResult)
-        }}>
-          {withCurrentRoute(props.modelOptions, selected).map(option => (
-            <option
-              key={routeKey(option.provider, option.model)}
-              value={routeKey(option.provider, option.model)}
-              disabled={props.catalogReady && !option.catalogConfirmed && routeKey(option.provider, option.model) !== selected}
-            >
-              {option.label}{option.catalogConfirmed ? '' : '（目录未确认）'}
-            </option>
-          ))}
-        </select>
-      </Labeled>
-      <div style={twoColumnStyle} data-dshm-columns="2">
-        <LocalSelect
-          label={`${profile.displayName} 推理强度`}
-          value={profile.modelPolicy.reasoningEffort}
-          options={[['high', 'High'], ['max', 'Max']]}
-          onChange={value => save(current => ({
-            ...current,
-            modelPolicy: { ...current.modelPolicy, reasoningEffort: value as 'high' | 'max' },
-          }), `推理强度已设为 ${value}`)}
-          onError={props.onResult}
-        />
-        <LocalNumber
-          label={`${profile.displayName} 输出 tokens`}
-          value={profile.modelPolicy.maxOutputTokens}
-          min={1_024}
-          max={256_000}
-          step={1_024}
-          onCommit={value => save(current => ({
-            ...current,
-            modelPolicy: { ...current.modelPolicy, maxOutputTokens: value },
-          }), `输出上限已设为 ${value}`)}
-          onError={props.onResult}
-        />
-        <LocalNumber
-          label={`${profile.displayName} 上下文 tokens`}
-          value={profile.contextPolicy.contextBudgetTokens}
-          min={16_384}
-          max={1_000_000}
-          step={1_024}
-          onCommit={value => save(current => ({
-            ...current,
-            contextPolicy: {
-              ...current.contextPolicy,
-              contextBudgetTokens: value,
-              retainedTailTokens: Math.min(current.contextPolicy.retainedTailTokens, value - 1),
-            },
-          }), `上下文预算已设为 ${value}`)}
-          onError={props.onResult}
-        />
-        <LocalNumber
-          label={`${profile.displayName} 并发上限`}
-          value={profile.concurrencyLimit}
-          min={1}
-          max={64}
-          step={1}
-          onCommit={value => save(current => ({ ...current, concurrencyLimit: value }), `并发上限已设为 ${value}`)}
-          onError={props.onResult}
-        />
-      </div>
-      <RolePromptEditor
-        roleName={profile.displayName}
-        value={resolveDepartmentRolePrompt(profile)}
-        bundledValue={bundledPrompt}
-        isBundled={profile.rolePromptOverride === undefined || profile.rolePromptOverride.trim() === ''}
-        resetSignal={props.promptResetSignal}
-        onSave={async value => {
-          await save(current => ({
-            ...current,
-            rolePromptOverride: value,
-          }), '角色提示词已保存；新派遣的该角色将使用此修订')
-        }}
-        onReset={async () => {
-          await save(current => {
-            const { rolePromptOverride: _removed, ...rest } = current
-            return rest
-          }, '已恢复插件自带的简体中文提示词')
-        }}
-        onError={props.onResult}
-      />
-      <details>
-        <summary style={detailsSummaryStyle}>压缩与治理详情</summary>
-        <div style={formGridStyle}>
-          <LocalNumber
-            label={`${profile.displayName} 压缩触发百分比`}
-            value={profile.contextPolicy.compactionTriggerPercent}
-            min={50}
-            max={99}
-            step={1}
-            onCommit={value => save(current => ({
-              ...current,
-              contextPolicy: { ...current.contextPolicy, compactionTriggerPercent: value },
-            }), `压缩阈值已设为 ${value}%`)}
-            onError={props.onResult}
-          />
-          <LocalNumber
-            label={`${profile.displayName} 压缩后保留 tokens`}
-            value={profile.contextPolicy.retainedTailTokens}
-            min={0}
-            max={Math.max(0, profile.contextPolicy.contextBudgetTokens - 1)}
-            step={1_024}
-            onCommit={value => save(current => ({
-              ...current,
-              contextPolicy: { ...current.contextPolicy, retainedTailTokens: value },
-            }), `保留尾部已设为 ${value}`)}
-            onError={props.onResult}
-          />
-          <LocalSelect
-            label={`${profile.displayName} 模板状态`}
-            value={profile.status}
-            options={[['ACTIVE', '启用'], ['CANARY', '小流量验证'], ['PAUSED', '暂停'], ['RETIRED', '退役']]}
-            onChange={value => save(current => ({
-              ...current,
-              status: value as AgentTemplateProfile['status'],
-            }), `状态已设为 ${value}`)}
-            onError={props.onResult}
-          />
-        </div>
-        <p style={governanceStyle}>
-          工具权限：{profile.capabilities.toolProfileId}@{Number(profile.capabilities.toolProfileRevision)}
-          {' · '}文件权限：{profile.capabilities.permissionProfileId}@{Number(profile.capabilities.permissionProfileRevision)}
-          {' · '}任务类型：{profile.taskTypes.join('、')}
-        </p>
-        <p style={hintStyle}>
-          权限与终止工具由 Host 按角色编译；隐式模型回退固定关闭。需要升级时请直接选择 Pro，
-          避免运行中静默换模或误配削弱流程能力。
-        </p>
-      </details>
-    </article>
-  )
-}
-
-function RolePromptEditor(props: {
-  readonly roleName: string
-  readonly value: string
-  readonly bundledValue: string
-  readonly isBundled: boolean
-  readonly resetSignal: number
-  readonly onSave: (value: string) => Promise<void>
-  readonly onReset: () => Promise<void>
-  readonly onError: (message: string) => void
-}): ReactNode {
-  const [draft, setDraft] = useExternalText(props.value)
-  const [busy, setBusy] = useState(false)
-  const normalizedDraft = draft.trim()
-  const changed = normalizedDraft !== props.value.trim()
-  const run = async (operation: () => Promise<void>): Promise<void> => {
-    if (busy) return
-    setBusy(true)
-    try {
-      await operation()
-    } catch (error) {
-      props.onError(`保存失败：${error instanceof Error ? error.message : String(error)}`)
-    } finally {
-      setBusy(false)
-    }
-  }
-  const save = async (): Promise<void> => {
-    const validated = validateRolePrompt(draft, `${props.roleName} 角色提示词`)
-    await props.onSave(validated)
-  }
-  useEffect(() => {
-    setDraft(props.value)
-  }, [props.resetSignal, props.value, setDraft])
-  return (
-    <section style={rolePromptEditorStyle} data-role-prompt-editor={props.roleName}>
-      <div style={rowBetweenStyle}>
-        <div>
-          <strong style={rolePromptLabelStyle}>角色提示词（简体中文）</strong>
-          <p style={microStyle}>
-            {props.isBundled ? '当前使用插件自带提示词' : '当前使用自定义提示词'}
-            {' · '}{normalizedDraft.length}/{ROLE_PROMPT_MAX_CHARS} 字符
-          </p>
-        </div>
-        <Pill className="dshm-status">
-          <StateDot state={props.isBundled ? 'done' : 'ongoing'} />
-          {props.isBundled ? '自带' : '自定义'}
-        </Pill>
-      </div>
-      <textarea
-        aria-label={`${props.roleName} 角色提示词`}
-        value={draft}
-        rows={8}
-        maxLength={ROLE_PROMPT_MAX_CHARS}
-        spellCheck={false}
-        disabled={busy}
-        onChange={event => { setDraft(event.target.value) }}
-      />
-      <div style={rowBetweenStyle}>
-        <p style={promptBoundaryHintStyle}>Host 会在此文本之后追加不可编辑的工具、工作区、证据和终态边界。</p>
-        <div style={rowStyle}>
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={busy || (props.isBundled && !changed)}
-            onClick={() => {
-              if (props.isBundled) {
-                setDraft(props.bundledValue)
-                return
-              }
-              void run(async () => {
-                await props.onReset()
-                setDraft(props.bundledValue)
-              })
-            }}
-          >
-            恢复自带提示词
-          </Button>
-          <Button
-            variant="primary"
-            size="sm"
-            disabled={busy || !changed}
-            onClick={() => { void run(save) }}
-          >
-            保存提示词
-          </Button>
-        </div>
-      </div>
-    </section>
-  )
 }
 
 function ExecutionPanel(props: {
@@ -1490,7 +1013,7 @@ function SettingsCard(props: {
 }
 
 function Labeled(props: { readonly label: string; readonly children: ReactNode }): ReactNode {
-  return <label style={labelStyle}><span style={labelTextStyle}>{props.label}</span>{props.children}</label>
+  return <FormField label={props.label}>{props.children}</FormField>
 }
 
 function ToggleSetting(props: {
@@ -1529,7 +1052,7 @@ function SelectSetting(props: {
 }): ReactNode {
   return (
     <Labeled label={props.label}>
-      <select
+      <Select
         aria-label={props.label}
         value={props.value}
         onChange={event => {
@@ -1541,7 +1064,7 @@ function SelectSetting(props: {
         }}
       >
         {props.options.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-      </select>
+      </Select>
     </Labeled>
   )
 }
@@ -1583,7 +1106,7 @@ function TextSetting(props: {
   const [draft, setDraft] = useExternalText(props.value)
   return (
     <Labeled label={props.label}>
-      <input
+      <Input
         aria-label={props.label}
         value={draft}
         onChange={event => setDraft(event.target.value)}
@@ -1609,11 +1132,11 @@ function LocalSelect(props: {
 }): ReactNode {
   return (
     <Labeled label={props.label}>
-      <select aria-label={props.label} value={props.value} onChange={event => {
+      <Select aria-label={props.label} value={props.value} onChange={event => {
         runUiAction(props.onChange(event.target.value), props.onError)
       }}>
         {props.options.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-      </select>
+      </Select>
     </Labeled>
   )
 }
@@ -1640,7 +1163,7 @@ function LocalNumber(props: {
   }
   return (
     <Labeled label={props.label}>
-      <input
+      <Input
         type="number"
         aria-label={props.label}
         value={draft}
@@ -1722,35 +1245,6 @@ function useExternalText(value: string): [string, (value: string) => void] {
   return [draft, setDraft]
 }
 
-function useModelCatalog(api: Pick<IApiClient['llm'], 'models'>): {
-  readonly status: 'loading' | 'ready' | 'error'
-  readonly groups: readonly ModelProviderGroup[]
-  readonly message: string
-} {
-  const [state, setState] = useState<{
-    readonly status: 'loading' | 'ready' | 'error'
-    readonly groups: readonly ModelProviderGroup[]
-    readonly message: string
-  }>({ status: 'loading', groups: [], message: '' })
-  useEffect(() => {
-    const controller = new AbortController()
-    void api.models({}, controller.signal).then((response) => {
-      if (!response.result.ok) {
-        setState({ status: 'error', groups: [], message: response.result.error.message })
-        return
-      }
-      const failures = response.result.value.failures.map(item => `${item.name}: ${item.message}`).join('；')
-      setState({ status: 'ready', groups: response.result.value.groups, message: failures })
-    }).catch((error: unknown) => {
-      if (!controller.signal.aborted) {
-        setState({ status: 'error', groups: [], message: error instanceof Error ? error.message : String(error) })
-      }
-    })
-    return () => { controller.abort() }
-  }, [api])
-  return state
-}
-
 async function setMany(scope: AnyScope, fields: readonly (readonly [string, unknown])[]): Promise<void> {
   for (const [field, value] of fields) await setField(scope, field, value)
 }
@@ -1758,68 +1252,6 @@ async function setMany(scope: AnyScope, fields: readonly (readonly [string, unkn
 async function resetFields(scope: AnyScope, fields: readonly string[], onResult: (message: string) => void): Promise<void> {
   for (const field of fields) await unsetField(scope, field)
   onResult('已恢复该分组的默认值。')
-}
-
-async function resetTemplateRegistry(
-  scope: AnyScope,
-  current: readonly AgentTemplateProfile[],
-  onResult: (message: string) => void,
-): Promise<void> {
-  await enqueueScopeMutation(scope, async () => {
-    const baseValue = scope.getSnapshot().base
-    const base = parseTemplateProfilesForUi(
-      typeof baseValue === 'object' && baseValue !== null && !Array.isArray(baseValue)
-        ? (baseValue as Record<string, unknown>).profilesJson
-        : undefined,
-    )
-    if (base.length === 0) throw new Error('无法读取内置模板默认值')
-    const latest = parseTemplateProfilesForUi(scope.getSnapshot().value?.profilesJson)
-    const source = latest.length === 0 ? current : latest
-    const now = new Date().toISOString()
-    const next = base.map((baseline) => {
-      const existing = source.find(item => item.templateId === baseline.templateId)
-      return existing === undefined ? baseline : {
-        ...baseline,
-        ...(existing.rolePromptOverride === undefined
-          ? {}
-          : { rolePromptOverride: existing.rolePromptOverride }),
-        revision: (Number(existing.revision) + 1) as AgentTemplateProfile['revision'],
-        supersedesRevision: existing.revision,
-        createdAt: existing.createdAt,
-        updatedAt: now as AgentTemplateProfile['updatedAt'],
-      }
-    })
-    await setField(scope, 'profilesJson', JSON.stringify(next, null, 2))
-  })
-  onResult('已用新的不可变修订恢复全部部门默认模型与预算。')
-}
-
-async function resetAllRolePrompts(
-  routingScope: AnyScope,
-  templatesScope: AnyScope,
-  current: readonly AgentTemplateProfile[],
-  onResult: (message: string) => void,
-): Promise<void> {
-  await unsetField(routingScope, 'generalPromptOverride')
-  await enqueueScopeMutation(templatesScope, async () => {
-    const latest = parseTemplateProfilesForUi(templatesScope.getSnapshot().value?.profilesJson)
-    const profiles = latest.length === 0 ? current : latest
-    const now = new Date().toISOString()
-    const next = profiles.map((profile) => {
-      if (profile.rolePromptOverride === undefined || profile.rolePromptOverride.trim() === '') {
-        return profile
-      }
-      const { rolePromptOverride: _removed, ...rest } = profile
-      return {
-        ...rest,
-        revision: (Number(profile.revision) + 1) as AgentTemplateProfile['revision'],
-        supersedesRevision: profile.revision,
-        updatedAt: now as AgentTemplateProfile['updatedAt'],
-      }
-    })
-    await setField(templatesScope, 'profilesJson', JSON.stringify(next, null, 2))
-  })
-  onResult('已恢复 General 和全部部门角色的插件自带简体中文提示词。')
 }
 
 async function deleteAllTags(
@@ -1841,28 +1273,6 @@ async function deleteAllTags(
     await setField(scope, 'tagsJson', JSON.stringify(next, null, 2))
   })
   onResult('已停用并删除全部用户战术标签。')
-}
-
-async function mutateTemplateProfile(
-  scope: AnyScope,
-  fallbackProfiles: readonly AgentTemplateProfile[],
-  templateId: string,
-  mutate: (current: AgentTemplateProfile) => AgentTemplateProfile,
-): Promise<AgentTemplateProfile> {
-  let saved: AgentTemplateProfile | undefined
-  await enqueueScopeMutation(scope, async () => {
-    const latest = parseTemplateProfilesForUi(scope.getSnapshot().value?.profilesJson)
-    const profiles = latest.length === 0 ? fallbackProfiles : latest
-    const current = profiles.find(candidate => String(candidate.templateId) === templateId)
-    if (current === undefined) throw new Error(`模板 ${templateId} 不存在`)
-    saved = reviseTemplateProfile(current, mutate)
-    const next = profiles.map(candidate => String(candidate.templateId) === templateId
-      ? saved!
-      : candidate)
-    await setField(scope, 'profilesJson', JSON.stringify(next, null, 2))
-  })
-  if (saved === undefined) throw new Error(`模板 ${templateId} 未保存`)
-  return saved
 }
 
 async function setField(scope: AnyScope, field: string, value: unknown): Promise<void> {
@@ -1901,23 +1311,6 @@ function runUiAction(action: Promise<void>, onResult: (message: string) => void)
 
 function jsonEqual(left: unknown, right: unknown): boolean {
   return JSON.stringify(left) === JSON.stringify(right)
-}
-
-function withCurrentRoute(options: readonly ApprovedModelOption[], current: string): readonly ApprovedModelOption[] {
-  if (options.some(option => routeKey(option.provider, option.model) === current) || !current.includes('/')) return options
-  const slash = current.indexOf('/')
-  return [...options, {
-    provider: current.slice(0, slash),
-    model: current.slice(slash + 1),
-    capabilityProfileId: 'unknown',
-    label: `${current}（当前旧配置）`,
-    catalogConfirmed: false,
-    canary: false,
-  }]
-}
-
-function routeKey(provider: string, model: string): string {
-  return `${provider}/${model}`
 }
 
 function parseTags(source: unknown): readonly TacticalTag[] {

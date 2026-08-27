@@ -1,4 +1,6 @@
-import type { MilitaryHostRuntime } from '@dsh-military/plugin-host'
+import type {
+  MilitaryToolHostRuntime as MilitaryHostRuntime,
+} from '@dsh-military/runtime'
 import type { Context } from '@deepseek-ai/cordis'
 import type { ToolDefinition } from '@deepseek-ai/dsh-tools'
 import {
@@ -32,9 +34,12 @@ import {
 } from './lightweight-drafts.js'
 import { withCountedExecutionBudget } from './execution-budget.js'
 import { recordTaskSkillUsage } from './private-skill-usage.js'
+import { boundArtifactContext, requireBoundTask } from './bound-task.js'
+import { workspaceTools } from './workspace-tools.js'
 
 export function workerTools(ctx: Context): readonly ToolDefinition[] {
   return [
+    ...workspaceTools(ctx),
     defineJsonTool({
       name: 'military_get_order',
       description: 'Worker/Engineer only. Read this Agent’s immutable Task Order. Optionally request the full progressive detail for one Task-assigned private Skill by skillId; the Host derives its exact frozen version.',
@@ -214,6 +219,7 @@ export function workerTools(ctx: Context): readonly ToolDefinition[] {
           bytes: new TextEncoder().encode(JSON.stringify(data, null, 2)),
           mediaType: 'application/json', classification: 'confidential',
           description: `Tool-grounded observation for ${binding.workspace!.taskId}@${binding.workspace!.taskVersion}`,
+          ...boundArtifactContext(ctx, { identity, binding, order }),
         })
         return { observationRef: String(artifact.artifactId), artifact, observation: data }
       },
@@ -274,24 +280,107 @@ export function workerTools(ctx: Context): readonly ToolDefinition[] {
                 changedPaths: [...patch.changedPaths],
               }
             }
-            const result = await runMissionCommand(ctx, {
+            await runMissionCommand(ctx, {
               identity, missionId: submitted.location.missionId, taskId: submitted.location.taskId,
               taskVersion: submitted.location.taskVersion, type: 'candidate.submit',
               payload: { candidateId: String(submitted.candidateId), taskId: String(submitted.location.taskId), taskVersion: Number(submitted.location.taskVersion) },
               idempotencyKey: submitted.idempotencyKey,
-              operation: () => withCountedExecutionBudget(ctx.militaryHost, {
+              operation: async () => {
+                await ctx.militaryHost.application.runtime.submitCandidate(
+                  submitted,
+                )
+                return {
+                  candidateId: String(submitted.candidateId),
+                  state: 'CANDIDATE_SUBMITTED' as const,
+                }
+              },
+            })
+            const progress = await ctx.militaryHost.application.runtime
+              .candidateProgress(submitted.location.taskId)
+            if (progress.candidateId !== String(submitted.candidateId)) {
+              throw new MilitaryError(
+                'CANDIDATE_STALE',
+                'durable Task projection resolved another Candidate',
+              )
+            }
+            let verification: Awaited<ReturnType<
+              typeof ctx.militaryHost.application.verification.verify
+            >>
+            if (progress.verification !== undefined) {
+              verification = progress.verification
+            } else {
+              try {
+                verification = await withCountedExecutionBudget(ctx.militaryHost, {
+                  identity,
+                  missionId: submitted.location.missionId,
+                  taskId: submitted.location.taskId,
+                  counter: 'reworkAttempts',
+                  idempotencyKey: `candidate-rework:${submitted.idempotencyKey}`,
+                  operation: async () => {
+                    await ctx.militaryHost.application.verification.prepare(
+                      submitted,
+                      order,
+                      false,
+                    )
+                    return await ctx.militaryHost.application.verification.verify(
+                      submitted,
+                      exec.signal,
+                    )
+                  },
+                  actual: receipt => receipt.disposition === 'REWORK' ? 1 : 0,
+                })
+              } catch (error) {
+                const failureCode = error instanceof MilitaryError
+                  ? error.failure.code
+                  : 'VERIFICATION_FAILED'
+                await runMissionCommand(ctx, {
+                  identity,
+                  missionId: submitted.location.missionId,
+                  taskId: submitted.location.taskId,
+                  taskVersion: submitted.location.taskVersion,
+                  type: 'candidate.verification-failed',
+                  payload: {
+                    candidateId: String(submitted.candidateId),
+                    failureCode,
+                  },
+                  idempotencyKey: `candidate-verification-failed:${String(submitted.candidateId)}:${failureCode}`,
+                  operation: () =>
+                    ctx.militaryHost.application.runtime
+                      .recordCandidateVerificationFailure(
+                        submitted,
+                        failureCode,
+                      ),
+                })
+                throw error
+              }
+            }
+            const result = progress.verification === undefined
+              ? await runMissionCommand(ctx, {
                 identity,
                 missionId: submitted.location.missionId,
                 taskId: submitted.location.taskId,
-                counter: 'reworkAttempts',
-                idempotencyKey: `candidate-rework:${submitted.idempotencyKey}`,
-                operation: () => ctx.militaryHost.application.runtime.proposeCandidate(submitted),
-                actual: result => result.verification.disposition === 'REWORK' ? 1 : 0,
-              }),
-            })
+                taskVersion: submitted.location.taskVersion,
+                type: 'candidate.verification-record',
+                payload: {
+                  candidateId: String(submitted.candidateId),
+                  verificationReceiptId: verification.receiptId,
+                  disposition: verification.disposition,
+                },
+                idempotencyKey: `candidate-verification-record:${verification.receiptId}`,
+                operation: () =>
+                  ctx.militaryHost.application.runtime
+                    .recordCandidateVerification(submitted, verification),
+              })
+              : {
+                  acceptedForVerification: true,
+                  verification,
+                }
             let integrationReceipt: Awaited<ReturnType<typeof ctx.militaryHost.application.integration.execute>> | undefined
             let specsReceipt: Awaited<ReturnType<typeof ctx.militaryHost.specs.recordIntegration>> | undefined
             if (result.verification.disposition === 'ACCEPTED' && candidatePatchId !== undefined && binding.workspace !== undefined) {
+              if (progress.integration !== undefined) {
+                integrationReceipt = progress.integration
+              } else {
               const rootBinding = await ctx.militaryHost.application.sessionGate.requireMilitarySession(
                 brand<string, 'SessionId'>(binding.rootSessionId),
               )
@@ -321,38 +410,67 @@ export function workerTools(ctx: Context): readonly ToolDefinition[] {
                 authorizedBy: String(identity.agentId),
                 createdAt: now(),
               }
-              integrationReceipt = await runMissionCommand(ctx, {
+              await runMissionCommand(ctx, {
                 identity, missionId: submitted.location.missionId, taskId: submitted.location.taskId,
-                taskVersion: submitted.location.taskVersion, type: 'candidate.integrate',
+                taskVersion: submitted.location.taskVersion, type: 'candidate.integration-queue',
                 payload: { integrationOrderId: integrationOrder.integrationOrderId, candidatePatchId },
-                idempotencyKey: `candidate-integrate:${String(submitted.candidateId)}:${candidatePatchId}`,
+                idempotencyKey: `candidate-integration-queue:${String(submitted.candidateId)}:${candidatePatchId}`,
                 operation: async () => {
                   await ctx.militaryHost.application.integration.queue(integrationOrder)
-                  const receipt = await ctx.militaryHost.application.integration.execute(integrationOrder.integrationOrderId, exec.signal)
-                  await ctx.militaryHost.application.runtime.recordIntegration(submitted.location.taskId, receipt)
-                  return receipt
+                  return {
+                    integrationOrderId: integrationOrder.integrationOrderId,
+                    state: 'QUEUED' as const,
+                  }
+                },
+              })
+              const executedIntegration = await ctx.militaryHost.application.integration.execute(
+                integrationOrder.integrationOrderId,
+                exec.signal,
+              )
+              integrationReceipt = await runMissionCommand(ctx, {
+                identity,
+                missionId: submitted.location.missionId,
+                taskId: submitted.location.taskId,
+                taskVersion: submitted.location.taskVersion,
+                type: 'candidate.integration-record',
+                payload: {
+                  integrationOrderId: integrationOrder.integrationOrderId,
+                  integrationReceiptId: executedIntegration.integrationReceiptId,
+                  disposition: executedIntegration.disposition,
+                },
+                idempotencyKey: `candidate-integration-record:${executedIntegration.integrationReceiptId}`,
+                operation: async () => {
+                  await ctx.militaryHost.application.runtime.recordIntegration(
+                    submitted.location.taskId,
+                    executedIntegration,
+                  )
+                  return executedIntegration
                 },
               })
               if (integrationReceipt.disposition === 'APPLIED') {
+                const recordedSpecs = await ctx.militaryHost.specs.recordIntegration({
+                  workspaceRoot: rootBinding.workspaceKey,
+                  missionId: String(submitted.location.missionId),
+                  taskId: String(submitted.location.taskId),
+                  taskVersion: Number(submitted.location.taskVersion),
+                  verificationReceiptId: result.verification.receiptId,
+                  integration: integrationReceipt,
+                  signal: exec.signal,
+                })
                 specsReceipt = await runMissionCommand(ctx, {
                   identity, missionId: submitted.location.missionId, taskId: submitted.location.taskId,
                   taskVersion: submitted.location.taskVersion, type: 'specs.record-integration',
                   payload: { integrationReceiptId: integrationReceipt.integrationReceiptId },
                   idempotencyKey: `specs-record:${integrationReceipt.integrationReceiptId}`,
                   operation: async () => {
-                    const receipt = await ctx.militaryHost.specs.recordIntegration({
-                      workspaceRoot: rootBinding.workspaceKey,
-                      missionId: String(submitted.location.missionId),
-                      taskId: String(submitted.location.taskId),
-                      taskVersion: Number(submitted.location.taskVersion),
-                      verificationReceiptId: result.verification.receiptId,
-                      integration: integrationReceipt!,
-                      signal: exec.signal,
-                    })
-                    await ctx.militaryHost.application.runtime.recordSpecsCommit(submitted.location.taskId, receipt)
-                    return receipt
+                    await ctx.militaryHost.application.runtime.recordSpecsCommit(
+                      submitted.location.taskId,
+                      recordedSpecs,
+                    )
+                    return recordedSpecs
                   },
                 })
+              }
               }
             }
             const skillUsage = await recordTaskSkillUsage({
@@ -417,7 +535,7 @@ export function workerTools(ctx: Context): readonly ToolDefinition[] {
       },
     }),
     defineJsonTool({
-      name: 'military_submit_blocker', description: 'Submit a structured blocker and request tactical or strategic help. This concludes the current turn.',
+      name: 'military_submit_blocker', description: 'Terminal Worker/Engineer coordination action. Record one blocker, then either queue Radio guidance or, when decisionQuestions is supplied, queue an exact user Decision Set through General. This concludes the turn; do not call a second coordination tool.',
       parameters: {
         statement: { type: 'string', required: true },
         evidenceRefs: {
@@ -427,6 +545,24 @@ export function workerTools(ctx: Context): readonly ToolDefinition[] {
           description: 'Artifact IDs or other durable evidence references proving the blocker.',
         },
         requestedDecision: { type: 'string', required: true },
+        decisionQuestions: {
+          type: 'array',
+          description: 'Optional one-to-five user-owned questions. Omit for Staff/Radio guidance. Supplying this field routes the blocker to the Decision Broker.',
+          items: {
+            type: 'object',
+            additionalProperties: false,
+            properties: {
+              question: { type: 'string', required: true },
+              header: { type: 'string' },
+              options: {
+                type: 'array',
+                required: true,
+                items: { type: 'string' },
+              },
+              multiSelect: { type: 'boolean' },
+            },
+          },
+        },
       },
       output: { schema: { type: 'json' }, render: (_args, value) => text(value) },
       async execute(args, exec) {
@@ -435,6 +571,26 @@ export function workerTools(ctx: Context): readonly ToolDefinition[] {
         const statement = asString(args.statement, 'statement')
         const evidenceInput = asStringArray(args.evidenceRefs, 'evidenceRefs')
         const requestedDecision = asString(args.requestedDecision, 'requestedDecision')
+        const decisionQuestions = Array.isArray(args.decisionQuestions)
+          ? args.decisionQuestions
+          : undefined
+        const decisionSet = decisionQuestions === undefined
+          ? undefined
+          : compileDecisionQuestionDraft({
+              value: {
+                purpose: requestedDecision,
+                questions: decisionQuestions,
+              },
+              identity,
+              rootSessionId: brand<string, 'SessionId'>(
+                binding.rootSessionId,
+              ),
+              contextVersion: Number(
+                (await ctx.militaryHost.application.ledger.readMission(
+                  order.missionId,
+                )).revision,
+              ),
+            })
         const blockerDigest = sha256(stableJson({
           bindingId: binding.bindingId,
           taskId: String(order.taskId),
@@ -442,6 +598,9 @@ export function workerTools(ctx: Context): readonly ToolDefinition[] {
           statement,
           evidenceRefs: evidenceInput,
           requestedDecision,
+          ...(decisionSet === undefined
+            ? {}
+            : { decisionSetId: String(decisionSet.decisionSetId) }),
         }))
         const blockerId = `blocker-${blockerDigest.slice(0, 32)}`
         const data = {
@@ -453,6 +612,19 @@ export function workerTools(ctx: Context): readonly ToolDefinition[] {
           evidenceRefs: evidenceInput,
           requestedDecision,
         }
+        const tacticalRequest = evidenceInput.length === 0
+          || decisionSet !== undefined
+          ? undefined
+          : compileTacticalRequestDraft({
+              value: {
+                blocker: statement,
+                evidenceRefs: evidenceInput,
+                requestedDecision,
+              },
+              identity,
+              binding,
+              task: order,
+            })
         const taskId = brand<string, 'TaskId'>(data.taskId)
         const taskVersion = brand<number, 'TaskVersion'>(data.taskVersion)
         const terminal = await runDurableTerminalMutation(ctx, {
@@ -464,21 +636,134 @@ export function workerTools(ctx: Context): readonly ToolDefinition[] {
               bytes: new TextEncoder().encode(JSON.stringify(data, null, 2)),
               mediaType: 'application/json', classification: 'confidential',
               description: `Structured blocker ${blockerId}`,
+              idempotencyKey: `structured-blocker:${blockerId}`,
+              ...boundArtifactContext(ctx, { identity, binding, order }),
             })
             const evidenceRefs = [...data.evidenceRefs, String(blockerArtifact.artifactId)]
+            let radioResult: {
+              readonly requestId: import('@dsh-military/contracts').TacticalRequestId
+              readonly state: 'QUEUED' | 'REJECTED'
+            } | undefined
+            let decisionResult: {
+              readonly decisionSetId: string
+              readonly state: 'QUEUED_FOR_GENERAL'
+            } | undefined
+            if (tacticalRequest !== undefined) {
+              await requireTaskGuidanceBudget(ctx.militaryHost, order)
+              radioResult = await withCountedExecutionBudget(ctx.militaryHost, {
+                identity,
+                missionId: tacticalRequest.location.missionId,
+                taskId: tacticalRequest.location.taskId,
+                counter: 'radioRounds',
+                idempotencyKey: `radio-round:${tacticalRequest.idempotencyKey}`,
+                operation: () =>
+                  ctx.militaryHost.application.radio.request(tacticalRequest),
+                actual: result => result.state === 'QUEUED' ? 1 : 0,
+              })
+            }
             await runMissionCommand(ctx, {
               identity, missionId: order.missionId, taskId, taskVersion, type: 'task.blocker.submit',
               payload: { blockerId, taskId: data.taskId, taskVersion: data.taskVersion, blockerRef: String(blockerArtifact.artifactId) },
               idempotencyKey: `task-blocker:${blockerId}`,
               operation: () => ctx.militaryHost.application.runtime.submitBlocker({
-                taskId, taskVersion, actor: identity, blockerId, evidenceRefs,
+                taskId,
+                taskVersion,
+                actor: identity,
+                blockerId,
+                evidenceRefs,
+                ...(radioResult === undefined
+                  ? {}
+                  : { requestId: String(radioResult.requestId) }),
               }),
             })
+            if (decisionSet !== undefined) {
+              await runMissionCommand(ctx, {
+                identity,
+                missionId: order.missionId,
+                taskId,
+                taskVersion,
+                type: 'decision.question-set.submit',
+                payload: {
+                  decisionSetId: String(decisionSet.decisionSetId),
+                  rootSessionId: String(decisionSet.targetRootSessionId),
+                  taskId: String(order.taskId),
+                  taskVersion: Number(order.taskVersion),
+                },
+                idempotencyKey: decisionSet.dedupeKey
+                  ?? `decision-set:${String(decisionSet.decisionSetId)}`,
+                operation: async () => {
+                  await ctx.militaryHost.application.decisionBroker.submit(
+                    decisionSet,
+                    {
+                      missionId: order.missionId,
+                      taskId,
+                      taskVersion,
+                      ...(binding.execution?.attemptId === undefined
+                        ? {}
+                        : { attemptId: binding.execution.attemptId }),
+                    },
+                  )
+                  await ctx.militaryHost.application.runtime.recordEvent({
+                    missionId: order.missionId,
+                    actor: identity,
+                    type: 'decision/question-set-created',
+                    payload: {
+                      decisionSetId: String(decisionSet.decisionSetId),
+                      originAgentId: String(identity.agentId),
+                      questionSetRef: `decision-set:${String(
+                        decisionSet.decisionSetId,
+                      )}`,
+                      taskId: String(order.taskId),
+                      taskVersion: Number(order.taskVersion),
+                      ...(binding.execution?.attemptId === undefined
+                        ? {}
+                        : { attemptId: binding.execution.attemptId }),
+                    },
+                    idempotencyKey: `decision-question-set-created:${String(
+                      decisionSet.decisionSetId,
+                    )}`,
+                  })
+                  await ctx.militaryHost.application.runtime.waitForDecision({
+                    taskId,
+                    taskVersion,
+                    decisionSetId: String(decisionSet.decisionSetId),
+                    actor: identity,
+                  })
+                  decisionResult = {
+                    decisionSetId: String(decisionSet.decisionSetId),
+                    state: 'QUEUED_FOR_GENERAL',
+                  }
+                  return decisionResult
+                },
+              })
+            }
+            if (radioResult?.state === 'QUEUED') {
+              await ctx.militaryHost.application.runtime.recordEvent({
+                missionId: order.missionId,
+                actor: identity,
+                type: 'radio/requested',
+                payload: {
+                  requestId: String(radioResult.requestId),
+                  taskId: String(order.taskId),
+                  taskVersion: Number(order.taskVersion),
+                  requestRef: `radio-request:${String(radioResult.requestId)}`,
+                },
+                idempotencyKey: `radio-requested:${String(radioResult.requestId)}`,
+              })
+            }
             return {
               blockerArtifact,
-              disposition: data.evidenceRefs.length === 0
-                ? 'EVIDENCE_REQUIRED' as const
-                : 'RADIO_QUEUED' as const,
+              disposition: radioResult?.state === 'QUEUED'
+                ? 'RADIO_QUEUED' as const
+                : decisionResult !== undefined
+                  ? 'DECISION_QUEUED' as const
+                : data.evidenceRefs.length === 0
+                  ? 'BLOCKER_RECORDED_EVIDENCE_REQUIRED' as const
+                  : 'BLOCKER_RECORDED' as const,
+              ...(radioResult === undefined
+                ? {}
+                : { requestId: String(radioResult.requestId) }),
+              ...(decisionResult === undefined ? {} : decisionResult),
             }
           },
         })
@@ -492,6 +777,9 @@ export function workerTools(ctx: Context): readonly ToolDefinition[] {
             blockerArtifactId: String(blockerArtifact.artifactId),
             requestedDecision: data.requestedDecision,
             disposition,
+            ...('decisionSetId' in terminal.value
+              ? { decisionSetId: terminal.value.decisionSetId }
+              : {}),
           },
           priority: 'critical',
           signal: exec.signal,
@@ -501,6 +789,12 @@ export function workerTools(ctx: Context): readonly ToolDefinition[] {
           blockerId,
           blockerArtifact,
           disposition,
+          ...('requestId' in terminal.value
+            ? { requestId: terminal.value.requestId }
+            : {}),
+          ...('decisionSetId' in terminal.value
+            ? { decisionSetId: terminal.value.decisionSetId }
+            : {}),
           parentReport,
           replayedMutation: terminal.replayed,
           concludesTurn: true,
@@ -544,6 +838,14 @@ export function workerTools(ctx: Context): readonly ToolDefinition[] {
                 operation: async () => {
                   const result = await ctx.militaryHost.application.radio.request(value)
                   if (result.state === 'QUEUED') {
+                    await ctx.militaryHost.application.runtime.submitBlocker({
+                      taskId: value.location.taskId,
+                      taskVersion: value.location.taskVersion,
+                      actor: identity,
+                      blockerId: `blocker-${String(value.requestId)}`,
+                      evidenceRefs: value.evidence.map(item => item.ref),
+                      requestId: String(value.requestId),
+                    })
                     await ctx.militaryHost.application.runtime.recordEvent({
                       missionId: value.location.missionId, actor: identity, type: 'radio/requested',
                       payload: { requestId: String(result.requestId), taskId: String(value.location.taskId), taskVersion: Number(value.location.taskVersion), requestRef: `radio-request:${String(result.requestId)}` },
@@ -611,12 +913,48 @@ export function workerTools(ctx: Context): readonly ToolDefinition[] {
             payload: { decisionSetId: String(value.decisionSetId), rootSessionId: String(value.targetRootSessionId) },
             idempotencyKey: value.dedupeKey ?? `decision-set:${String(value.decisionSetId)}:${value.contextVersion}`,
             operation: async () => {
-              await ctx.militaryHost.application.decisionBroker.submit(value)
+              const taskContext = execution?.workspace === undefined
+                ? undefined
+                : {
+                    taskId: brand<string, 'TaskId'>(
+                      execution.workspace.taskId,
+                    ),
+                    taskVersion: brand<number, 'TaskVersion'>(
+                      execution.workspace.taskVersion,
+                    ),
+                    ...(execution.execution?.attemptId === undefined
+                      ? {}
+                      : { attemptId: execution.execution.attemptId }),
+                  }
+              await ctx.militaryHost.application.decisionBroker.submit(value, {
+                missionId,
+                ...taskContext,
+              })
               await ctx.militaryHost.application.runtime.recordEvent({
                 missionId, actor: identity, type: 'decision/question-set-created',
-                payload: { decisionSetId: String(value.decisionSetId), originAgentId: String(identity.agentId), questionSetRef: `decision-set:${String(value.decisionSetId)}` },
+                payload: {
+                  decisionSetId: String(value.decisionSetId),
+                  originAgentId: String(identity.agentId),
+                  questionSetRef: `decision-set:${String(value.decisionSetId)}`,
+                  ...(taskContext === undefined
+                    ? {}
+                    : {
+                        taskId: String(taskContext.taskId),
+                        taskVersion: Number(taskContext.taskVersion),
+                        ...(taskContext.attemptId === undefined
+                          ? {}
+                          : { attemptId: taskContext.attemptId }),
+                      }),
+                },
                 idempotencyKey: `decision-question-set-created:${String(value.decisionSetId)}`,
               })
+              if (taskContext !== undefined) {
+                await ctx.militaryHost.application.runtime.waitForDecision({
+                  ...taskContext,
+                  decisionSetId: String(value.decisionSetId),
+                  actor: identity,
+                })
+              }
               return { accepted: true, disposition: 'QUEUED_FOR_GENERAL' as const }
             },
           }),
@@ -664,35 +1002,6 @@ export async function requireTaskGuidanceBudget(
     'POLICY_DENIED',
     `Task ${String(order.taskId)}@${Number(order.taskVersion)} Tactical Request budget is exhausted (${existing.size}/${maximum}); do not retry military_radio_request—submit the final blocker with existing evidence`,
   )
-}
-
-async function requireBoundTask(
-  ctx: Context,
-  agent: Parameters<typeof identityFor>[1],
-): Promise<{
-  readonly identity: ReturnType<typeof identityFor>
-  readonly binding: AgentExecutionBinding
-  readonly order: TaskOrder
-}> {
-  const identity = identityFor(ctx, agent)
-  requireRole(identity, ['worker', 'engineer'])
-  const binding = await ctx.militaryHost.application.executionBindings.forAgent(
-    String(identity.agentId),
-    identity.generation,
-  )
-  if (binding?.workspace === undefined) {
-    throw new MilitaryError(
-      'AGENT_EXECUTION_BINDING_MISSING',
-      'This department Agent has no Task-bound workspace',
-    )
-  }
-  const order = await ctx.militaryHost.application.runtime.getTask(
-    brand<string, 'TaskId'>(binding.workspace.taskId),
-  )
-  if (Number(order.taskVersion) !== binding.workspace.taskVersion) {
-    throw new MilitaryError('STALE_TASK_VERSION', 'Task binding points to a stale version')
-  }
-  return { identity, binding, order }
 }
 
 export function apply(ctx: Context): void { registerTools(ctx, workerTools(ctx)) }

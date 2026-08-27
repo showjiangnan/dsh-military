@@ -7,7 +7,7 @@
  * behavior; this plugin never carries a second theme.
  */
 
-:where([data-military-settings-center='true'], [data-military-knowledge-center='true']) {
+:where([data-military-settings-center='true'], [data-military-knowledge-center='true'], [data-military-runtime-center='true']) {
   color: var(--dsw-alias-label-primary);
   font-family: inherit;
   font-size: 14px;
@@ -16,9 +16,9 @@
   overflow-wrap: anywhere;
 }
 
-:where([data-military-settings-center='true'], [data-military-knowledge-center='true']) *,
-:where([data-military-settings-center='true'], [data-military-knowledge-center='true']) *::before,
-:where([data-military-settings-center='true'], [data-military-knowledge-center='true']) *::after {
+:where([data-military-settings-center='true'], [data-military-knowledge-center='true'], [data-military-runtime-center='true']) *,
+:where([data-military-settings-center='true'], [data-military-knowledge-center='true'], [data-military-runtime-center='true']) *::before,
+:where([data-military-settings-center='true'], [data-military-knowledge-center='true'], [data-military-runtime-center='true']) *::after {
   box-sizing: border-box;
 }
 
@@ -216,7 +216,7 @@
 }
 
 /* Override Modal's small confirmation-card defaults for these workbenches. */
-:where(.dshm-settings-dialog, .dshm-knowledge-dialog) {
+:where(.dshm-settings-dialog, .dshm-knowledge-dialog, .dshm-runtime-dialog) {
   width: min(1080px, calc(100vw - 48px)) !important;
   height: min(760px, calc(100vh - 48px));
   max-width: none !important;
@@ -284,7 +284,7 @@
 /* Exact copy of RC.2 SettingsRoot's trigger geometry and chrome.  These two
    actions therefore share its full-row hit target in wide mode and its
    centered 36px circle in rail mode. */
-:where([data-military-settings-trigger='true'], [data-military-knowledge-trigger='true']) {
+:where([data-military-settings-trigger='true'], [data-military-knowledge-trigger='true'], [data-military-runtime-trigger='true']) {
   box-sizing: border-box;
   flex: none;
   display: flex;
@@ -306,11 +306,11 @@
   overflow: hidden;
 }
 
-:where([data-military-settings-trigger='true'], [data-military-knowledge-trigger='true']):hover {
+:where([data-military-settings-trigger='true'], [data-military-knowledge-trigger='true'], [data-military-runtime-trigger='true']):hover {
   background: var(--dsw-alias-interactive-bg-hover);
 }
 
-:where([data-military-settings-trigger='true'], [data-military-knowledge-trigger='true'])[data-wide='false'] {
+:where([data-military-settings-trigger='true'], [data-military-knowledge-trigger='true'], [data-military-runtime-trigger='true'])[data-wide='false'] {
   width: 36px;
   height: 36px;
   margin: 8px 0 10px;
@@ -325,12 +325,12 @@
   white-space: nowrap;
 }
 
-:where([data-military-settings-trigger='true'], [data-military-knowledge-trigger='true']) > svg {
+:where([data-military-settings-trigger='true'], [data-military-knowledge-trigger='true'], [data-military-runtime-trigger='true']) > svg {
   flex: none;
 }
 
 @media (max-width: 760px) {
-  :where(.dshm-settings-dialog, .dshm-knowledge-dialog) {
+  :where(.dshm-settings-dialog, .dshm-knowledge-dialog, .dshm-runtime-dialog) {
     width: calc(100vw - 24px) !important;
     height: calc(100vh - 24px);
     border-radius: 16px !important;
@@ -377,7 +377,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  :where([data-military-settings-center='true'], [data-military-knowledge-center='true']) * {
+  :where([data-military-settings-center='true'], [data-military-knowledge-center='true'], [data-military-runtime-center='true']) * {
     scroll-behavior: auto !important;
     transition-duration: 0.01ms !important;
     animation-duration: 0.01ms !important;
@@ -386,16 +386,16 @@
 }
 
 @media (prefers-contrast: more) {
-  :where(.dshm-settings-dialog, .dshm-knowledge-dialog),
-  :where([data-military-settings-center='true'], [data-military-knowledge-center='true'])
+  :where(.dshm-settings-dialog, .dshm-knowledge-dialog, .dshm-runtime-dialog),
+  :where([data-military-settings-center='true'], [data-military-knowledge-center='true'], [data-military-runtime-center='true'])
     :where(input, select, textarea, article, fieldset) {
     border-color: var(--dsw-alias-label-primary) !important;
   }
 }
 
 @media (forced-colors: active) {
-  :where(.dshm-settings-dialog, .dshm-knowledge-dialog),
-  :where([data-military-settings-center='true'], [data-military-knowledge-center='true'])
+  :where(.dshm-settings-dialog, .dshm-knowledge-dialog, .dshm-runtime-dialog),
+  :where([data-military-settings-center='true'], [data-military-knowledge-center='true'], [data-military-runtime-center='true'])
     :where(button, input, select, textarea, article, fieldset) {
     border: 1px solid CanvasText !important;
     forced-color-adjust: auto;

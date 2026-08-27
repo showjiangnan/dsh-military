@@ -91,12 +91,12 @@ def main() -> int:
     parser.add_argument('--check', action='store_true')
     args = parser.parse_args()
     docs = sorted(DOCS.glob("[0-9][0-9]-*.md"))
-    if [int(path.name[:2]) for path in docs] != list(range(69)):
-        raise SystemExit("Expected numbered documents 00 through 68")
+    if [int(path.name[:2]) for path in docs] != list(range(70)):
+        raise SystemExit("Expected numbered documents 00 through 69")
 
     header = """# dsh-military 完整设计与开发规范
 
-> 单文件汇编版；源文档位于 `docs/00-*.md` 至 `docs/68-*.md`。  
+> 单文件汇编版；源文档位于 `docs/00-*.md` 至 `docs/69-*.md`。
 > 文档工程版本：`0.9.0-draft`。  
 > DSH 实现与验收基线：`deepseek-ai/deepseek-harness@b150a551b8d465e31e418e1b2eaf5e79bbb7d28e`（`dsh@0.1.1-rc.2`）。
 

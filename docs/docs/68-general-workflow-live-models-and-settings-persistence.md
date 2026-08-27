@@ -1,5 +1,10 @@
 # General 全流程门、DSH 全模型接入与设置持久化
 
+> `0.9.0-alpha.25` 补充说明：本章保留 `71fe` 事故根因和模型/设置修复背景。
+> Workflow 的当前权威实现已经升级为独立 `WorkflowObligation`、Task Version、
+> Attempt、Activation 与 Dispatch，并使用 Desired/Applied 设置状态；完整语义见
+> [第 69 章](69-execution-liveness-flash-and-production-readiness.md)。
+
 ## 1. 事故证据与边界
 
 本次回归来源是用户提供的
@@ -23,7 +28,7 @@
 
 ## 2. Host 所有的 General 工作流义务
 
-General 的项目执行请求现在被编译成一个按 Agent/Turn 持久的工作流义务。
+General 的项目执行请求现在被编译成一个按 request hash 持久的工作流义务。
 Host 每次只公开一个下一动作：
 
 ```text
@@ -34,6 +39,10 @@ START_MISSION
 → 等待部门终态 receipt
 → General 读取已验证结果并汇总
 ```
+
+同一 Mission 中可以有多个 open Task，但每条用户消息只关联自己的 obligation。
+Task 的指令 revision 不再充当执行次数；部门初次派遣、Rework、Guidance 和
+Decision continuation 各自拥有 Attempt/Activation/Dispatch。
 
 若部门进入 `BLOCKED`、`GUIDANCE_PENDING` 或 `FROZEN`，下一动作收敛为：
 
@@ -54,7 +63,8 @@ POLL_TACTICAL_REQUEST
 - `ask_user_question`、部门派遣、终态提交和战术发布仍是明确终态；
 - 普通解释、设计讨论和无项目变更请求不被强制创建 Mission。
 
-短输入“继续”会继承最近一个未完成的项目执行义务；已完成 Task 不会因“继续”
+短输入“继续”会继承同一 root Session 最近一个未完成且 request-compatible 的
+项目执行义务；已完成 Task 不会因“继续”
 被重复创建。子 Agent 的 `subagent-report` 会自动唤醒父 General，取消后的纯
 settlement wake 仍由既有取消门抑制。
 
@@ -106,8 +116,10 @@ General compaction 使用当前 Session 的实际 route，而不是错误沿用 
 → Host preview + Flash readiness + prompt diff
 → expected settings revision
 → 单次 Settings CAS
-→ 串行运行时 projection
-→ 新 Host snapshot 回读
+→ 写完整 Desired revision
+→ Reconciler 串行校验/应用全部角色
+→ 全部成功后推进 Applied revision
+→ 新 Host snapshot 回读（Desired == Applied）
 → UI 采用新 baseline，清除 dirty
 ```
 

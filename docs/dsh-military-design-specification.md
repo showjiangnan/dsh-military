@@ -1,6 +1,6 @@
 # dsh-military 完整设计与开发规范
 
-> 单文件汇编版；源文档位于 `docs/00-*.md` 至 `docs/68-*.md`。  
+> 单文件汇编版；源文档位于 `docs/00-*.md` 至 `docs/69-*.md`。
 > 文档工程版本：`0.9.0-draft`。  
 > DSH 实现与验收基线：`deepseek-ai/deepseek-harness@b150a551b8d465e31e418e1b2eaf5e79bbb7d28e`（`dsh@0.1.1-rc.2`）。
 
@@ -79,6 +79,7 @@
 - [66. 66. Legacy → RC.2 升级运行手册](#part-66)
 - [67. Military 控制中心、Flash 工作台与可访问性](#part-67)
 - [68. General 全流程门、DSH 全模型接入与设置持久化](#part-68)
+- [69. 执行活性、Flash 外部验收与生产可信度](#part-69)
 
 ---
 
@@ -1059,6 +1060,12 @@ budgets: {}
 - Task lease 有过期和 generation；
 - Worker crash 后先副作用对账，再重新派发。
 
+生产 `MissionScheduler` 对每次派发执行确定性准入：验证 Direction/Wave 状态、DAG
+无环、未知依赖、前置 Task 终态、Wave barrier、读写锁、Workspace/Verifier 容量和
+预算。它持久化 `wave/opened`、`wave/barrier-satisfied`、
+`mission/completed|cancelled` 事件；Trajectory、Effectiveness 和 Runtime Center
+只读取这些权威事件，不从模型正文或缺省状态推断进度。
+
 ### 11. Wave 进入条件
 
 - Direction/Wave 批准；
@@ -1191,14 +1198,17 @@ Task 计划新增：
 - 外部 drift 处置；
 - 需要的 Authority/Policy revision。
 
-写 Task 的完成条件不是 Candidate 被接受，而是：
+写 Task 的完成条件不是 Candidate 被接受或 Verification 单独通过，而是：
 
 ```text
-Candidate Accepted
+Candidate Submitted
+→ Verification Accepted
+→ Task VERIFIED / INTEGRATION_PENDING
 → Integration Applied
 → Global Regression Passed
 → local main Receipt
 → specs Trace Updated
+→ Task COMPLETED
 ```
 
 可以在同一 Wave 并行执行不冲突的隔离 Task，但 Integration 依据写集合、base snapshot 和依赖有序提交。
@@ -3404,7 +3414,7 @@ Git commit、Artifact rename、Profile write 和 API 调用不能与数据库假
 
 WebUI 让用户以“统帅”视角配置组织、观察 Mission、处理授权和审计证据，而不是把所有 Agent 对话平铺成聊天噪声。
 
-### 1.1 0.9.0-alpha.24 源码实现边界
+### 1.1 0.9.0-alpha.25 源码实现边界
 
 当前 Integration Alpha 已实现：
 
@@ -3419,7 +3429,12 @@ WebUI 让用户以“统帅”视角配置组织、观察 Mission、处理授权
   Presentation 可视化面板；
 - Session 诊断时间线、受治理恢复操作、Host workspace 目录和 Git/lease/
   integration 状态；
-- 固定九场景评测工作台、真实 Provider Session 样本评估及 N<5 稳定性保护；
+- 独立 Session Runtime Center，展示
+  Request→Mission→Direction→Wave→Task→Attempt→Activation→Dispatch，
+  以及 Candidate/Verification/Integration、Radio、Decision、预算和 receipt；
+- 共享 timeout/abort/dedupe/backoff/revision query layer 与跨标签页失效通知；
+- 固定九场景评测工作台、真实 Provider Session 样本趋势以及 N≥50/Wilson/
+  零安全失败发行验收；
 - 独立“知识与技能”入口和七视图 Knowledge Center；
 - 可信 Typert RPC 上的来源导入、分块 Job、候选 Diff/编辑/审批、Skill
   生命周期、效果记录、撤回与影响、sanitized pipeline 透明度及无 Task 模拟
@@ -3453,10 +3468,10 @@ label overflow 与 16/18px primitive 图标尺寸均一致。
 
 以下仍是后续产品面，不应在当前源码或报告中标记为已完成：
 
-- Mission/Direction/Wave/Task Dashboard；
-- Radio、Freeze、Candidate、Integration Conversation Nodes；
+- 把 Military 私有状态直接嵌入 DSH conversation log 的 Conversation Nodes
+  （RC.2 无第三方 required event 注册 seam）；
 - 自定义 Advisor 创建；
-- Mission 运行视图的多标签页冲突与断线恢复。
+- 分布式 Web push；当前使用 revisioned query/backoff/invalidation。
 
 RC.2 没有为外部插件提供 required Session Event 类型注册面。Military 权威状态位于自己的 Mission/Administrative Ledger；未来运行视图必须读取插件自有 Remote/Projection，不能通过写入未知 `military/*` DSH Session Event 实现。
 
@@ -3580,9 +3595,11 @@ SQLite 唯一键处理跨标签页/重启幂等。
 
 请求表单使用 Host Workspace/Mission 目录、置信水平、非劣界限和执行超时，不要求
 用户手填专业配置 JSON。Failed Job 显示结构化原因；retryable Job 可从冻结分片重试。
-Provider 样本按 dataset + Session + scenario 去重，actual route 为 exact、至少 10
-个独立 Session 且 Wilson 区间宽度不超过 0.35 才能显示稳定结论。确定性 Host 结果
-与真实 Provider 观察始终分栏。
+Provider 样本按 dataset + Session + scenario 去重。至少 10 个 exact-route
+独立 Session 且 Wilson 区间足够窄时可以显示趋势；发行 acceptance 另要求每个
+exact configuration × scenario 至少 50 个 Session、首次工具/E2E Wilson 门和
+意外确定性错误/越权写入/假完成/重复终态全为 0。确定性 Host 结果与真实
+Provider 观察始终分栏。
 
 #### 显示与进阶
 
@@ -3609,9 +3626,10 @@ Provider 样本按 dataset + Session + scenario 去重，actual route 为 exact�
 
 Secret 字段只选择 credential reference，不回显值。
 
-### 4. Conversation Nodes（目标设计，0.9.0-alpha.24 未实现）
+### 4. Runtime Center 与 Conversation Log 边界
 
-未来通过 Military 自有 Remote/Projection 与稳定业务 ID 构建，不以未知 DSH Session Event 为数据通道。建议稳定节点：
+当前 Runtime Center 已通过 Military 自有 Remote/Projection 与稳定业务 ID
+构建，不以未知 DSH Session Event 为数据通道。其稳定节点包括：
 
 - Mission Intent；
 - Staff Council；
@@ -3626,7 +3644,10 @@ Secret 字段只选择 credential reference，不回显值。
 - Promotion Order；
 - Incident。
 
-每个节点使用 durable Event family + stable id，可历史重建。
+每个节点使用 durable Event family + stable id，可历史重建，并携带
+sourceRevision、generation、generatedAt、staleAfter 与 health。把这些节点直接
+注入 DSH conversation log 仍是未实现边界；那需要未来上游提供安全的第三方事件
+扩展 seam。
 
 ### 5. Mission Dashboard
 
@@ -3890,10 +3911,13 @@ Agent/Model/API/Artifact 各有 classification ceiling。路由到外部模型�
 
 Workspace 路径授权必须处理绝对路径、符号链接、大小写、Git worktree 和临时文件。普通 Session 与 Military Session 同 cwd 不代表互相获得会话控制权。
 
-### 0.9.0-alpha.24 Web 控制面安全
+### 0.9.0-alpha.25 Web 控制面安全
 
 - Client 只提交角色草稿、用户选择的 lint 位置、不透明 workspace ID、已有
   Session ID 和受限 operation intent；
+- Remote 每次从 DSH connection/Host authority 解析 principal 与 tenant；本地
+  单用户 Profile 使用明确 local principal boundary，不使用硬编码 `web-user`
+  冒充企业身份；
 - actor、tenant、authority、revision、hash、时间、absolute path、receipt 和
   capability 状态均由 Host 解析或生成；
 - 在线 Canary 固定为显式确认的只读工具面，不获得 Workspace 写权限；
@@ -3903,6 +3927,8 @@ Workspace 路径授权必须处理绝对路径、符号链接、大小写、Git 
 - recall simulation 不创建 Task、不调用模型、不授予工具，只保存输入 hash；
 - benchmark assessment 只读既有 Session/receipt，不自动发起付费 Provider 请求
   或晋升模型；
+- benchmark evidence export 只包含脱敏评估字段；真实 Flash acceptance 对每个
+  exact configuration/scenario 执行 N≥50、Wilson 和零安全失败门；
 - Evaluation Client 只能提交结构化筛选、报告/Job id、申诉文本和已有 Evidence id，
   不能提交权威 actor、dataset hash、configuration、指标、decision 或 receipt；
 - Dataset Builder 只读取 actual preset=`military` 且通过 Host
@@ -3917,6 +3943,25 @@ Workspace 路径授权必须处理绝对路径、符号链接、大小写、Git 
   RBAC、独立 Examiner 身份隔离或双人审批；
 - 恢复操作必须预览、精确确认、幂等并写 receipt，UI 不提供原始 SQLite/Git
   控制。
+
+#### Artifact Reference 授权
+
+Content Blob 与 Artifact Reference 是两个对象。Blob hash 只用于完整性和去重；
+Reference 另绑定 tenant、workflow/Mission/Task、classification、owner、
+audience/grant、scope、expiry、retention 和 lineage。知道 hash 不等于读取授权。
+相同内容被不同分类引用时按最高分类传播，低分类 Reference 不能降级内容。
+
+restricted/raw Artifact 支持加密、密钥轮换、legal hold、retention cleanup、
+deletion receipt 和 orphan GC。每次模型 Dispatch 记录实际 provider/model、
+classification、residency、redaction policy 与 policy revision；不得在通用路径
+硬编码 `internal`。
+
+读取 Blob 时必须同时存在 metadata，并在解密后重新验证 SHA-256 与
+`byteLength`；密文认证失败、内容漂移和 metadata 漂移统一 fail closed。
+GC 以 metadata 重新构造 Reference Index，修复“metadata 已提交但索引未提交”
+的崩溃窗口；无 metadata 的 Blob 作为不可达孤儿删除。若仍有 active/retention/
+legal-hold authority 的 metadata 丢失 Blob，GC 必须报
+`PERSISTENCE_FAILED`，不得把数据丢失伪装成正常清理。
 
 
 ---
@@ -3945,15 +3990,20 @@ Workspace 路径授权必须处理绝对路径、符号链接、大小写、Git 
 Mission Trace
   Direction Span
     Wave Span
-      Task Attempt Span
-        Model Step Span
-        Tool Call Span
-        Verification Span
-        Radio Span
-        Specs/Git Span
+      Task Span
+        Attempt Span
+          Activation Span
+            Dispatch Span
+              Model Step Span
+              Tool Call Span
+          Verification Span
+          Radio/Decision Span
+          Integration/Specs Span
 ```
 
-关联 ID：mission/direction/wave/task/version/attempt/agent/session/request/guidance/candidate/event/artifact。
+关联 ID：request/obligation/mission/direction/wave/task/version/attempt/activation/
+dispatch/agent/session/guidance/decision/candidate/verification/integration/operation/
+outbox/event/artifact。
 
 ### 3. 核心指标
 
@@ -3970,6 +4020,9 @@ Mission Trace
 
 - Ready/Leased/Executing/Verify queues；
 - Radio queue age；
+- transactional outbox lag/dead-letter；
+- Command Saga pending/expired effect lease age；
+- Agent heartbeat/lease expiry 与 recovery drift；
 - Advisor/Verifier utilization；
 - Wave cycle time；
 - model/tool/verifier latency；
@@ -4055,6 +4108,8 @@ P(accepted | comparable blocker + guidance)
 - 用户可导出审计；
 - metrics 聚合避免重新识别；
 - OTel exporter 默认失败不能阻断核心 Ledger，但不得泄漏数据。
+- 错误标签只记录稳定 category/fingerprint，不记录原始路径、Provider payload、
+  Prompt、Secret 或高基数用户内容。
 
 ### Agent Template 与委员会指标
 
@@ -4093,9 +4148,17 @@ Integration queue p95
 Generation resume success rate
 Quarantine rate
 Outbox age
+Command Saga stalled effect age
+Agent activation heartbeat freshness
+Capacity admission rejection rate
 Projection lag
 Evaluation reproducibility rate
 ```
+
+生产 `OperationsHealthProjection` 将 Saga、outbox、Radio、lease/recovery、
+Workspace 和 Provider topology 统一映射为 health item、SLO drift 与
+`military.*` 指标。分布式部署的 readiness 只有在外部 Ledger、对象存储、队列和
+KMS descriptor 与探针全部匹配时为 READY；本地实现不得通过改标签伪装。
 
 
 ---
@@ -5021,6 +5084,10 @@ PR-11 one-session WebUI projection
 8. 检查 Advisor Profile 所引用的技能/API/凭据均可解析；
 9. 执行事件重放与 schema 校验；
 10. 启动后确认没有 orphan lease、open compaction 或 frozen session。
+11. 检查 Command Saga pending/expired effect lease、transactional outbox lag 和
+    dead-letter；
+12. 分布式部署核对 Ledger、对象存储、队列、KMS descriptor 与探针，任一仍为本地
+    实现时保持 `LOCAL_ONLY`。
 
 ### 2. Mission 启动
 
@@ -5151,6 +5218,20 @@ Mission Intent 中的未知项可有默认假设，但必须标明 `assumption`�
 - 不向模型声称状态已改变；
 - 当前操作返回明确失败；
 - 禁止“先执行后补记”高风险动作。
+
+#### Command Saga 或 Outbox 卡住
+
+1. 按 `operationId` 查看 `PENDING_EFFECT/RETRYABLE/EFFECT_APPLIED/COMMITTED`、
+   lease owner/fence 和最后 heartbeat；
+2. effect lease 未过期时不启动第二执行者；
+3. lease 过期后先查询外部 operation receipt/postcondition，再决定补记 checkpoint
+   或使用同一 operationId 重投；
+4. `EFFECT_APPLIED` 只允许补交领域 receipt + outbox + COMMITTED fence，不重复
+   外部副作用；
+5. outbox 依据 claim/lease/delivery offset 幂等重投，超过策略后 dead-letter 并
+   提升健康告警；
+6. 禁止在事务中运行 Git/Provider/文件操作，也禁止手工把 operation 改成
+   COMMITTED。
 
 #### 投影损坏
 
@@ -5284,9 +5365,19 @@ Mission Intent 中的未知项可有默认假设，但必须标明 `assumption`�
 6. 保存返回的 `operationId` 和 receipt；网络中断时只用同一 ID 重试；
 7. 刷新权威状态，不能以按钮成功提示代替 postcondition。
 
+显式取消整条 Mission 时：
+
+1. 在 Mission 下拉框中选择目标并核对标题、状态、revision 和更新时间；
+2. 填写可审计原因，生成 `CANCEL_MISSION` 预览；
+3. 核对 CAS diff、影响范围和“停止全部未终态 Task、释放 child 资源”的警告；
+4. 在预览过期前输入精确高风险确认短语并执行；
+5. 从 receipt 核验 Kernel cancellation reference 和已清理 child 数；
+6. 若预览后 state hash 改变，丢弃旧预览并重新生成；若网络中断，先刷新 receipt
+   与 Mission 状态，禁止把 Stop、Freeze 或手工终态当作 Mission Cancel。
+
 允许的操作只有数据库验证、`VACUUM INTO` 一致备份、reconcile、stale outbox
-重投、已证明过期资源释放和父级唤醒。不存在编辑 SQLite、删除任意 worktree、
-手工标记 Task 完成或覆盖终态。
+重投、已证明过期资源释放、父级唤醒和上述受治理 Mission Cancel。不存在编辑
+SQLite、删除任意 worktree、手工标记 Task 完成或覆盖终态。
 
 #### H. Specs 路径或写入异常
 
@@ -5310,10 +5401,28 @@ RC.2 当前没有外部目录 picker；`workspaceId` 是唯一选择输入。插
    写 receipt 和父级唤醒；
 4. 不把 deterministic PASS 记为 Provider PASS；
 5. 不把 alias 名称当 exact route；
-6. 相同 route/场景按 dataset + Session + scenario 去重；独立 Session 少于 10
-   或 Wilson 区间宽度大于 0.35 时保持 `INSUFFICIENT_SAMPLE`；
+6. 相同 exact configuration/场景按 dataset + Session + scenario 去重；独立
+   Session 少于 50 时保持 `INSUFFICIENT_SAMPLE`；
 7. 失败样本导出 Session/Host evidence 后进入回归，不通过手工修改 capability
    为 `VALIDATED`。
+8. 导出后运行
+   `npm run acceptance:flash -- --input <export.json>`；全部场景必须同时满足首次
+   工具命中估计≥95%且 Wilson 下界≥85%、E2E≥90%且下界≥80%，并且意外确定性
+   失败/越权成功写/假完成/重复终态均为 0。
+9. 每次失败只按 envelope 中唯一 `nextTool` 和 `correctedShape` 修正；若错误
+   details 出现 secret、Bearer token 或宿主绝对路径，立即按安全缺陷阻断发布。
+
+#### L. 生产 Provider readiness 或灾备异常
+
+1. 查看 Operations Center 的 provider topology、capacity/backpressure、
+   backup signature 与 restore drill receipt；
+2. descriptor、probe 或 residency 不一致时停止分布式 admission，保留本地只读
+   诊断，不自动 fallback 到无同等策略的存储；
+3. 验证备份清单、内容 hash、签名 key id 和 legal-hold index 后再恢复；
+4. 恢复到隔离目标，重放 Ledger/outbox，比较 canonical projection 和 Workspace
+   receipt，完成后生成 restore receipt；
+5. 未完成 PostgreSQL/对象存储/队列/KMS 适配器注入和演练的部署只能标记
+   `LOCAL_ONLY`，不能报告 HA READY。
 
 #### J. 私有技能召回异常
 
@@ -5612,6 +5721,9 @@ WaveId
 TaskId
 TaskVersion
 AttemptId
+WorkflowObligationId
+ActivationId
+DispatchId
 AgentId / SessionId
 AdvisorId
 TacticalRequestId
@@ -5630,6 +5742,12 @@ DecisionSetId
 ChiefAdviceId
 EvaluationRequestId
 PerformanceReportId
+WorkspaceSnapshotId / WorkspaceLeaseId
+CandidateSubmissionId / CandidatePatchId
+VerificationReceiptId / IntegrationReceiptId
+OperationId / OutboxRecordId
+PrincipalId / TenantId
+ArtifactContentId / ArtifactReferenceId
 ```
 
 不得把数组索引、显示名或 Agent 标签作为稳定身份。
@@ -5638,9 +5756,13 @@ PerformanceReportId
 
 ```ts
 startMission(input, authority)
+createWorkflowObligation(input, authority)
 ratifyDirection(command, expectedMissionRevision)
 openWave(command, expectedDirectionRevision)
 leaseTask(taskId, workerIdentity, expectedTaskVersion)
+startAttempt(command, expectedTaskVersion)
+activateAgent(command, expectedAttemptFence)
+recordDispatch(command, expectedActivationFence)
 submitCandidate(candidate, expectedTaskVersion)
 submitBlocker(blocker, expectedTaskVersion)
 requestTacticalGuidance(request)
@@ -5668,6 +5790,7 @@ cancelPerformanceEvaluation(command)
 
 ```ts
 getMissionSnapshot(missionId)
+getWorkflowObligation(obligationId)
 getDirection(directionId)
 getWave(waveId)
 getTask(taskId)
@@ -5688,6 +5811,9 @@ listPendingDecisionQuestionSets(rootSessionId)
 getChiefOfStaffAdvice(adviceId)
 getPerformanceEvaluation(evaluationRequestId)
 getMilitaryPerformanceReport(reportId)
+getRuntimeProjection(requestId)
+getCommandOperation(operationId)
+getArtifactReference(referenceId, principal)
 ```
 
 ### 5. 错误码
@@ -5708,6 +5834,9 @@ getMilitaryPerformanceReport(reportId)
 | `RESOURCE_LOCKED` | 写集合或环境被占用 |
 | `POLICY_DENIED` | 确定性策略拒绝 |
 | `PERSISTENCE_FAILED` | 事实未能持久化，状态不可声称已改变 |
+| `RECOVERY_REQUIRED` | Snapshot 存在但没有新鲜 start/heartbeat/settlement receipt |
+| `OPERATION_IN_PROGRESS` | 稳定 operationId 已被有 fence 的执行者租赁 |
+| `OPERATION_OUTCOME_UNKNOWN` | 外部副作用需先查询 postcondition/receipt |
 
 #### 验收
 
@@ -5978,7 +6107,7 @@ EVALUATION_APPEAL_EVIDENCE_REQUIRED
 
 所有回执必须在声明状态改变前持久化。模型不能构造 Authorization、Binding、Resume、Integration、Budget 或 Appeal resolution 的权威 Receipt；模型最多提出经过 Schema 校验的建议内容。
 
-### 11. 0.9.0-alpha.24 Web 控制面契约
+### 11. 0.9.0-alpha.25 Web 控制面契约
 
 Web Client 只通过六个窄 Typert Remote 访问 Host；每个 Remote 只有只读
 `snapshot` 和一个带判别字段的 `execute`，不暴露数据库、文件系统或 Git 对象。
@@ -6038,8 +6167,10 @@ ASSESS_PROVIDER_SESSION
 
 每个 run/sample 固定 dataset hash、Bundle/Preset、角色 revision、exact route、
 reasoning、ToolProfile 和预算。Provider 稳定性按 dataset + Session + scenario
-去重；exact-route 独立 Session 少于 10 或 Wilson 区间宽度大于 0.35 时只能是
-`INSUFFICIENT_SAMPLE`。
+去重。观察趋势标签在 exact-route 独立 Session 少于 10 或 Wilson 区间宽度大于
+0.35 时只能是 `INSUFFICIENT_SAMPLE`；发布 acceptance 是独立且更严格的合同，
+每个 exact configuration × scenario 少于 50 个独立 Session 时同样必须是
+`INSUFFICIENT_SAMPLE`，并且还要满足首次工具/E2E Wilson 门和四项零安全失败。
 
 #### `militaryPrivateSkills`
 
@@ -6464,7 +6595,22 @@ min(template/preset budget, resolved model context, deployment safety cap)
 
 达到 trigger 必须创建可审计 `CompactionAttempt`。无安全区间或摘要不缩小则暂停/handoff，不能继续溢出。General 切换到更小上下文模型前应先评估当前 surface；无法安全适配则拒绝切换。
 
-### 0.9.0-alpha.24 能力目录与样本纪律
+### 0.9.0-alpha.25 能力目录与样本纪律
+
+模型控制面把四个概念独立存储：
+
+```text
+Catalog Presence
+Protocol Compatibility
+Policy Eligibility
+Performance Evidence
+```
+
+目录存在只证明 route 可发现；不得由此虚构 tool calling、reasoning、context、
+residency 或 `VALIDATED`。native tool route 直接走 DSH adapter；非 native
+route 只有受治理 Bridge 已启用并通过 exact canary 时才可执行。Dispatch 前绑定
+immutable capabilityProfileId/adapter revision，并写 route、分类、驻留、脱敏、
+policy 与价格状态 receipt。
 
 Settings 模型下拉不维护第二份 allowlist。Host 把 DSH live `llm.models` 与
 Military capability evidence 合并为 exact-route 目录，并记录
@@ -6476,10 +6622,14 @@ route 默认 `available/selectable`。上述状态只描述能力元数据或绩
 不再充当权限。只有不在 live 目录中的历史 route 才不可选择。
 
 固定工作台将 deterministic gate 与 Provider Session observation 分开保存；
-相同 exact route/场景 N<10 或置信区间过宽时不能输出稳定结论。别名未被
+相同 exact route/场景 N<10 或置信区间过宽时不能输出观察趋势的稳定结论；发布
+acceptance 仍按 exact configuration × scenario 要求 N≥50。别名未被
 request/header 证明时
 标记 `ALIAS_UNPROVEN`，不得与另一个 exact model 合并。模型状态变化是单独的
 受治理动作，评测运行本身不自动晋升、不自动 fallback，也不把 Pro 变成默认。
+发行 acceptance 进一步要求每个 exact configuration × scenario N≥50、首次
+工具/E2E Wilson 下界达标并且意外确定性错误、越权写入、假完成、重复终态全为
+0；未达到时准确报告 `INSUFFICIENT_SAMPLE/FAILED`。
 
 
 ---
@@ -6642,10 +6792,14 @@ CANCELLED
 
 - Event 已提交但 projection/outbox 未处理；
 - Artifact 文件存在但 metadata 未提交；
+- Artifact metadata 已提交但 Reference Index 未提交；
+- active/retained Artifact metadata 存在但 Blob 丢失；
 - Radio lease holder 崩溃；
 - Evaluation dataset 读取中断。
 
-处置：幂等 consumer、checkpoint、orphan sweep、visibility timeout 和 immutable dataset shard。
+处置：幂等 consumer、checkpoint、metadata-authoritative index rebuild、
+orphan sweep、active Blob 完整性 fail-closed、visibility timeout 和 immutable
+dataset shard。
 
 #### Performance Evaluation
 
@@ -6691,7 +6845,34 @@ Attempt missingness 中分别归因。
 
 所有故障注入必须得到有限终态：`RECOVERED/PAUSED/QUARANTINED/CANCELLED/FAILED`，不得停留在未知“可能已完成”。
 
-### 0.9.0-alpha.24 控制中心恢复合同
+### 0.9.0-alpha.25 Command Saga 恢复合同
+
+Mission command 的外部 operation 具有稳定 idempotency key 和 durable state：
+
+```text
+PENDING_EFFECT
+├─ effect failure/crash before checkpoint → RETRYABLE
+├─ valid active lease                    → wait / RESOURCE_LOCKED
+└─ result checkpoint                     → EFFECT_APPLIED → COMMITTED
+```
+
+恢复调用必须提交原语义 command；Host 校验 semantic fingerprint、tenant、
+Mission、payload hash 和 idempotency key。`EFFECT_APPLIED` 不重跑 effect，
+只补 command receipt/outbox；`RETRYABLE` 只能调用同一可查询/幂等 operation。
+Operations health 公开 state 计数、过期 lease 和最老年龄，但不显示可能含秘密的
+Provider 错误正文，也不会凭 UI 猜测副作用。
+
+故障注入覆盖：
+
+- admission commit 后、effect 前崩溃；
+- effect 报错并进入 RETRYABLE；
+- effect 成功后、checkpoint 前中止；
+- EFFECT_APPLIED 后、receipt/outbox 前崩溃；
+- finalization CAS 丢失；
+- 同 idempotency key 使用不同 authority/semantic payload；
+- async SQLite transaction callback 的同步前缀 rollback。
+
+### 0.9.0-alpha.25 控制中心恢复合同
 
 浏览器恢复流程是三步协议：
 
@@ -7409,7 +7590,7 @@ Binding generation missing/incompatible
 
 ### 1.1 当前源码实现
 
-`0.9.0-alpha.24` 已把本章从目标设计落实为一条 Host-owned 供应链：
+`0.9.0-alpha.25` 已把本章从目标设计落实为一条 Host-owned 供应链：
 
 ```text
 Knowledge Center
@@ -9250,6 +9431,11 @@ Agent principal 永远不能自行获得人类专属授权。Agent 的权限来�
 
 管理命令不接受模型自由填写的 Context；Host 从认证连接、Session ownership、Settings 权限和凭据服务构造。
 
+Web Remote 同样不能使用固定字符串代替身份。RC.2 本地单用户部署由 Host 创建
+明确的 `LOCAL_PROFILE_USER` authority context；未来多用户部署必须从认证
+connection 注入 principal/tenant。两者使用同一授权 API，但本地身份不能被
+描述成企业 RBAC。
+
 ### 4. 授权决策
 
 有效权限为：
@@ -9339,6 +9525,10 @@ time
 ```
 
 不得把 Secret、Token 或原始凭据写入审计日志。
+
+Artifact 读取审计记录 Reference 身份，而不是只记 content hash。Reference
+必须通过 tenant、workflow、audience/grant、scope、classification ceiling 和
+expiry；相同 blob 的另一个合法引用不能为当前 principal 提供旁路。
 
 ### 10. 验收条件
 
@@ -9544,6 +9734,10 @@ Generation Store         → preset manifest 与只读资产
 - [`reference/sql/0003-projections.sql`](reference/sql/0003-projections.sql)
 - [`reference/sql/0004-governance.sql`](reference/sql/0004-governance.sql)
 
+可执行源码 migration 位于 `packages/storage-sqlite/src/migrations/`，当前连续为
+`0001`—`0010`；`0009` 增加 outbox runtime/receipt/offset，
+`0010-command-saga.sql` 增加外部 effect checkpoint。
+
 关键唯一约束：
 
 ```text
@@ -9559,19 +9753,29 @@ UNIQUE(decision_set_id, version)
 
 ### 3. 事务规则
 
-#### Append + Outbox
+#### 同步短事务
 
-领域状态改变以单事务完成：
+`SqliteMilitaryDatabase.transaction()` 只接受同步 callback。返回 Promise 或
+thenable 会 rollback 并抛出 `SQLite transaction callbacks must be synchronous`。
+因此模型、Provider、Git、文件系统和长验证一律在事务外运行。
+
+#### Command Saga + Outbox
+
+Mission command 使用三个短阶段：
 
 ```text
-validate expected revision
-append immutable event
-update aggregate revision
-insert outbox row
-commit
+tx 1: validate revision + append admission + PENDING_EFFECT lease
+outside tx: execute stable idempotent/queryable operation
+tx 2: persist EFFECT_APPLIED result checkpoint
+tx 3: command receipt + transactional outbox + COMMITTED fence
 ```
 
-Projection、Web push 和异步 Agent 调度从 Outbox 消费。不能先通知模型再写 Ledger。
+effect failure 进入 `RETRYABLE`；进程在 effect 后、receipt 前崩溃时保留
+`EFFECT_APPLIED` 并只补 finalization。Projection、异步 Agent 调度和补偿
+settlement 从 Outbox 消费。不能先报告命令完成再写 receipt。
+
+Outbox 实现 claim lease、retry/backoff、dead-letter、delivery receipt 和
+partition offset；相同 eventId 幂等，单 partition 保序。
 
 #### Artifact
 
@@ -9606,6 +9810,12 @@ Git 不能和 SQLite 形成单一原子事务，因此使用 Saga 和 repository
 4. CAS 移动 local main；
 5. 写 Receipt；
 6. 崩溃时根据 trailer 对账。
+
+#### Workspace
+
+Workspace Snapshot、Lease、Candidate Patch、Integration Order/Receipt 写入同一
+生产 Store。启动 reconciliation 只收养可证明归属的 worktree，隔离可证明过期
+的 worktree；未知状态停止并等待核验，不先递归删除。
 
 ### 4. Snapshot 和 Projection
 
@@ -10095,7 +10305,7 @@ ROLLBACK
 
 #### RC.2 本地发行安装
 
-`0.9.0-alpha.24` 标准安装只把自包含 Bundle 添加为 Profile layer；Installer 已
+`0.9.0-alpha.25` 标准安装只把自包含 Bundle 添加为 Profile layer；Installer 已
 嵌入 Bundle：
 
 ```bash
@@ -10103,7 +10313,7 @@ cd release
 shasum -a 256 -c checksums.sha256
 
 dsh plugin --profile web add \
-  ./dsh-military-bundle-0.9.0-alpha.24.tgz
+  ./dsh-military-bundle-0.9.0-alpha.25.tgz
 
 pnpm --dir "${DSH_HOME:-$HOME/.dsh}/profiles/web" exec \
   dsh-military-install install \
@@ -10114,7 +10324,7 @@ pnpm --dir "${DSH_HOME:-$HOME/.dsh}/profiles/web" exec \
   --dsh-home "${DSH_HOME:-$HOME/.dsh}"
 ```
 
-独立 `dsh-military-installer-0.9.0-alpha.24.tgz` 只用于 preset-only 生命周期，
+独立 `dsh-military-installer-0.9.0-alpha.25.tgz` 只用于 preset-only 生命周期，
 不能作为 DSH Bundle layer 添加。Profile 使用 `file:` 引用时，安装中的旧 tarball
 在该 Profile 升级并验证前必须保留。
 
@@ -11108,7 +11318,7 @@ WebUI 不只是展示军事组织名词，而是所有高风险管理动作的�
 
 ### 1.1 实施状态
 
-`0.9.0-alpha.24` 已实现独立 Settings/Knowledge Modal、七个一级选项卡、角色
+`0.9.0-alpha.25` 已实现独立 Settings/Knowledge Modal、七个一级选项卡、角色
 工作台、revision 冲突、字段 Diff、可移植导入导出、诊断与恢复、Specs
 Workspace、固定基准、知识供应链透明度、模拟召回和键盘/IME/高对比度合同。
 这些页面读取 Military 自有 Remote/Projection，不依赖未知外部 Session Event。
@@ -11271,19 +11481,22 @@ rank、匹配/排除原因和最终投放片段。
 
 当前固定基准页首先展示 `military-flash-core-v1`、dataset hash、九个场景和
 deterministic/Provider 两类结果。真实样本固定 exact route、role revision、
-reasoning、ToolProfile 和预算；N<10 或区间过宽不形成稳定结论。支持：
+reasoning、ToolProfile 和预算；N<10 或区间过宽不形成观察趋势的稳定结论，
+发布 acceptance 仍要求每个 exact configuration × scenario N≥50。支持：
 
 - 运行全部确定性场景；
 - 从既有真实 Session 生成 Provider 观察；
 - 查看首次命中、Schema、纠正、完成、写 receipt、父唤醒、tokens 和延迟；
-- 按 exact route/场景查看样本量、通过率和稳定性。
+- 按 exact route/场景查看样本量、通过率和稳定性；
+- 导出 Host-assessed evidence，并显示逐场景 N≥50、首次工具/E2E Wilson 门和
+  四类零安全失败的发行 acceptance。
 
-完整委员会报告的难度校正、双评委、导出、申诉和 superseding revision 仍属于
-后续页面。样本不足时不显示“稳定”或模型晋升结论。
+完整委员会报告的难度校正、可选叙事评委、导出、申诉和 superseding revision
+由绩效七视图提供。样本不足时不显示“稳定”、外部 acceptance 或模型晋升结论。
 
 ### 12. 可访问性与规模
 
-- 两个弹窗具有初始焦点、Tab/Shift+Tab 捕获和关闭后焦点返回；
+- 三个弹窗具有初始焦点、Tab/Shift+Tab 捕获和关闭后焦点返回；
 - 七个一级选项卡使用 `tablist/tab/tabpanel`，支持方向键和 Home/End；
 - 角色目录使用 `listbox/option` 与 roving focus；
 - 简体中文 IME composition 期间不执行快捷键；
@@ -11323,7 +11536,7 @@ reasoning、ToolProfile 和预算；N<10 或区间过宽不形成稳定结论。
 - 六层 Prompt 预览、readiness、离线模拟和显式 Canary；
 - Host workspace 选择、长路径、Git dirty/untracked 和未知 ID 拒绝；
 - 恢复预览、错误确认短语和幂等 receipt；
-- 固定九场景与 Provider N<5 样本保护；
+- 固定九场景、Provider 趋势 N<10 保护及发行 N<50/Wilson/安全失败拒绝；
 - sanitized 知识透明度和真实/模拟 recall 同结果；
 - 问题被另一标签页回答；
 - 浏览器刷新后长任务恢复；
@@ -11484,7 +11697,7 @@ README、安装页和 WebUI About 应包含：
 
 ### 1. 实现状态
 
-`dsh-military 0.9.0-alpha.24` 已形成独立 npm workspace 源码工程，唯一完整兼容目标是：
+`dsh-military 0.9.0-alpha.25` 已形成独立 npm workspace 源码工程，唯一完整兼容目标是：
 
 ```text
 dsh@0.1.1-rc.2
@@ -11498,14 +11711,14 @@ commit b150a551b8d465e31e418e1b2eaf5e79bbb7d28e
 | 包 | 类型 | 权威职责 |
 |---|---|---|
 | `@dsh-military/contracts` | Service Definition / wire | ID、领域对象、Schema、事件、错误、服务接口 |
-| `@dsh-military/core` | 领域内核 | Ledger、CAS、规划、验收、督战、电台、Decision Broker、模板、预算 |
+| `@dsh-military/core` | 领域内核 | Ledger、CAS、Workflow/Execution lifecycle、Wave scheduler、验收、督战、电台、Decision Broker、模板、预算 |
 | `@dsh-military/infrastructure` | Provider | Artifact、受限进程、Git、worktree、Candidate Patch、Integration、specs |
-| `@dsh-military/storage-sqlite` | Provider | SQLite migration、Mission/Admin Ledger、Session/Agent Binding |
-| `@dsh-military/runtime` | Orchestrator | 完整应用服务图、部门 Agent 实例化、知识和评估运行时 |
-| `@dsh-military/plugin-host` | RC.2 adapter | Agent/Session/Request/Tool/Compaction/Settings 及控制面 Remote |
+| `@dsh-military/storage-sqlite` | Provider | SQLite migration、短事务 Command Saga、Mission/Admin Ledger、ordered outbox、Workspace/Execution state |
+| `@dsh-military/runtime` | Orchestrator | 完整应用服务图、稳定 Tool Host API、部门 Agent、知识和评估运行时 |
+| `@dsh-military/plugin-host` | RC.2 adapter | Agent/Session/Request/Tool/Compaction/Settings、Runtime/Operations Remote 与协调维护 |
 | `@dsh-military/tools` | Model Consumer | General、Staff、Worker、Engineer、Inspector、Research 工具 |
 | `@dsh-military/command-brainstorm` | Human Consumer | `/brainstorm` 命令和 General 问题中继 |
-| `@dsh-military/webui` | Client Consumer | 角色/诊断/恢复/Workspace/基准 Settings 与七视图 Knowledge Center |
+| `@dsh-military/webui` | Client Consumer | 角色/诊断/恢复/Workspace/基准、Runtime Center 与七视图 Knowledge Center |
 | `@dsh-military/preset` | Agent-plane assets | 固定 `military` preset 和 generation archive |
 | `@dsh-military/installer` | Lifecycle | preset 安装、验证、卸载和 profile 配置辅助 |
 | `@dsh-military/bundle` | Distribution | Host-plane Cordis patch |
@@ -11531,7 +11744,10 @@ plugin-host / tools / command / webui / installer / bundle
 - DSH 类型只出现在薄适配包；
 - Agent-plane 与 Web client 对 DSH、Cordis、Schemastery 使用 peer dependency；
 - 不复制 RC.2 运行时对象，避免 `Symbol`、`instanceof`、Service identity 分裂；
-- `contracts` 是跨进程和持久数据真源，不能让 UI 自定义另一套对象形状。
+- `contracts` 是跨进程和持久数据真源，不能让 UI 自定义另一套对象形状；
+- `tools` 只依赖 runtime 的稳定 Tool Host API，不反向导入 plugin-host；
+- production provider 通过 application composition root 注入，接口 descriptor
+  必须与实际 live instance 一致。
 
 ### 4. Host 启动顺序
 
@@ -11539,10 +11755,11 @@ plugin-host / tools / command / webui / installer / bundle
 读取 Config
 → 打开 SQLite 并执行 migration
 → 归档当前 preset generation
-→ 构造策略、模板和服务 Provider
+→ 构造策略、模板、Workspace/Execution Store 和 Production Plane Provider
 → 创建 MilitaryHostRuntime
 → 注册 Host Settings
-→ 注册 control/operations/workspace/benchmark/private-skill Remote
+→ 注册 control/operations/runtime/workspace/benchmark/private-skill Remote
+→ 启动 outbox/Radio/Decision coordination maintenance
 → Compatibility Probe
 → READY 或 fail closed
 ```
@@ -11569,6 +11786,22 @@ Host bundle 不注册 Military 模型工具；这些工具只存在于固定 `mi
 ```
 
 `AgentExecutionBinding` 在第一个 prompt 入队前持久化。模型不能在绑定之外修改 provider、model、reasoning、工具、权限、Verifier、上下文预算或 preset generation。
+每次实际派遣还持久化独立 Attempt、Activation、Dispatch 和 policy receipt；
+Rework/Guidance/Decision continuation 不复用已 settlement 的实例。
+
+为避免大型领域文件把不相关策略绑在一起，源码按稳定责任边界进一步拆分：
+
+- `evaluation.ts` 只保留 Job/lease/orchestration，
+  `evaluation-analytics.ts` 承担统计真值与报告不变量；
+- `ingestion.ts` 保留 supply-chain 状态机，
+  `ingestion-support.ts` 承担 rights、sanitize、chunk 与 Skill bundle 编译；
+- Control Plane、Session adapter 和 Host Runtime 分离 Remote/Reader/生命周期
+  façade 与纯验证/转换 helper；
+- SQLite coordination barrel 下的 Radio、Decision、Brainstorm、Appeal、
+  Compaction 与 Tactical Tag 各自拥有独立 repository。
+
+这些拆分不改变 package 依赖方向或公开 barrel；对应行为仍由相同的状态机、
+SQLite restart、RC.2 E2E 和文档门验证。
 
 ### 6. 权威状态
 
@@ -11666,13 +11899,14 @@ pack/publint、空 Profile 安装、Loader 激活、重启 E2E 和发行校验�
 | 层次 | 当前实现 |
 |---|---|
 | 领域单元 | Ledger、CAS、状态机、Decision Broker、Radio、Budget、Template、Tag |
-| 持久化 | SQLite migration、重启、Session Binding、AgentExecutionBinding |
+| 持久化 | SQLite migration、Command Saga、Outbox、Workspace/Execution state、重启与 CAS |
 | 文件/Git | specs 初始化、local `main`、worktree、Patch、Integration |
 | 组合静态 | preset 隔离、Host model-silent、Web lazy bundle |
 | 合同 | TypeScript、Schema、Event/Error Catalog、generation hash |
-| 控制中心 | 角色 revision、Prompt/lint/readiness、诊断/恢复、Workspace、固定基准 |
+| 控制中心 | Desired/Applied 角色 revision、Runtime hierarchy、诊断/恢复、Workspace、固定基准 |
 | 知识 | sanitized pipeline、lineage、shared recall resolver/renderer、撤回 |
 | Web 可访问性 | tabs/listbox/dialog、focus trap/return、IME、zoom/contrast/overflow |
+| 生产控制 | provider topology、queue order、capacity/backpressure、telemetry、signed backup/restore |
 | 真实 RC.2 E2E | 从 tarball 安装；官方 Loader 三次启动；纵向流程与恢复 PASS |
 
 每次测试生成 `TEST-REPORT.md` 和 `TEST-REPORT.json`，保留测试文件、通过/失败数量、Node 版本、RC.2 commit 和运行边界。
@@ -11711,7 +11945,7 @@ Host profile 通过发行 tarball 叠加：
 
 ```bash
 dsh plugin --profile web add \
-  ./dsh-military-bundle-0.9.0-alpha.24.tgz
+  ./dsh-military-bundle-0.9.0-alpha.25.tgz
 ```
 
 Bundle 自包含全部私有运行时 package、Installer 与
@@ -11739,6 +11973,8 @@ layer 添加。两类 RC.2 platform peer 都由 Profile fallback 提供单例，
 10. 打开 Military 设置中心，检查 12 角色、七个选项卡和工作区/恢复/评测；
 11. 打开知识与技能，检查七视图、透明度和模拟召回；
 12. 执行 `/brainstorm` 和最小 Candidate 验收场景。
+13. 打开 Military Session 运行中心，核对 Request→Integration parent link 与
+    source revision/staleness。
 
 ### 7. 数据目录
 
@@ -11776,11 +12012,22 @@ DSH_RC2_ROOT=/exact/built/deepseek-harness pnpm release:verify
 回滚说明、版本、Profile 与 E2E 报告。构建使用固定
 `SOURCE_DATE_EPOCH`，并比较两次独立 `npm pack` 的 SHA-256。
 
-安装后浏览器矩阵至少验证：展开/收起侧栏点击域、两个 Modal、七个一级
+安装后浏览器矩阵至少验证：展开/收起侧栏点击域、三个 Modal、七个一级
 选项卡、角色 listbox 键盘路径、焦点捕获/返回、简体中文 IME、200% zoom、
 长 model ID/path、forced-colors/high-contrast CSS、Workspace opaque ID、
 deterministic benchmark 和无 Task 模拟召回。浏览器检查不能替代 Host/SQLite/
 Git 自动测试，自动测试也不能替代真实 Provider 统计样本。
+
+真实 Flash evidence 由绩效页导出后单独执行：
+
+```bash
+npm run acceptance:flash -- \
+  --evidence /absolute/path/provider-acceptance.json \
+  --route provider/exact-flash-model
+```
+
+每个场景必须有 50 个独立 exact-route Session 并通过 Wilson/零安全失败门。
+此命令不发起 Provider 请求，也不属于无凭据的源码门；没有证据时准确失败。
 
 
 ---
@@ -11825,8 +12072,9 @@ RC.2 已知事件目录不提供外部 required event 动态注册。审查脚�
 - RC.2 预留 childId 必须在调用前写入 Provisioning/Binding；
 - Worker 在首轮前必须获得真实 Task + Workspace Lease；
 - critical 与 ordinary report 都使用 `next-step`，确保 idle parent 自动恢复；
-- Task `allowedTools` 同时约束首请求 Schema 与 Capability Grant，Engineer
-  Specs 首请求不得超过 9 个工具；
+- Task `allowedTools` 同时约束首请求 Schema 与 Capability Grant；每个
+  Engineer/Worker 请求必须是 ToolProfile、Task grant 与 Host phase mask 的
+  1—4 工具交集；
 - selective drain 不能终止未列出的 sibling；
 - 重复 childId 必须对账 parent、descriptor、binding，不能盲重试。
 
@@ -11844,9 +12092,10 @@ RC.2 已知事件目录不提供外部 required event 动态注册。审查脚�
 -无同步模块请求环；
 - Settings 使用 RC.2 共享 mirror；
 -业务组件不建立重复 wire reader；
-- 当前 0.9.0-alpha.24 Web 包不注册 Military Conversation Node；角色治理、
-  诊断/恢复、Workspace、固定基准和知识透明度使用插件自有窄
-  Remote/Projection；后续附加运行视图同样必须以稳定业务 ID 聚合和分页重放。
+- 当前 0.9.0-alpha.25 Web 包不注册 Military Conversation Log Node；角色治理、
+  诊断/恢复、Workspace、固定基准、知识透明度和完整 Runtime Center 使用插件
+  自有窄 Remote/Projection。运行节点以稳定业务 ID、source revision 和
+  staleness 聚合，不把 Session Log 变成第二个 Mission 真源。
 
 ### 6. DeepSeek
 
@@ -11866,7 +12115,7 @@ RC.2 已知事件目录不提供外部 required event 动态注册。审查脚�
 
 ### 1. 支持范围
 
-`0.9.0-alpha.24` 只对 `dsh@0.1.1-rc.2` commit `b150a551...` 声明完整支持。旧版部署必须使用其匹配的发布包，不允许两个 DSH runtime identity 在一个进程混装。
+`0.9.0-alpha.25` 只对 `dsh@0.1.1-rc.2` commit `b150a551...` 声明完整支持。旧版部署必须使用其匹配的发布包，不允许两个 DSH runtime identity 在一个进程混装。
 
 ### 2. Preset generation
 
@@ -11885,7 +12134,9 @@ RC.2 的持久化读取会拒绝未知且未标记 `ignorable` 的事件，而�
 
 RC.2 动态包构建规则依赖 package manifest 和 module table。发布门禁已执行
 真实 Loader shell loading、Settings 写入/重启恢复和 Web Client graph 注册；
-真实浏览器渲染、断线、多标签页和无障碍仍须部署 Web E2E。
+共享 Query Client 已覆盖 timeout/abort/dedupe/backoff/visibility/revision 与
+BroadcastChannel 失效通知；真实浏览器渲染、断线、多标签页、键盘和无障碍仍须在
+目标部署中执行 Web E2E，单元测试不能替代浏览器/辅助技术证据。
 
 ### 5. DeepSeek Vision
 
@@ -11898,6 +12149,22 @@ RC.2 的 reasoning passback 可能显著提高后续输入 Token。静态 Contex
 ### 7. Git 与平台
 
 Git worktree、LFS、submodule、网络文件系统和 Windows 仍需目标平台 Fixture。远端 Git 写入没有默认 Provider，仍需用户授权后的 General Promotion。
+
+### 8. 外部生产 Provider
+
+本地默认由 SQLite Ledger、文件 Artifact、进程内队列和本地签名密钥运行。代码已经
+定义稳定 Tool Host、Ledger、对象存储、队列、KMS、容量和灾备 Provider seam，并在
+拓扑探针中拒绝把本地 descriptor 冒充分布式就绪；但 PostgreSQL、远程对象存储、
+企业 KMS 和跨节点队列需要部署方注入并完成独立一致性、驻留、故障转移和恢复演练。
+未注入时 UI 必须显示 `LOCAL_ONLY`，不能声称 HA 或多租户生产就绪。
+
+### 9. 真实 Flash 外部证据
+
+确定性 Host/Schema/路径测试和离线 Evidence 校验器已经实现，但真实
+DeepSeek v4 Flash exact-route 样本需要外部 Provider 调用。每个 exact
+configuration × scenario 在独立 Session `N≥50` 前只能报告
+`INSUFFICIENT_SAMPLE`；本地测试、模拟响应或重复评估不能把 capability 自动晋升为
+`VALIDATED`。
 
 
 ---
@@ -11969,8 +12236,10 @@ evaluation_reports
 evaluation_appeals
 ```
 
-Job 使用 revision、lease owner、lease expiry 和 fence token 防止两个执行者同时
-完成同一运行。合法状态遵循：
+Job 使用 revision、lease owner、lease expiry、heartbeat 和 fence token 防止两个
+执行者同时完成同一运行。长时间的 Dataset 构建、Provider narrative 或分片计算必须
+在独立短事务中续租；续租失败或 fence 变化时，旧执行者立即停止发布结果。合法状态
+遵循：
 
 ```text
 QUEUED
@@ -12117,7 +12386,9 @@ UNKNOWN
 
 ### 8. 指标与阶段化失败归因
 
-每项率都公开 numerator、denominator、事件来源和缺失规则。核心定义如下：
+每项率都公开 numerator、denominator、事件来源、缺失规则和计算状态。分母为零时
+状态是 `N/A`；权威事件链不完整时状态是 `INCOMPLETE`。这两种情况都不得序列化成
+数值 `0`，也不得进入配置排序或非劣比较。核心定义如下：
 
 | 指标 | 分子 / 分母 | 权威事件 |
 |---|---|---|
@@ -12186,8 +12457,10 @@ REGRESSION_ALERT
 ```
 
 达到用户填写的 `minimumSamples` 只是条件之一；exact route、独立 Mission、
-区间宽度、任务覆盖、难度平衡和安全硬门也必须满足。小样本只生成继续采样建议，
-不输出伪精确全局排行。
+区间宽度、任务覆盖、难度平衡、权威事件完整性和安全硬门也必须满足。小样本只生成
+继续采样建议，不输出伪精确全局排行。Mission completion、Specs coverage、
+Integration outcome 和 parent wakeup 只有在各自完整 receipt/event 链存在时才进入
+分母；缺链样本保留在 missingness 中，不被静默当作失败或成功。
 
 ### 10. Flash/Pro 受控比较
 
@@ -12240,9 +12513,11 @@ Accepted Outcome，再累计该结果之前的全部代价：
 p50 / p95 accepted-outcome latency
 ```
 
-Token、latency 和可用 cost 都显示 Mission-cluster bootstrap 区间。价格目录未知时
-成本状态为 `PROVIDER_PRICING_UNAVAILABLE`，字段显示 unavailable，绝不以 0 美元
-参与比较。Pareto 视图先通过质量与安全门，再比较 Token、延迟和可用成本。
+Token、latency 和可用 cost 都显示 Mission-cluster bootstrap 区间。成本只使用
+实际 observed provider/model/route/version 对应的不可变 price snapshot；当前目录
+价格、别名价格或其他 Provider 的近似价格不能反向改写历史成本。价格快照未知时成本
+状态为 `PROVIDER_PRICING_UNAVAILABLE`，字段显示 unavailable，绝不以 0 美元参与
+比较。Pareto 视图先通过质量与安全门，再比较 Token、延迟和可用成本。
 
 ### 12. 确定性报告与可选委员会叙述
 
@@ -12339,11 +12614,18 @@ datasetId + sessionId + scenarioId
 
 解析器 revision 或重复评估不会增加 N。`schemaFirstPass` 只验证首个必需工具调用；
 每个场景继续验证完整工具序列、receipt-bound path、多文件 distinct path、终态和
-恢复链。真实 Provider 稳定性至少需要 10 个独立 Session，并报告区间。
+恢复链。发布级真实 Flash Provider 验收按 exact configuration × scenario 至少需要
+50 个独立 Session；首次工具命中点估计必须不低于 95% 且 95% Wilson 下界不低于
+85%，E2E 完成点估计必须不低于 90% 且下界不低于 80%，确定性失败、越权成功写、
+假完成和重复终态必须全部为 0。少于 50 个独立样本只能报告
+`INSUFFICIENT_SAMPLE`，不能晋升能力状态。
 
 固定工作台和跨 Session 委员会评估可以互相引用 run/sample id，但不能合并样本量，
 也不能把 deterministic Host case 当成 Provider response。真实 Provider 回归仍是
-显式付费的外部证据，不由本地 deterministic 测试伪造。
+显式付费的外部证据，不由本地 deterministic 测试伪造。WebUI 导出的 Evidence 包可
+由 `npm run acceptance:flash -- --input <export.json>` 离线重算；校验器会重新验证
+dataset/sample hash、exact route、去重键、Wilson 下界和四项安全硬门，任何场景未
+达到 `PASSED` 都以非零状态退出。
 
 ### 17. 运行与验收证据
 
@@ -12407,6 +12689,12 @@ $DATA_ROOT/workspace-state/worktrees/<leaseId>
 
 Worker child 的 RC.2 `meta.cwd` 指向该目录，不指向父 Agent 工作目录。Tool/Permission Pipeline 仍按 Task path scope 二次校验。
 
+轻量模型默认不接触执行机绝对路径。Host 只向当前 Task 暴露
+`military_workspace_read/search/write/edit` 等 Task-rooted 工具；模型参数使用相对
+路径，Host 绑定 `taskId + taskVersion + leaseId + workspaceRoot` 后再做 canonical
+解析、symlink 防逃逸和 read/write/forbidden scope 授权。绝对路径、盘符路径、
+`..` 逃逸和未绑定 Task 的写入在产生副作用前确定性拒绝。
+
 ### 4. immutable binding
 
 Workspace 分配写入 `AgentExecutionBinding.workspace`：
@@ -12420,6 +12708,10 @@ executionRootHash
 ```
 
 绑定在 `agents.create()` 和第一个 prompt 之前持久化。子 Session 还记录 `military/workspace-assigned`，用于 UI、审计和恢复。
+
+Snapshot、Lease、Candidate Patch 和 Integration Order/Receipt 全部进入生产
+Workspace Store。启动对账只会 adopt 已证明属于当前 lease 的 worktree，无法证明
+身份的目录进入 quarantine；不得因为数据库缺行就递归删除现有目录。
 
 ### 5. Candidate Patch
 
@@ -12453,6 +12745,11 @@ Harness Integration Executor：
 - Host 关闭：逐个调用统一 release path；
 - Worktree remove 失败：保留审计错误，后续清理器可重试；
 - 释放不会删除 Candidate/Artifact/Ledger。
+
+释放以 exact Activation/lease fence 为准。用户 Stop 默认只取消当前 Invocation 或
+Activation，不终止稳定 Agent identity，也不把 `AWAITING_GUIDANCE`、
+`AWAITING_DECISION`、`REWORK`、`FROZEN` 或成功 Specs Task 重置为 READY。迟到、
+重复和乱序 settlement 由 durable idempotency key 收敛。
 
 ### 8. 非 Military 同工作区会话
 
@@ -12504,24 +12801,25 @@ RC.2 `ui-settings` 拥有唯一 `settings.describe` mirror，并监听 document 
 
 ### 4. 运行态投影边界
 
-RC.2 没有外部 required Session Event 注册面。0.9.0-alpha.24 因而不注册
+RC.2 没有外部 required Session Event 注册面。0.9.0-alpha.25 因而不注册
 Military Conversation Node，也不把 Mission/Task/Radio/Freeze/Candidate 写入
 DSH Session Log。Settings 基础字段读取 RC.2 shared mirror；角色治理、诊断/
-恢复、Workspace、固定评测和私有知识通过插件自有窄 Typert
+恢复、Workspace、固定评测、Runtime Center 和私有知识通过插件自有窄 Typert
 `snapshot/execute` Remote 读取 Host projection。
 
-后续运行态页面必须新增 Military 自有 Host Remote/Projection：
+当前 Runtime Center 遵守以下 Host Remote/Projection 合同：
 
 - 以 `tenantId + missionId` 查询 Mission read model；
-- 使用稳定业务 ID 和 revision 增量更新；
+- 使用稳定业务 ID、source revision、generatedAt、staleAfter 和 health 更新；
 - 浏览器不直连 SQLite；
 - DSH Session 只承载模型可见 `user/message` 和上游已知事件；
 - 可选 Conversation renderer 只消费插件自有投影，不把 Session Log 变成第二个 Mission 真源。
 
 ### 5. 已实现页面
 
-- 一个 `sidebar.footer.action` occupant 纵向承载“Military 设置中心”和
-  “知识与技能”两个独立入口；二者与 DSH Settings 共用 42px 展开行、36px
+- 一个 `sidebar.footer.action` occupant 纵向承载“Military 设置中心”、
+  “Military Session 运行中心”和“知识与技能”三个独立入口；三者与 DSH
+  Settings 共用 42px 展开行、36px
   收起圆形点击域及相同 margin/padding/radius/hover 合同，不会在 RC.2 的
   横向 list seat 中挤出侧栏；`shell.overlay` 分别挂载两个原生 Headless
   Modal；
@@ -12541,8 +12839,12 @@ DSH Session Log。Settings 基础字段读取 RC.2 shared mirror；角色治理�
 - Session 诊断时间线与先预览/精确确认/幂等 receipt 的安全恢复操作；
 - 仅按 Host `workspaceId` 选择的 Specs 工作区，包含 canonical/Git/path/lease/
   integration 状态；
+- Request→Mission→Direction→Wave→Task→Attempt→Activation→Dispatch
+  Runtime Center，以及 Candidate/Verification/Integration、Radio/Decision、
+  Budget/Receipt 层级；
+- 共享 timeout/abort/dedupe/backoff/revision query boundary 和跨标签页失效通知；
 - 固定九场景评测、dataset hash、deterministic/Provider 分栏、exact route
-  样本与 N<5 稳定性限制；
+  样本、N≥50/Wilson/零安全失败 acceptance 与 evidence export；
 - Knowledge Center 七视图，包含 sanitized pipeline/lineage 和与真实 recall
   共用 resolver/renderer 的无 Task 模拟召回；
 - Host 保存确认、字段级恢复默认、模板 revision 串行写入；
@@ -12551,9 +12853,8 @@ DSH Session Log。Settings 基础字段读取 RC.2 shared mirror；角色治理�
   zoom/长文本/forced-colors/contrast/reduced-motion 合同；
 - lazy module-loader artifact 和 manifest/peer-dev 门禁。
 
-Mission Dashboard、Radio Inbox、Freeze 控制台、专用 Candidate/Integration
-详情、绩效申诉和自定义 Advisor 向导属于后续 Web 里程碑，不在当前实现报告中
-标记为完成。
+把 Military 私有节点直接嵌入 DSH Conversation Log、自定义 Advisor 向导和
+分布式 server push 属于后续 Web 里程碑，不在当前实现报告中标记为完成。
 
 ### 6. 安全
 
@@ -12580,9 +12881,11 @@ Command
 → authority check
 → budget reservation
 → revision/state validation
-→ domain events
-→ durable activity/outbox
-→ projection commit
+→ durable command intent / effect lease
+→ external operation（SQLite 事务外）
+→ effect checkpoint
+→ domain receipt + transactional outbox
+→ projection / operation COMMITTED
 ```
 
 ### 2. Command Envelope
@@ -12607,9 +12910,23 @@ DSH Session Log         = 会话、模型可见历史和 UI 投影真源
 
 Mission Event 可以通过 Session Projection Adapter 镜像为 `ignorable: true` 的 Military Session Event；Session Event 不能反向独立推动 Mission 状态。
 
-### 4. Activity 与外部副作用
+### 4. Command Saga、Activity 与外部副作用
 
 Git、Workspace、模型 Activation、企业 API、Artifact、Integration 和 specs commit 通过 Durable Activity 执行。Mission Event 记录业务决定，Activity Store 记录精确句柄、attempt、lease、receipt 和补偿状态。
+
+SQLite 事务是同步短事务，绝不等待模型、Provider、Git、文件系统或长验证。每条
+Command 使用稳定 `operationId` 和语义 fingerprint，依次经过：
+
+```text
+PENDING_EFFECT → RETRYABLE / EFFECT_APPLIED → COMMITTED
+```
+
+执行者先在短事务中取得带 fence 的 effect lease；外部 operation 在事务外运行；
+随后用短事务写入 effect checkpoint，最后原子提交领域 receipt、transactional
+outbox 和 `COMMITTED` fence。超时或客户端断线后必须先按 operationId 查询 receipt，
+不能盲目重放副作用。相同幂等键但 fingerprint 不同返回
+`IDEMPOTENCY_CONFLICT`。错误持久化只保留类别和摘要指纹，不保存路径、Provider
+载荷或 Secret。
 
 ### 5. 恢复
 
@@ -12618,15 +12935,17 @@ Git、Workspace、模型 Activation、企业 API、Artifact、Integration 和 sp
 1. 校验数据库 migration；
 2. 重放 Mission Ledger；
 3. 重建 Projection；
-4. 加载未完成 Activity；
-5. 对账 DSH Session/Child、Workspace、Git 和 Artifact；
-6. 对可重试 Activity 重新投递；
-7. 对不确定副作用进入 `RECONCILIATION_REQUIRED`。
+4. 恢复未完成 Command Saga、Activity 和 transactional outbox；
+5. 对账 DSH Session/Child、Workspace、Git、Artifact 和 operation receipt；
+6. 对过期 effect lease、可重试 Activity 与 outbox 重新 claim；
+7. 对不确定副作用进入 `RECONCILIATION_REQUIRED`，先查询 postcondition 再决定
+   重投或补记 receipt。
 
 ### 6. 不变量
 
 - 同一 Mission revision 只允许一个成功写者；
-- Event 和 Outbox 在同一事务提交；
+- 领域 receipt/Event、Outbox 和 Command `COMMITTED` fence 在同一短事务提交；
+- 任何 SQLite transaction callback 返回 Promise/thenable 都必须回滚并拒绝；
 - 接受 Candidate 的 Event 必须引用独立 Verification Receipt；
 - Integration Receipt 产生前，Task 不得成为 `INTEGRATED`；
 - Session 镜像失败不能回滚已提交 Mission 事实，但必须进入可重试 Outbox；
@@ -12806,11 +13125,17 @@ Context Compiler 在输入层过滤，Tool Guard 在动作层再次校验。
 ### 1. Trace 结构
 
 ```text
-Mission → Direction → Wave → Task → Activation
-        → Model/Tool/Verification → Integration
+Request / WorkflowObligation
+  → Mission → Direction → Wave → Task
+  → Attempt → Activation → Dispatch
+  → Model/Tool → Candidate → Verification → Integration
 ```
 
-稳定属性包括 Mission/Task/Activation、Template revision、模型、reasoning、战术、Verifier、Workspace Snapshot、Candidate、Token、延迟和重试。
+稳定属性包括 Request/Obligation、Mission/Direction/Wave/Task/version、
+Attempt/Activation/Dispatch、Template revision、observed route/capability profile、
+reasoning、战术、Verifier、Workspace Snapshot/lease、Candidate/Integration、
+operation/outbox、Token、延迟和重试。Session Snapshot 只证明历史存在；运行中状态
+必须由新鲜 start/heartbeat receipt 证明。
 
 Prompt、Secret、完整工具载荷和用户内容默认不进入遥测；只有显式策略允许且完成脱敏时才能记录。
 
@@ -12825,9 +13150,18 @@ templateRevision + model + reasoning + promptVersion
 
 报告分别评价 Planning、Routing、Execution、Verification 和 Integration，避免把错误计划或薄弱 Verifier 归咎于 Worker。
 
+比率必须保留 numerator、denominator 和 `AVAILABLE/N_A/INCOMPLETE` 状态；权威
+Mission completion、Specs、Integration 或 parent wake 事件缺失时不得填 0。成本
+只使用 observed exact route/version 的不可变 price snapshot，未知价格不进入
+Pareto。
+
 ### 3. 实验
 
 Template、Prompt、Router、Tactic 和 Verifier 变更使用 Shadow、Canary、Matched Control 或 A/B。Stable 晋级必须有最小样本、置信区间、负面指标和 rollback。
+
+Flash 发布级验收按 exact configuration × scenario 独立统计，`N≥50`，并同时满足
+首次工具命中点与 E2E 完成点的点估计/Wilson 下界以及四项零容忍安全硬门。确定性
+Host 测试与真实 Provider 样本分栏，前者不能扩充后者 N。
 
 
 ---
@@ -12845,7 +13179,7 @@ dsh@0.1.1-rc.2
 commit b150a551b8d465e31e418e1b2eaf5e79bbb7d28e
 ```
 
-`0.9.0-alpha.24` 源码只对该提交声明完整支持。旧版部署继续使用其匹配发布包，不在同一进程混装两个 DSH runtime identity。
+`0.9.0-alpha.25` 源码只对该提交声明完整支持。旧版部署继续使用其匹配发布包，不在同一进程混装两个 DSH runtime identity。
 
 ### 2. 稳定面
 
@@ -12876,7 +13210,12 @@ RC.2 的 known-event catalog 不提供第三方 required-event 注册。Military
 
 #### Worker cwd
 
-标准 continuable child 继承父 Session 的 cwd。写 Task 的真实 worktree 通过不可变 `AgentExecutionBinding.workspace` 和首轮指令传入；Worker 文件工具必须使用该 worktree 内的绝对路径，Host 将其归一化后再与 Task read/write/forbidden scope 比较。
+标准 continuable child 继承父 Session 的 cwd。写 Task 的真实 worktree 通过不可变
+`AgentExecutionBinding.workspace` 绑定给 Host；Worker 只看到
+`military_workspace_read/search/write/edit` 的 Task-rooted 相对路径合同。Host 在
+不可见的 execution root 下完成 canonical 解析，再与 Task
+read/write/forbidden scope 比较；模型提交绝对路径、盘符或 `..` 逃逸会在副作用
+前被拒绝。
 
 #### DeepSeek
 
@@ -12915,7 +13254,7 @@ DSH_RC2_ROOT=/path/to/exact-built-rc2 pnpm typecheck:rc2
 ### 2. 安装
 
 - 安装 `dsh@0.1.1-rc.2` commit `b150a551b8d465e31e418e1b2eaf5e79bbb7d28e`；
-- 安装 `dsh-military 0.9.0-alpha.24`；
+- 安装 `dsh-military 0.9.0-alpha.25`；
 - 运行 migration dry-run；
 - 验证 Web client package manifest；
 - 重新计算 Military preset generation；
@@ -12939,7 +13278,7 @@ DSH_RC2_ROOT=/path/to/exact-built-rc2 pnpm typecheck:rc2
 ### 4. 回滚
 
 RC.2 写入新的 Military Ledger Event、Activity State 或 Military Schema 后，
-不允许直接用旧 Runtime 继续同一可变 Mission。`0.9.0-alpha.24` 不写未知
+不允许直接用旧 Runtime 继续同一可变 Mission。`0.9.0-alpha.25` 不写未知
 `military/*` DSH Session Event。回滚应恢复升级前整套数据备份，或把已认证事实
 导入新 Mission；不得让两个版本同时写同一 Mission Ledger。
 
@@ -12954,7 +13293,7 @@ RC.2 写入新的 Military Ledger Event、Activity State 或 Military Schema 后
 
 ### 1. 交付范围
 
-`0.9.0-alpha.24` 保留并深化此前分散在 Settings、运行日志和设计文档中的 15 项产品能力，
+`0.9.0-alpha.25` 保留并深化此前分散在 Settings、运行日志和设计文档中的 15 项产品能力，
 收敛为两个 DSH RC.2 原生入口：
 
 ```text
@@ -13117,8 +13456,10 @@ dataset hash、Bundle/Preset、角色 revision、exact route、reasoning、
 ToolProfile 和预算进入每次结果。确定性运行与真实 Provider Session 评估分栏，
 指标包括首次命中、Schema 首次通过、纠正、完成、父唤醒、写 receipt、tokens
 和延迟。Provider 样本以 dataset + Session + scenario 为计数权威，parser
-revision 或重复解析不增加 N；相同 exact route/场景少于 10 个独立 Session，或
-Wilson 区间宽度大于 0.35 时，只能显示 `INSUFFICIENT_SAMPLE`。
+revision 或重复解析不增加 N。观察趋势在相同 exact route/场景少于 10 个独立
+Session，或 Wilson 区间宽度大于 0.35 时，只能显示
+`INSUFFICIENT_SAMPLE`；发布 acceptance 独立要求每个 exact
+configuration × scenario `N≥50`，并执行首次工具/E2E Wilson 门和四项零安全失败。
 
 每个场景验证完整因果链，而不是仅验证首工具和 Session 结束：创建/编辑场景要求
 Host receipt-bound path，多文件场景要求 distinct path，路径纠正要求最终安全相对
@@ -13208,12 +13549,15 @@ DSH_RC2_ROOT=/exact/built/deepseek-harness pnpm release:verify
 
 自动回归覆盖 12 个默认简体中文提示词、Host prompt compiler、revision/回滚、
 伪造简体中文回执拒绝、Workspace ID/path/Git rename、九场景 dataset hash、
-Provider 去重与 N<10/宽区间稳定性禁止、绩效七视图、知识透明度、
+Provider 去重与 N<10/宽区间趋势保护、绩效七视图、知识透明度、
+N≥50/Wilson/零安全失败外部 acceptance、evidence 导出与独立重算、
 真实/模拟召回同 renderer、RC.2 Web Profile 三次
 启动和原生 Web Client 注册。
 
-真实 DeepSeek Provider 仍是单独的部署验收：样本必须记录 exact route；模型
-别名、网络和服务端行为可能变化，不能由本地确定性 PASS 推导。
+真实 DeepSeek Provider 仍是单独的部署验收：样本必须记录 exact route；
+每场景 N≥50，首次工具和 E2E 同时满足点估计/Wilson 下界，且意外确定性错误、
+越权写入、假完成和重复终态为 0。模型别名、网络和服务端行为可能变化，不能由
+本地确定性 PASS 推导。
 
 
 ---
@@ -13223,6 +13567,11 @@ Provider 去重与 N<10/宽区间稳定性禁止、绩效七视图、知识透�
 ## Part 68：General 全流程门、DSH 全模型接入与设置持久化
 
 源文件：`docs/68-general-workflow-live-models-and-settings-persistence.md`
+
+> `0.9.0-alpha.25` 补充说明：本章保留 `71fe` 事故根因和模型/设置修复背景。
+> Workflow 的当前权威实现已经升级为独立 `WorkflowObligation`、Task Version、
+> Attempt、Activation 与 Dispatch，并使用 Desired/Applied 设置状态；完整语义见
+> [第 69 章](docs/69-execution-liveness-flash-and-production-readiness.md)。
 
 ### 1. 事故证据与边界
 
@@ -13247,7 +13596,7 @@ Provider 去重与 N<10/宽区间稳定性禁止、绩效七视图、知识透�
 
 ### 2. Host 所有的 General 工作流义务
 
-General 的项目执行请求现在被编译成一个按 Agent/Turn 持久的工作流义务。
+General 的项目执行请求现在被编译成一个按 request hash 持久的工作流义务。
 Host 每次只公开一个下一动作：
 
 ```text
@@ -13258,6 +13607,10 @@ START_MISSION
 → 等待部门终态 receipt
 → General 读取已验证结果并汇总
 ```
+
+同一 Mission 中可以有多个 open Task，但每条用户消息只关联自己的 obligation。
+Task 的指令 revision 不再充当执行次数；部门初次派遣、Rework、Guidance 和
+Decision continuation 各自拥有 Attempt/Activation/Dispatch。
 
 若部门进入 `BLOCKED`、`GUIDANCE_PENDING` 或 `FROZEN`，下一动作收敛为：
 
@@ -13278,7 +13631,8 @@ POLL_TACTICAL_REQUEST
 - `ask_user_question`、部门派遣、终态提交和战术发布仍是明确终态；
 - 普通解释、设计讨论和无项目变更请求不被强制创建 Mission。
 
-短输入“继续”会继承最近一个未完成的项目执行义务；已完成 Task 不会因“继续”
+短输入“继续”会继承同一 root Session 最近一个未完成且 request-compatible 的
+项目执行义务；已完成 Task 不会因“继续”
 被重复创建。子 Agent 的 `subagent-report` 会自动唤醒父 General，取消后的纯
 settlement wake 仍由既有取消门抑制。
 
@@ -13330,8 +13684,10 @@ General compaction 使用当前 Session 的实际 route，而不是错误沿用 
 → Host preview + Flash readiness + prompt diff
 → expected settings revision
 → 单次 Settings CAS
-→ 串行运行时 projection
-→ 新 Host snapshot 回读
+→ 写完整 Desired revision
+→ Reconciler 串行校验/应用全部角色
+→ 全部成功后推进 Applied revision
+→ 新 Host snapshot 回读（Desired == Applied）
 → UI 采用新 baseline，清除 dirty
 ```
 
@@ -13369,6 +13725,365 @@ General compaction 使用当前 Session 的实际 route，而不是错误沿用 
 
 真实 Provider 的输出质量和首次工具命中率仍须由新的用户 Session 评估；本地
 回归只能证明 Host 合同、路由、持久化与安装行为，不能冒充付费 Provider 样本。
+
+
+---
+
+<a id="part-69"></a>
+
+## Part 69：执行活性、Flash 外部验收与生产可信度
+
+源文件：`docs/69-execution-liveness-flash-and-production-readiness.md`
+
+### 1. 本轮闭环的目标
+
+本章记录 `0.9.0-alpha.25` 对执行活性、状态机、恢复、轻量模型、WebUI、安全、
+评测和生产 Provider 的纵向收敛。它补充并在冲突处取代第 60—68 章中仍以
+Session/Task 粗粒度描述的部分。
+
+完成标准不是“新增类型或页面”，而是同一条请求从 Host admission 到最终
+Integration/Completion 的每一个权威转移都有：
+
+- 唯一 aggregate 身份和 version/fence；
+- durable start、heartbeat、settlement 或 operation receipt；
+- 崩溃后的明确恢复状态；
+- Web projection 的来源 revision 与陈旧度；
+- deterministic test 与真实 Provider evidence 的清晰边界。
+
+### 2. 执行层级与唯一关联
+
+#### 2.1 权威层级
+
+```text
+User Request
+  └─ WorkflowObligation
+      └─ Mission
+          └─ Direction
+              └─ Wave
+                  └─ Task Version
+                      ├─ Attempt
+                      │   └─ Activation
+                      │       └─ Dispatch
+                      ├─ CandidateSubmission
+                      │   ├─ CandidatePatch
+                      │   └─ Verification
+                      └─ IntegrationOrder → IntegrationReceipt
+```
+
+`WorkflowObligation` 是一条执行型用户消息的 Host-owned 义务。它保存 request
+hash、Mission/Direction/Wave/Task 关联、当前 stage、唯一 `nextTool` 和
+wake cursor。General 不再扫描 Mission 中任意 open Task 推测“继续”对应什么。
+
+`Task Version` 只在 objective、scope、acceptance、environment、dependency
+或权限发生实质修改时递增。初次执行、Rework、收到 Guidance、收到 Decision
+Answer 都创建新的 Attempt/Activation/Dispatch，不复用已经 settlement 的
+Session Snapshot。
+
+#### 2.2 活性证明
+
+| 观察 | 可以证明 | 不可以证明 |
+|---|---|---|
+| Session Snapshot 存在 | 历史 Session 可检查 | 当前仍在运行 |
+| Dispatch receipt | Host 已发出 exact payload | 子进程已开始 |
+| durable start receipt | exact Activation 已启动 | lease 永不过期 |
+| heartbeat receipt | 截至该时间仍有活性 | Task 已完成 |
+| settlement receipt | exact Activation 已收敛 | Task 必然成功 |
+| Completion receipt | Host invariant 已满足 | 模型正文的自行声明 |
+
+只有未过期 start/heartbeat 能投影 `RUNNING`。缺少证明、identity drift、过期
+lease 或 snapshot/ledger 不一致时投影 `RECOVERY_REQUIRED`，而不是假
+`RUNNING`。
+
+### 3. settlement、取消、终止与恢复
+
+child dispose 只结算对应 Activation，并释放 exact Capability Grant、预算、
+Workspace lease 和并发 reservation。它不得把 `BLOCKED`、`REWORK`、
+`FROZEN`、`AWAITING_GUIDANCE` 或 `AWAITING_DECISION` 无条件改回 `READY`。
+即使 Staff/Advisor 没有 Workspace，只要 execution binding 存在，也必须结算
+Attempt/Activation/Dispatch。清理会尝试所有资源并汇总失败组件；任何一项
+未收敛都返回可重试的 `PERSISTENCE_FAILED`，不能用吞掉异常的方式伪造成功。
+Mission 已先行取消 Task 时不再重复释放 Task lease；重复 child disposal 先读取
+已有 `task/activation-settled` receipt，因此换一个 teardown 原因也不会二次
+修改 Task。
+
+同一 `dispatchKey + payloadHash` 才能重放原记录；不同 dispatch key 即使
+payload 相同，也代表新的受治理意图，在旧 Dispatch 仍活跃时必须返回
+`RESOURCE_LOCKED`。同状态 Dispatch receipt 只有 transport 字段完全一致时
+才是只读重放，不得再次增加 heartbeat 或改写时间。Activation/Attempt 的
+`SETTLED` 只能从已启动状态进入；`LOST` 同时记录 `settledAt` 与稳定原因。
+
+取消语义分开：
+
+- 用户 Stop：取消当前 Invocation/Activation；
+- Task Cancel：显式终止一个 Task；
+- Mission Cancel：显式终止整条 Mission；
+- Freeze：保持证据并禁止继续执行；
+- Identity Termination：只用于明确的稳定身份处置。
+
+step、wall-clock 或 no-progress 耗尽进入可恢复失败/升级路径，不永久终止
+General。迟到、重复、乱序 settlement 由 Activation version 和 idempotency
+fence 收敛。显式用户取消不会被 parent wakeup 复活；自然停止的父 General
+会在关键子 receipt 到达后由 RC.2 next-step 唤醒。
+
+Operations Center 的 Mission Cancel 是高风险受治理操作，不是一个前端状态
+切换。用户必须选择仍存在的 Mission、填写原因、预览影响范围，在预览未过期且
+权威 state hash 未变化时输入精确确认短语。Host 以本地 DSH Web principal
+通过 Mission Kernel 提交 command；成功后取消所有未终态 Task、失效
+Radio/Decision，并按 persisted/live child binding 释放 Grant、预算、并发
+reservation、capacity 和 Workspace lease。operation receipt 与 Mission
+cancellation receipt 都使用稳定幂等键；网络中断后可查询或以新的受治理预览
+收敛，不能通过重放按钮制造第二个终态。
+
+### 4. Radio、Decision、Blocker 与 Rework
+
+#### 4.1 Radio
+
+一个 blocker 命令原子关联 Blocker Evidence、Task version、Attempt、
+`AWAITING_GUIDANCE`、Radio queue 和 parent receipt。Advisor lease 具有 TTL、
+重试次数和 dead-letter。Guidance 投递给 exact Attempt；若原 Attempt 已结算，
+Host 创建 continuation Attempt。Worker acknowledge 后才恢复 `RUNNING`。
+
+过期或 exhausted guidance 不伪装为成功，Task 明确升级 `BLOCKED`。
+
+#### 4.2 Decision
+
+Question Set 同时绑定 Task 与 Attempt。只有 root General 能按序展示给用户；
+第一份合法 answer 胜出，重复答案幂等。Answer 先 durable delivery，Worker
+acknowledge 后 Task 才恢复。TTL reconciliation 产生 expired outcome，不猜测
+用户答案。
+
+#### 4.3 Rework
+
+Verification 或 Integration 的 `REWORK`、`CONFLICT`、`STALE`、
+`REGRESSION_FAILED` 都产生新 continuation Attempt 和独立 Dispatch。旧
+Activation、旧 Snapshot、旧预算与旧授权不复用。
+
+### 5. Candidate、Verification、Specs 与 Integration
+
+Task 写路径的成功链固定为：
+
+```text
+RUNNING
+→ CANDIDATE_SUBMITTED
+→ VERIFYING
+→ VERIFIED
+→ INTEGRATION_PENDING
+→ INTEGRATING
+→ COMPLETED
+```
+
+Verification `ACCEPTED` 只是“候选已验证”，不是 Task 终态。Integration 必须
+验证 expected head/tree、patch lineage、回归和 local-main policy；只有
+`APPLIED` receipt 能推进 Completion。`CONFLICT`、`STALE` 和
+`REGRESSION_FAILED` 进入 Rework/Blocked/Failed，不保留成功终态。
+
+Engineer 的 `military_specs_apply_order` 是一个浅层模型合同和完整 Host 事务：
+模型只提交相对路径与最终内容；Host 先验证完整计划，再原子 materialize、验证、
+本地提交、记录 Candidate/Evidence/Verification/Integration/Completion receipt
+并通知父级。成功后同轮 terminal latch 阻止后续调用。
+
+Completion 由共享 reducer 的唯一 invariant 判定。模型正文、parent report、
+Session `turn/end` 或 UI 按钮都不能自行宣布完成。
+
+### 6. SQLite Command Saga 与 Outbox
+
+SQLite transaction callback 被结构性限制为同步函数。返回 Promise/thenable
+会 rollback 并报错，防止连接写锁跨 LLM、Git、文件系统、Provider 或长验证。
+公开数据库句柄上的 standalone `statement.run()` 和 `exec()` 写入也自动包裹在
+短 `BEGIN IMMEDIATE` 事务内，因此调用方不能绕过统一 writer。只有 SQLite
+禁止放入领域事务的启动 PRAGMA 和 `VACUUM` 可通过显式 `maintenance()` 边界
+运行；该边界不得承载领域数据写入。
+
+Execution Lifecycle Provider 在短事务外计算纯状态转移，并用 storage revision
+CAS 提交。多个进程或 Coordinator 同时争用同一 Workflow/Task 时，Host 只对
+`REVISION_CONFLICT` 做最多三次有界重读与重算：相同
+`dispatchKey + payloadHash` 收敛为 recovered replay，不同 dispatch key
+收敛为 `RESOURCE_LOCKED`，expected-revision 或领域冲突在重试后仍原样失败。
+因此持久化竞争不会泄漏成偶发工具错误，也不会借重试放宽幂等身份。
+
+Command Saga 使用：
+
+```text
+short tx: admission + PENDING_EFFECT lease
+outside tx: idempotent/queryable external operation
+short tx: EFFECT_APPLIED + durable result
+short tx: command receipt + outbox + COMMITTED
+```
+
+失败 effect 进入 `RETRYABLE`，保留 admission 与领域事实。相同 idempotency key
+可在重启后恢复；`EFFECT_APPLIED` 只补 finalization，不重复外部副作用。Operations
+Center 显示 pending、过期 lease、RETRYABLE、EFFECT_APPLIED 和最老年龄。
+
+transactional outbox 具有 claim、lease、retry、指数 backoff、dead-letter、
+delivery receipt 和 partition offset。Tool evidence/budget settlement 即使
+post hook 抛错也通过 `Promise.allSettled` 和 outbox 补偿，避免“副作用成功但
+返回失败后重复执行”。
+
+### 7. Workspace、Wave 与重启恢复
+
+Workspace Snapshot、Lease、Candidate Patch、Integration Order/Receipt 使用
+唯一生产 Store。启动 reconciliation 会发现并分类现有 worktree：可证明归属的
+收养，可证明过期的隔离，未知状态停止并要求人工核验；不会先递归删除。
+
+Mission Scheduler 校验 DAG、未知依赖、cycle、write scope conflict、Wave
+barrier、scope lock、预算和 capacity。只有依赖完成且 Wave active 的 Task
+才能 dispatch。Direction/Wave 事件和 Mission completion/cancellation 都是
+权威事件；Trajectory、Evaluation 与 WebUI 不用默认值补写。
+
+### 8. Flash-first 工具协议
+
+Worker/Engineer 只看到当前 phase 所需的 1—4 个核心动作和少量恢复动作；
+固定 ToolProfile 仍是权限上限。文件操作统一为：
+
+- `military_workspace_read`
+- `military_workspace_list`
+- `military_workspace_search`
+- `military_workspace_write`
+- `military_workspace_edit`
+- `military_workspace_operation_status`
+
+模型只传 Task 相对路径。Host 把路径绑定到 lease-owned execution root，执行
+canonical authorization、symlink/escape/forbidden scope 检查并生成 receipt。
+超时后模型先查询 operation status，不直接重复写入。
+
+Task Create 与 Specs Apply 都是浅层 draft；Task key、Direction/Wave、版本、
+scope、budget、stop/escalation、operation ID、hash 和时间由 Host 编译。
+Military 自有错误 envelope 固定包含稳定 code/message、retryable、唯一
+`nextTool` 和从当前 installed RC.2 schema 求得的 `correctedShape`；
+secret-like 字段、Bearer token、宿主绝对路径和无界 details 在进入模型上下文
+前被删除或脱敏；
+完全相同的无效参数被签名阻断。终态成功后同一 assistant response 的其他调用
+不会执行。
+
+### 9. 模型目录、Desired/Applied 与 Dispatch receipt
+
+模型能力分为四个独立轴：
+
+1. Catalog Presence；
+2. Protocol Compatibility；
+3. Policy Eligibility；
+4. Performance Evidence。
+
+所有 DSH live route 可见并可选择，未评测不阻断显式使用，也不伪造 tool
+calling、reasoning、context、residency 或 `VALIDATED`。native tool route
+直接执行；非 native route 只有已启用并通过 canary 的 Bridge 才可执行。
+Dispatch 前校验 exact provider/model/adapter/capability profile，并写
+provider、model、classification、residency、redaction、policy revision 和
+pricing snapshot receipt。
+
+角色设置一次保存完整 Desired revision。Reconciler 对 General 和全部部门
+校验/应用，全部成功才推进 Applied revision。UI 只有
+`desiredRevision == appliedRevision` 才显示已生效；失败显示 exact role/field，
+可重试或回滚，不产生部分应用。
+
+### 10. Runtime Center 与 Web 查询层
+
+独立 Runtime Center 展示 Request 到 Integration 的权威层级以及 Radio、
+Decision、Budget、Receipt。每个 snapshot 包含：
+
+- `sourceRevision`；
+- `generation`；
+- `generatedAt`；
+- `staleAfter`；
+- health/staleness。
+
+共享 query layer 统一 timeout、Abort、同读去重、mutation 不去重、visibility/
+offline backoff、revision fence 和 multi-tab invalidation。相同或更旧 revision
+不能覆盖新数据；dirty draft 和历史报告选择不被 polling 重置。跨标签页只广播
+service scope 失效通知，不广播敏感正文。
+
+Web adapter 只组合 RC.2 primitive 与 `--dsw-*` token。Settings、Runtime、
+Knowledge、Evaluation、Operations 是独立 feature slice，并保留 focus restore、
+inert/visibility、200% zoom、forced colors、reduced motion、长 model ID 和中文
+IME 合同。
+
+### 11. Principal、Artifact 与数据治理
+
+Web Remote 从 Host 的 DSH principal/tenant authority context 鉴权；本地单用户
+模式使用明确的 local principal boundary，不把常量 `web-user` 冒充多租户认证。
+
+Content Blob 与 Artifact Reference 分离。Reference 绑定 tenant、workflow/
+Mission/Task、classification、owner/audience、scope、expiry 和 grant；知道
+content hash 不获得读取权限。同内容多来源按最高 classification 合并。
+
+restricted/raw 数据支持加密、持久 Ed25519 签名/KMS seam、密钥轮换、retention、
+legal hold、lineage、deletion receipt 和 orphan GC。模型 dispatch 使用真实上下文
+分类，不硬编码 `internal`。
+
+### 12. Evaluation 与真实 Flash 发行门
+
+Evaluation ratio 保留 numerator、denominator 和 status；零分母是 `N/A`，缺失
+权威事件是 `INCOMPLETE`，都不伪装成 0。长 narrative/provider shard 使用
+heartbeat 和 lease fence。成本必须来自 exact route/version price snapshot；
+未知成本不进入 Pareto。
+
+固定 `military-flash-core-v1` 九场景 deterministic gate 不调用模型、不收费，
+只证明 Host/Schema/路径/状态合同。真实 Provider 样本必须来自 immutable
+Session event 和 Host-observed receipt。发行门逐 exact configuration × scenario
+执行：
+
+| 指标 | 要求 |
+|---|---:|
+| 独立 Session | `N ≥ 50` |
+| 首次工具命中 | 点估计 `≥ 95%`，95% Wilson 下界 `≥ 85%` |
+| E2E 完成 | 点估计 `≥ 90%`，95% Wilson 下界 `≥ 80%` |
+| 意外确定性错误 | `0` |
+| 越权写入 | `0` |
+| 假完成 | `0` |
+| 重复终态 | `0` |
+
+UI 可导出证据。离线发行门：
+
+```bash
+npm run acceptance:flash -- \
+  --evidence /absolute/path/provider-acceptance.json \
+  --route deepseek-official/deepseek-v4-flash
+```
+
+若同场景有多个 configuration，必须再提供冻结的 selection JSON。仓库门禁不会
+发起数百次付费调用；没有足够真实样本时准确返回 `INSUFFICIENT_SAMPLE`，不能
+写成“Flash 已通过”。
+
+### 13. Production Plane 与灾备
+
+核心应用依赖可替换的 Ledger、Artifact Store、Durable Queue、KMS、Telemetry、
+Capacity 和 Backup 接口。SQLite、本地 Artifact 与事务 outbox 是
+`LOCAL_SINGLE_NODE` 实现。外部 PostgreSQL、对象存储、queue、KMS adapter
+通过 composition root 注入 exact live instance。
+
+distributed readiness 会拒绝：
+
+- 用 SQLite descriptor 冒充 PostgreSQL；
+- 用本地目录冒充对象存储；
+- 用进程内队列冒充外部 durable queue；
+- 用 ephemeral signer 冒充 KMS；
+- 未声明 tenant isolation、durability、residency 或 multi-region deployment。
+
+Operations Center 汇总 correlated trace/metric/log、outbox lag、Radio oldest
+age、expired lease、Command Saga drift、capacity saturation、provider health、
+签名备份和隔离 restore drill。它只报告观测事实，不把接口存在等同于生产部署。
+
+### 14. 验证矩阵
+
+本轮新增纵向回归覆盖：
+
+- 多 open Task 请求关联与三次 Rework 的独立 execution aggregate；
+- Radio/Decision TTL、delivery、acknowledge 和 resume；
+- Candidate→Verification→Integration→Completion 与冲突/陈旧/回归失败；
+- Stop、自然父停、迟到 settlement 和重启恢复；
+- SQLite 同步事务约束、Command Saga crash window 和 CAS；
+- Outbox ordering/retry/dead-letter/offset；
+- Wave dependency/barrier；
+- Workspace wrapper 路径、symlink、operation status 和幂等；
+- Runtime Center 全层级 parent link；
+- Web query timeout/abort/dedupe/revision/multi-tab；
+- Artifact ACL/retention/legal hold/key rotation/GC；
+- production queue、provider topology、capacity、telemetry 和签名恢复；
+- Flash N=50/Wilson/零安全失败发行门算法。
+
+真实外部 Flash acceptance 是部署证据，不由 deterministic fixture 伪造。源码
+发行可以在该证据尚不足时完成，但发布说明必须明确其状态，生产推广必须再通过
+上述外部门。
 
 ---
 

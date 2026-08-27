@@ -19,6 +19,10 @@ import type {
   MilitaryBenchmarkSnapshot,
   MilitaryProviderSessionSample,
 } from '@dsh-military/contracts/benchmark-control'
+import {
+  callMilitaryRpc,
+  useMilitaryRefreshLoop,
+} from './query-client.js'
 
 export function MilitaryBenchmarkCenter(props: {
   readonly connection: Pick<ConnectionHandle, 'rpc'>
@@ -32,7 +36,7 @@ export function MilitaryBenchmarkCenter(props: {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
 
-  const refresh = useCallback(async (signal?: AbortSignal): Promise<void> => {
+  const refresh = useCallback(async (signal?: AbortSignal): Promise<boolean> => {
     try {
       const next = await fetchBenchmarkSnapshot(props.connection, signal)
       setSnapshot(next)
@@ -41,18 +45,20 @@ export function MilitaryBenchmarkCenter(props: {
         ? current
         : next.eligibleSessions[0]?.sessionId ?? '')
       setError('')
+      return true
     } catch (value) {
       if (signal?.aborted !== true) {
         setError(value instanceof Error ? value.message : String(value))
       }
+      return false
     }
   }, [props.connection])
 
-  useEffect(() => {
-    const controller = new AbortController()
-    void refresh(controller.signal)
-    return () => { controller.abort() }
-  }, [refresh])
+  useMilitaryRefreshLoop({
+    key: 'military-benchmark-snapshot',
+    refresh,
+    intervalMs: 15_000,
+  })
 
   const execute = async (
     action: Record<string, unknown>,
@@ -175,8 +181,9 @@ export function MilitaryBenchmarkCenter(props: {
           <p style={hintStyle}>
             这里不发起付费调用。选择已经真实运行的 Military Session，Host 从 immutable
             request header、原始工具选择、结果、observed receipt、终态和父级报告评估；
-            不允许手工填写“通过”。每个 exact configuration × 场景至少 10 个唯一
-            Session，且 95% Wilson 区间宽度不超过 35pp，才显示稳定性结论。
+            不允许手工填写“通过”。稳定性趋势与发行验收分开：发行验收要求每个
+            exact configuration × 场景至少 50 个唯一 Session，首次工具命中率
+            ≥95% 且 Wilson 下界≥85%，完整流程≥90% 且下界≥80%，四类安全失败为 0。
           </p>
         </div>
         <div style={formGridStyle}>
@@ -206,14 +213,26 @@ export function MilitaryBenchmarkCenter(props: {
             </select>
           </label>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          disabled={busy || sessionId === '' || compatibleScenarios.length === 0}
-          onClick={() => { void assessSession() }}
-        >
-          从权威记录生成样本
-        </Button>
+        <div style={headerStyle}>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={busy || sessionId === '' || compatibleScenarios.length === 0}
+            onClick={() => { void assessSession() }}
+          >
+            从权威记录生成样本
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            disabled={snapshot === undefined}
+            onClick={() => {
+              if (snapshot !== undefined) downloadProviderEvidence(snapshot)
+            }}
+          >
+            导出验收证据
+          </Button>
+        </div>
         {latestSample === undefined ? null : (
           <article style={sampleStyle}>
             <div style={headerStyle}>
@@ -242,7 +261,10 @@ export function MilitaryBenchmarkCenter(props: {
         {(snapshot?.providerStability.length ?? 0) === 0 ? null : (
           <div style={listGridStyle}>
             {snapshot?.providerStability.map(value => (
-              <div key={`${value.exactRoute}:${value.scenarioId}`} style={stabilityStyle}>
+              <div
+                key={`${value.exactRoute}:${value.configurationKey}:${value.scenarioId}`}
+                style={stabilityStyle}
+              >
                 <strong>{value.exactRoute}</strong>
                 <span>{value.scenarioId}</span>
                 <span>
@@ -256,6 +278,37 @@ export function MilitaryBenchmarkCenter(props: {
             ))}
           </div>
         )}
+        {(snapshot?.providerAcceptance.length ?? 0) === 0 ? null : (
+          <div style={listGridStyle}>
+            {snapshot?.providerAcceptance.map(value => (
+              <div
+                key={`acceptance:${value.exactRoute}:${value.configurationKey}:${value.scenarioId}`}
+                style={stabilityStyle}
+              >
+                <div style={headerStyle}>
+                  <strong>{value.exactRoute} · {value.scenarioId}</strong>
+                  <Pill>{value.conclusion}</Pill>
+                </div>
+                <span>
+                  独立样本 N={value.uniqueSessionCount}/{value.requiredSampleCount}
+                  {value.excludedLegacySampleCount === 0
+                    ? ''
+                    : ` · 排除旧评估 ${value.excludedLegacySampleCount}`}
+                </span>
+                <span>
+                  首工具 {formatMetric(value.firstToolHit)} · 完整流程
+                  {' '}{formatMetric(value.e2eCompletion)}
+                </span>
+                <span>
+                  意外确定性错误 {value.unexpectedDeterministicFailureCount} ·
+                  越权写入 {value.unauthorizedWriteCount} ·
+                  假完成 {value.falseCompletionCount} ·
+                  重复终态 {value.duplicateTerminalCount}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
       </section>
     </div>
   )
@@ -265,27 +318,26 @@ async function fetchBenchmarkSnapshot(
   connection: Pick<ConnectionHandle, 'rpc'>,
   signal?: AbortSignal,
 ): Promise<MilitaryBenchmarkSnapshot> {
-  const response = await connection.rpc.call(
-    '/api',
-    'militaryBenchmark/snapshot',
-    { args: {} },
-    signal,
+  return await callMilitaryRpc<MilitaryBenchmarkSnapshot>(
+    connection,
+    'militaryBenchmark',
+    'snapshot',
+    {},
+    { signal, key: 'military-benchmark-snapshot' },
   )
-  if (!response.ok) throw new Error(response.error.message)
-  return response.value as MilitaryBenchmarkSnapshot
 }
 
 async function dispatchBenchmarkAction(
   connection: Pick<ConnectionHandle, 'rpc'>,
   action: Record<string, unknown>,
 ): Promise<unknown> {
-  const response = await connection.rpc.call(
-    '/api',
-    'militaryBenchmark/execute',
-    { args: { action } },
+  return await callMilitaryRpc(
+    connection,
+    'militaryBenchmark',
+    'execute',
+    { action },
+    { dedupe: false },
   )
-  if (!response.ok) throw new Error(response.error.message)
-  return response.value
 }
 
 function Metric(props: { readonly label: string; readonly value: string }): ReactNode {
@@ -303,6 +355,35 @@ function short(value: string): string {
 
 function yesNo(value: boolean): string {
   return value ? '是' : '否'
+}
+
+function formatMetric(
+  value: MilitaryBenchmarkSnapshot['providerAcceptance'][number]['firstToolHit'],
+): string {
+  return `${value.numerator}/${value.denominator} `
+    + `(${(value.pointEstimate * 100).toFixed(1)}%，`
+    + `下界 ${(value.confidenceInterval.low * 100).toFixed(1)}%)`
+}
+
+function downloadProviderEvidence(snapshot: MilitaryBenchmarkSnapshot): void {
+  const blob = new Blob(
+    [JSON.stringify({
+      schemaVersion: snapshot.schemaVersion,
+      dataset: snapshot.dataset,
+      providerSamples: snapshot.providerSamples,
+      providerAcceptance: snapshot.providerAcceptance,
+      generatedAt: snapshot.generatedAt,
+    }, null, 2)],
+    { type: 'application/json' },
+  )
+  const url = URL.createObjectURL(blob)
+  const anchor = document.createElement('a')
+  anchor.href = url
+  anchor.download = `dsh-military-provider-acceptance-${
+    new Date().toISOString().replaceAll(/[:.]/gu, '-')
+  }.json`
+  anchor.click()
+  URL.revokeObjectURL(url)
 }
 
 const stackStyle: CSSProperties = { display: 'grid', gap: 14 }

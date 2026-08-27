@@ -1,6 +1,6 @@
 {
   "name": "@dsh-military/command-brainstorm",
-  "version": "0.9.0-alpha.24",
+  "version": "0.9.0-alpha.25",
   "description": "The /brainstorm command and decision-broker handoff.",
   "type": "module",
   "license": "Apache-2.0",
@@ -25,9 +25,9 @@
     "build": "tsc -p tsconfig.json"
   },
   "dependencies": {
-    "@dsh-military/contracts": "0.9.0-alpha.24",
-    "@dsh-military/runtime": "0.9.0-alpha.24",
-    "@dsh-military/core": "0.9.0-alpha.24"
+    "@dsh-military/contracts": "0.9.0-alpha.25",
+    "@dsh-military/runtime": "0.9.0-alpha.25",
+    "@dsh-military/core": "0.9.0-alpha.25"
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "^4.0.1",

@@ -88,6 +88,13 @@ export type TaskCreatedPayload = {
   readonly "taskOrderRef": string
 }
 
+export type TaskReadyPayload = {
+  readonly "taskId": string
+  readonly "taskVersion": number
+  readonly "waveId": string
+  readonly "satisfiedDependencyIds": readonly string[]
+}
+
 export type TaskLeasedPayload = {
   readonly "taskId": string
   readonly "taskVersion": number
@@ -132,6 +139,42 @@ export type TaskCancelledPayload = {
   readonly "taskVersion": number
   readonly "reasonCode": "USER_CANCELLED" | "PARENT_CANCELLED" | "STEP_BUDGET_EXHAUSTED" | "NO_PROGRESS_LIMIT" | "AGENT_ABORTED"
   readonly "cancelledAgentId": string
+}
+
+export type TaskActivationSettledPayload = {
+  readonly "taskId": string
+  readonly "taskVersion": number
+  readonly "activationId": string
+  readonly "outcome": "COMPLETED" | "PAUSED" | "RECOVERY_REQUIRED" | "CANCELLED" | "FAILED"
+  readonly "taskState": "CREATED" | "READY" | "LEASED" | "EXECUTING" | "CANDIDATE_SUBMITTED" | "VERIFYING" | "WAITING_INTEGRATION" | "INTEGRATING" | "INTEGRATION_FAILED" | "REWORK" | "BLOCKED" | "GUIDANCE_PENDING" | "WAITING_DECISION" | "PAUSED" | "RECOVERY_REQUIRED" | "FROZEN" | "ACCEPTED" | "CANCELLED" | "FAILED"
+  readonly "reason": string
+}
+
+export type TaskResumedPayload = {
+  readonly "taskId": string
+  readonly "taskVersion": number
+  readonly "fromState": "PAUSED" | "RECOVERY_REQUIRED" | "REWORK" | "INTEGRATION_FAILED"
+  readonly "reason": string
+}
+
+export type TaskDecisionWaitingPayload = {
+  readonly "taskId": string
+  readonly "taskVersion": number
+  readonly "decisionSetId": string
+}
+
+export type TaskDecisionResolvedPayload = {
+  readonly "taskId": string
+  readonly "taskVersion": number
+  readonly "decisionSetId": string
+  readonly "answerReceiptRef": string
+}
+
+export type TaskIntegrationFailedPayload = {
+  readonly "taskId": string
+  readonly "taskVersion": number
+  readonly "integrationReceiptId": string
+  readonly "disposition": "CONFLICT" | "REGRESSION_FAILED" | "STALE"
 }
 
 export type TaskReworkRequestedPayload = {
@@ -218,11 +261,20 @@ export type RadioGuidanceDeliveredPayload = {
   readonly "deliveryReceiptRef": string
 }
 
+export type RadioDeadLetteredPayload = {
+  readonly "requestId": string
+  readonly "taskId": string
+  readonly "taskVersion": number
+  readonly "reason": "REQUEST_EXPIRED" | "LEASE_ATTEMPTS_EXHAUSTED"
+}
+
 export type DecisionQuestionSetCreatedPayload = {
   readonly "decisionSetId": string
   readonly "originAgentId": string
   readonly "questionSetRef": string
+  readonly "taskId"?: string
   readonly "taskVersion"?: number
+  readonly "attemptId"?: string
 }
 
 export type DecisionQuestionPresentedPayload = {
@@ -235,6 +287,14 @@ export type DecisionAnsweredPayload = {
   readonly "decisionSetId": string
   readonly "answerReceiptRef": string
   readonly "answeredBy": string
+}
+
+export type DecisionAnswerAcknowledgedPayload = {
+  readonly "decisionSetId": string
+  readonly "taskId": string
+  readonly "taskVersion": number
+  readonly "answerReceiptRef": string
+  readonly "acknowledgedBy": string
 }
 
 export type DecisionStalePayload = {
@@ -704,12 +764,18 @@ export interface MissionEventPayloadMap {
   readonly "wave/opened": WaveOpenedPayload
   readonly "wave/barrier-satisfied": WaveBarrierSatisfiedPayload
   readonly "task/created": TaskCreatedPayload
+  readonly "task/ready": TaskReadyPayload
   readonly "task/leased": TaskLeasedPayload
   readonly "task/candidate-submitted": TaskCandidateSubmittedPayload
   readonly "task/blocker-submitted": TaskBlockerSubmittedPayload
   readonly "verification/completed": VerificationCompletedPayload
   readonly "task/accepted": TaskAcceptedPayload
   readonly "task/cancelled": TaskCancelledPayload
+  readonly "task/activation-settled": TaskActivationSettledPayload
+  readonly "task/resumed": TaskResumedPayload
+  readonly "task/decision-waiting": TaskDecisionWaitingPayload
+  readonly "task/decision-resolved": TaskDecisionResolvedPayload
+  readonly "task/integration-failed": TaskIntegrationFailedPayload
   readonly "task/rework-requested": TaskReworkRequestedPayload
   readonly "task/integration-queued": TaskIntegrationQueuedPayload
   readonly "task/integrated": TaskIntegratedPayload
@@ -722,9 +788,11 @@ export interface MissionEventPayloadMap {
   readonly "radio/requested": RadioRequestedPayload
   readonly "radio/guidance-issued": RadioGuidanceIssuedPayload
   readonly "radio/guidance-delivered": RadioGuidanceDeliveredPayload
+  readonly "radio/dead-lettered": RadioDeadLetteredPayload
   readonly "decision/question-set-created": DecisionQuestionSetCreatedPayload
   readonly "decision/question-presented": DecisionQuestionPresentedPayload
   readonly "decision/answered": DecisionAnsweredPayload
+  readonly "decision/answer-acknowledged": DecisionAnswerAcknowledgedPayload
   readonly "decision/stale": DecisionStalePayload
   readonly "decision/expired": DecisionExpiredPayload
   readonly "oversight/frozen": OversightFrozenPayload
@@ -843,12 +911,18 @@ export const missionEventTypes = [
   "wave/opened",
   "wave/barrier-satisfied",
   "task/created",
+  "task/ready",
   "task/leased",
   "task/candidate-submitted",
   "task/blocker-submitted",
   "verification/completed",
   "task/accepted",
   "task/cancelled",
+  "task/activation-settled",
+  "task/resumed",
+  "task/decision-waiting",
+  "task/decision-resolved",
+  "task/integration-failed",
   "task/rework-requested",
   "task/integration-queued",
   "task/integrated",
@@ -861,9 +935,11 @@ export const missionEventTypes = [
   "radio/requested",
   "radio/guidance-issued",
   "radio/guidance-delivered",
+  "radio/dead-lettered",
   "decision/question-set-created",
   "decision/question-presented",
   "decision/answered",
+  "decision/answer-acknowledged",
   "decision/stale",
   "decision/expired",
   "oversight/frozen",

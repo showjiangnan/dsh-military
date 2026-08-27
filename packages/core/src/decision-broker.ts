@@ -5,7 +5,13 @@ import {
   type MilitaryDecisionBrokerV2,
   type SessionId,
 } from '@dsh-military/contracts'
-import { cloneFrozen, isExpired, now, type Clock } from './util.js'
+import {
+  cloneFrozen,
+  isExpired,
+  now,
+  stableJson,
+  type Clock,
+} from './util.js'
 
 interface StoredDecision {
   questionSet: DecisionQuestionSet
@@ -19,9 +25,39 @@ export class InMemoryDecisionBroker implements MilitaryDecisionBrokerV2 {
 
   constructor(clock?: Clock) { this.#clock = clock ?? (() => new Date()) }
 
-  async submit(questionSet: DecisionQuestionSet): Promise<void> {
+  async submit(
+    questionSet: DecisionQuestionSet,
+    context?: {
+      readonly missionId: import('@dsh-military/contracts').MissionId
+      readonly taskId?: import('@dsh-military/contracts').TaskId
+      readonly taskVersion?: import('@dsh-military/contracts').TaskVersion
+      readonly attemptId?: string
+    },
+  ): Promise<void> {
     const id = String(questionSet.decisionSetId)
-    if (this.#records.has(id)) return
+    const existing = this.#records.get(id)
+    if (existing !== undefined) {
+      if (
+        stableJson(existing.questionSet) !== stableJson(questionSet)
+        || existing.record.missionId
+          !== (context === undefined ? 'unbound' : String(context.missionId))
+        || existing.record.taskId
+          !== (context?.taskId === undefined
+            ? undefined
+            : String(context.taskId))
+        || existing.record.taskVersion
+          !== (context?.taskVersion === undefined
+            ? undefined
+            : Number(context.taskVersion))
+        || existing.record.attemptId !== context?.attemptId
+      ) {
+        throw new MilitaryError(
+          'IDEMPOTENCY_CONFLICT',
+          `decision set ${id} binding changed`,
+        )
+      }
+      return
+    }
     if (questionSet.deliveryAuthority !== 'general') throw new MilitaryError('UNAUTHORIZED')
     if (questionSet.questions.length === 0) throw new MilitaryError('INVALID_ARGUMENT', 'decision question set is empty')
     if (questionSet.expiresAt !== undefined && isExpired(questionSet.expiresAt, this.#clock)) throw new MilitaryError('DECISION_SET_STALE')
@@ -35,7 +71,16 @@ export class InMemoryDecisionBroker implements MilitaryDecisionBrokerV2 {
       decisionSetId: id,
       rootSessionId: String(questionSet.targetRootSessionId),
       originAgentId: String(questionSet.producer.agentId),
-      missionId: 'unknown',
+      missionId: context === undefined ? 'unbound' : String(context.missionId),
+      ...(context?.taskId === undefined
+        ? {}
+        : { taskId: String(context.taskId) }),
+      ...(context?.taskVersion === undefined
+        ? {}
+        : { taskVersion: Number(context.taskVersion) }),
+      ...(context?.attemptId === undefined
+        ? {}
+        : { attemptId: context.attemptId }),
       state: 'QUEUED',
       priority: inferPriority(questionSet),
       questionSetRef: `decision-set:${id}`,
@@ -137,6 +182,11 @@ export class InMemoryDecisionBroker implements MilitaryDecisionBrokerV2 {
       expired.push(stored.record.decisionSetId)
     }
     return expired
+  }
+
+  async reconcileExpired(): Promise<readonly DecisionBrokerRecord[]> {
+    return this.expireDue().map(id =>
+      cloneFrozen(this.#require(id).record))
   }
 
   #require(id: string): StoredDecision {

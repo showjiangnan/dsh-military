@@ -12,6 +12,10 @@
 8. 检查 Advisor Profile 所引用的技能/API/凭据均可解析；
 9. 执行事件重放与 schema 校验；
 10. 启动后确认没有 orphan lease、open compaction 或 frozen session。
+11. 检查 Command Saga pending/expired effect lease、transactional outbox lag 和
+    dead-letter；
+12. 分布式部署核对 Ledger、对象存储、队列、KMS descriptor 与探针，任一仍为本地
+    实现时保持 `LOCAL_ONLY`。
 
 ## 2. Mission 启动
 
@@ -142,6 +146,20 @@ Mission Intent 中的未知项可有默认假设，但必须标明 `assumption`�
 - 不向模型声称状态已改变；
 - 当前操作返回明确失败；
 - 禁止“先执行后补记”高风险动作。
+
+### Command Saga 或 Outbox 卡住
+
+1. 按 `operationId` 查看 `PENDING_EFFECT/RETRYABLE/EFFECT_APPLIED/COMMITTED`、
+   lease owner/fence 和最后 heartbeat；
+2. effect lease 未过期时不启动第二执行者；
+3. lease 过期后先查询外部 operation receipt/postcondition，再决定补记 checkpoint
+   或使用同一 operationId 重投；
+4. `EFFECT_APPLIED` 只允许补交领域 receipt + outbox + COMMITTED fence，不重复
+   外部副作用；
+5. outbox 依据 claim/lease/delivery offset 幂等重投，超过策略后 dead-letter 并
+   提升健康告警；
+6. 禁止在事务中运行 Git/Provider/文件操作，也禁止手工把 operation 改成
+   COMMITTED。
 
 ### 投影损坏
 
@@ -275,9 +293,19 @@ Mission Intent 中的未知项可有默认假设，但必须标明 `assumption`�
 6. 保存返回的 `operationId` 和 receipt；网络中断时只用同一 ID 重试；
 7. 刷新权威状态，不能以按钮成功提示代替 postcondition。
 
+显式取消整条 Mission 时：
+
+1. 在 Mission 下拉框中选择目标并核对标题、状态、revision 和更新时间；
+2. 填写可审计原因，生成 `CANCEL_MISSION` 预览；
+3. 核对 CAS diff、影响范围和“停止全部未终态 Task、释放 child 资源”的警告；
+4. 在预览过期前输入精确高风险确认短语并执行；
+5. 从 receipt 核验 Kernel cancellation reference 和已清理 child 数；
+6. 若预览后 state hash 改变，丢弃旧预览并重新生成；若网络中断，先刷新 receipt
+   与 Mission 状态，禁止把 Stop、Freeze 或手工终态当作 Mission Cancel。
+
 允许的操作只有数据库验证、`VACUUM INTO` 一致备份、reconcile、stale outbox
-重投、已证明过期资源释放和父级唤醒。不存在编辑 SQLite、删除任意 worktree、
-手工标记 Task 完成或覆盖终态。
+重投、已证明过期资源释放、父级唤醒和上述受治理 Mission Cancel。不存在编辑
+SQLite、删除任意 worktree、手工标记 Task 完成或覆盖终态。
 
 ### H. Specs 路径或写入异常
 
@@ -301,10 +329,28 @@ RC.2 当前没有外部目录 picker；`workspaceId` 是唯一选择输入。插
    写 receipt 和父级唤醒；
 4. 不把 deterministic PASS 记为 Provider PASS；
 5. 不把 alias 名称当 exact route；
-6. 相同 route/场景按 dataset + Session + scenario 去重；独立 Session 少于 10
-   或 Wilson 区间宽度大于 0.35 时保持 `INSUFFICIENT_SAMPLE`；
+6. 相同 exact configuration/场景按 dataset + Session + scenario 去重；独立
+   Session 少于 50 时保持 `INSUFFICIENT_SAMPLE`；
 7. 失败样本导出 Session/Host evidence 后进入回归，不通过手工修改 capability
    为 `VALIDATED`。
+8. 导出后运行
+   `npm run acceptance:flash -- --input <export.json>`；全部场景必须同时满足首次
+   工具命中估计≥95%且 Wilson 下界≥85%、E2E≥90%且下界≥80%，并且意外确定性
+   失败/越权成功写/假完成/重复终态均为 0。
+9. 每次失败只按 envelope 中唯一 `nextTool` 和 `correctedShape` 修正；若错误
+   details 出现 secret、Bearer token 或宿主绝对路径，立即按安全缺陷阻断发布。
+
+### L. 生产 Provider readiness 或灾备异常
+
+1. 查看 Operations Center 的 provider topology、capacity/backpressure、
+   backup signature 与 restore drill receipt；
+2. descriptor、probe 或 residency 不一致时停止分布式 admission，保留本地只读
+   诊断，不自动 fallback 到无同等策略的存储；
+3. 验证备份清单、内容 hash、签名 key id 和 legal-hold index 后再恢复；
+4. 恢复到隔离目标，重放 Ledger/outbox，比较 canonical projection 和 Workspace
+   receipt，完成后生成 restore receipt；
+5. 未完成 PostgreSQL/对象存储/队列/KMS 适配器注入和演练的部署只能标记
+   `LOCAL_ONLY`，不能报告 HA READY。
 
 ### J. 私有技能召回异常
 

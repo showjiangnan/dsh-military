@@ -37,24 +37,25 @@ RC.2 `ui-settings` 拥有唯一 `settings.describe` mirror，并监听 document 
 
 ## 4. 运行态投影边界
 
-RC.2 没有外部 required Session Event 注册面。0.9.0-alpha.24 因而不注册
+RC.2 没有外部 required Session Event 注册面。0.9.0-alpha.25 因而不注册
 Military Conversation Node，也不把 Mission/Task/Radio/Freeze/Candidate 写入
 DSH Session Log。Settings 基础字段读取 RC.2 shared mirror；角色治理、诊断/
-恢复、Workspace、固定评测和私有知识通过插件自有窄 Typert
+恢复、Workspace、固定评测、Runtime Center 和私有知识通过插件自有窄 Typert
 `snapshot/execute` Remote 读取 Host projection。
 
-后续运行态页面必须新增 Military 自有 Host Remote/Projection：
+当前 Runtime Center 遵守以下 Host Remote/Projection 合同：
 
 - 以 `tenantId + missionId` 查询 Mission read model；
-- 使用稳定业务 ID 和 revision 增量更新；
+- 使用稳定业务 ID、source revision、generatedAt、staleAfter 和 health 更新；
 - 浏览器不直连 SQLite；
 - DSH Session 只承载模型可见 `user/message` 和上游已知事件；
 - 可选 Conversation renderer 只消费插件自有投影，不把 Session Log 变成第二个 Mission 真源。
 
 ## 5. 已实现页面
 
-- 一个 `sidebar.footer.action` occupant 纵向承载“Military 设置中心”和
-  “知识与技能”两个独立入口；二者与 DSH Settings 共用 42px 展开行、36px
+- 一个 `sidebar.footer.action` occupant 纵向承载“Military 设置中心”、
+  “Military Session 运行中心”和“知识与技能”三个独立入口；三者与 DSH
+  Settings 共用 42px 展开行、36px
   收起圆形点击域及相同 margin/padding/radius/hover 合同，不会在 RC.2 的
   横向 list seat 中挤出侧栏；`shell.overlay` 分别挂载两个原生 Headless
   Modal；
@@ -74,8 +75,12 @@ DSH Session Log。Settings 基础字段读取 RC.2 shared mirror；角色治理�
 - Session 诊断时间线与先预览/精确确认/幂等 receipt 的安全恢复操作；
 - 仅按 Host `workspaceId` 选择的 Specs 工作区，包含 canonical/Git/path/lease/
   integration 状态；
+- Request→Mission→Direction→Wave→Task→Attempt→Activation→Dispatch
+  Runtime Center，以及 Candidate/Verification/Integration、Radio/Decision、
+  Budget/Receipt 层级；
+- 共享 timeout/abort/dedupe/backoff/revision query boundary 和跨标签页失效通知；
 - 固定九场景评测、dataset hash、deterministic/Provider 分栏、exact route
-  样本与 N<5 稳定性限制；
+  样本、N≥50/Wilson/零安全失败 acceptance 与 evidence export；
 - Knowledge Center 七视图，包含 sanitized pipeline/lineage 和与真实 recall
   共用 resolver/renderer 的无 Task 模拟召回；
 - Host 保存确认、字段级恢复默认、模板 revision 串行写入；
@@ -84,9 +89,8 @@ DSH Session Log。Settings 基础字段读取 RC.2 shared mirror；角色治理�
   zoom/长文本/forced-colors/contrast/reduced-motion 合同；
 - lazy module-loader artifact 和 manifest/peer-dev 门禁。
 
-Mission Dashboard、Radio Inbox、Freeze 控制台、专用 Candidate/Integration
-详情、绩效申诉和自定义 Advisor 向导属于后续 Web 里程碑，不在当前实现报告中
-标记为完成。
+把 Military 私有节点直接嵌入 DSH Conversation Log、自定义 Advisor 向导和
+分布式 server push 属于后续 Web 里程碑，不在当前实现报告中标记为完成。
 
 ## 6. 安全
 

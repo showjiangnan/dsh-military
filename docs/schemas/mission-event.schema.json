@@ -459,6 +459,43 @@
       }
     },
     {
+      "title": "Task ready",
+      "properties": {
+        "type": {
+          "const": "task/ready"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "taskId",
+            "taskVersion",
+            "waveId",
+            "satisfiedDependencyIds"
+          ],
+          "properties": {
+            "taskId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "taskVersion": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "waveId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "satisfiedDependencyIds": {
+              "type": "array",
+              "items": {
+                "$ref": "common-defs.schema.json#/$defs/id"
+              },
+              "uniqueItems": true
+            }
+          }
+        }
+      }
+    },
+    {
       "title": "Task leased",
       "properties": {
         "type": {
@@ -684,6 +721,216 @@
             },
             "cancelledAgentId": {
               "$ref": "common-defs.schema.json#/$defs/id"
+            }
+          }
+        }
+      }
+    },
+    {
+      "title": "Task activation settled",
+      "properties": {
+        "type": {
+          "const": "task/activation-settled"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "taskId",
+            "taskVersion",
+            "activationId",
+            "outcome",
+            "taskState",
+            "reason"
+          ],
+          "properties": {
+            "taskId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "taskVersion": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "activationId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "outcome": {
+              "enum": [
+                "COMPLETED",
+                "PAUSED",
+                "RECOVERY_REQUIRED",
+                "CANCELLED",
+                "FAILED"
+              ]
+            },
+            "taskState": {
+              "enum": [
+                "CREATED",
+                "READY",
+                "LEASED",
+                "EXECUTING",
+                "CANDIDATE_SUBMITTED",
+                "VERIFYING",
+                "WAITING_INTEGRATION",
+                "INTEGRATING",
+                "INTEGRATION_FAILED",
+                "REWORK",
+                "BLOCKED",
+                "GUIDANCE_PENDING",
+                "WAITING_DECISION",
+                "PAUSED",
+                "RECOVERY_REQUIRED",
+                "FROZEN",
+                "ACCEPTED",
+                "CANCELLED",
+                "FAILED"
+              ]
+            },
+            "reason": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 240
+            }
+          }
+        }
+      }
+    },
+    {
+      "title": "Task resumed",
+      "properties": {
+        "type": {
+          "const": "task/resumed"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "taskId",
+            "taskVersion",
+            "fromState",
+            "reason"
+          ],
+          "properties": {
+            "taskId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "taskVersion": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "fromState": {
+              "enum": [
+                "PAUSED",
+                "RECOVERY_REQUIRED",
+                "REWORK",
+                "INTEGRATION_FAILED"
+              ]
+            },
+            "reason": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 240
+            }
+          }
+        }
+      }
+    },
+    {
+      "title": "Task waiting for decision",
+      "properties": {
+        "type": {
+          "const": "task/decision-waiting"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "taskId",
+            "taskVersion",
+            "decisionSetId"
+          ],
+          "properties": {
+            "taskId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "taskVersion": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "decisionSetId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            }
+          }
+        }
+      }
+    },
+    {
+      "title": "Task decision resolved",
+      "properties": {
+        "type": {
+          "const": "task/decision-resolved"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "taskId",
+            "taskVersion",
+            "decisionSetId",
+            "answerReceiptRef"
+          ],
+          "properties": {
+            "taskId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "taskVersion": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "decisionSetId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "answerReceiptRef": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 240
+            }
+          }
+        }
+      }
+    },
+    {
+      "title": "Task integration failed",
+      "properties": {
+        "type": {
+          "const": "task/integration-failed"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "taskId",
+            "taskVersion",
+            "integrationReceiptId",
+            "disposition"
+          ],
+          "properties": {
+            "taskId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "taskVersion": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "integrationReceiptId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "disposition": {
+              "enum": [
+                "CONFLICT",
+                "REGRESSION_FAILED",
+                "STALE"
+              ]
             }
           }
         }
@@ -1118,6 +1365,42 @@
       }
     },
     {
+      "title": "Radio request dead-lettered",
+      "properties": {
+        "type": {
+          "const": "radio/dead-lettered"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "requestId",
+            "taskId",
+            "taskVersion",
+            "reason"
+          ],
+          "properties": {
+            "requestId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "taskId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "taskVersion": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "reason": {
+              "enum": [
+                "REQUEST_EXPIRED",
+                "LEASE_ATTEMPTS_EXHAUSTED"
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
       "title": "Decision question set created",
       "properties": {
         "type": {
@@ -1141,9 +1424,15 @@
             "questionSetRef": {
               "$ref": "common-defs.schema.json#/$defs/id"
             },
+            "taskId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
             "taskVersion": {
               "type": "integer",
               "minimum": 1
+            },
+            "attemptId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
             }
           }
         }
@@ -1199,6 +1488,43 @@
               "$ref": "common-defs.schema.json#/$defs/id"
             },
             "answeredBy": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            }
+          }
+        }
+      }
+    },
+    {
+      "title": "Decision answer acknowledged",
+      "properties": {
+        "type": {
+          "const": "decision/answer-acknowledged"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "decisionSetId",
+            "taskId",
+            "taskVersion",
+            "answerReceiptRef",
+            "acknowledgedBy"
+          ],
+          "properties": {
+            "decisionSetId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "taskId": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "taskVersion": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "answerReceiptRef": {
+              "$ref": "common-defs.schema.json#/$defs/id"
+            },
+            "acknowledgedBy": {
               "$ref": "common-defs.schema.json#/$defs/id"
             }
           }

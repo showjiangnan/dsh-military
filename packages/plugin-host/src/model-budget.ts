@@ -6,11 +6,13 @@ import {
   isoNow,
   type AgentExecutionBinding,
   type AgentIdentity,
+  type ArtifactDispatchPolicyReceipt,
   type IsoDateTime,
   type ResourceBudgetReservation,
   type ResourceCounters,
 } from '@dsh-military/contracts'
 import { sha256, stableJson, zeroCounters } from '@dsh-military/core'
+import { SqliteStateRecords } from '@dsh-military/storage-sqlite'
 import type { MilitaryHostRuntime } from './context.js'
 
 export function modelBudgetReservationId(
@@ -45,12 +47,102 @@ export async function reserveModelRequestBudget(
     String(identity.agentId),
     host.tenantId,
   )
+  const classification = binding?.dataClassification ?? 'internal'
   const authority = await host.application.authorization.authorize({
     context: authorityContext,
     action: 'model.execute',
     resource: `${provider}/${model}`,
-    classification: 'internal',
+    classification,
   })
+  const scope = await modelScope(host, identity, binding)
+  const missionId = scope.scopeType === 'MISSION'
+    ? scope.scopeId
+    : binding?.missionId ?? `tenant:${host.tenantId}`
+  const dispatchReceiptId = `model-dispatch-policy-${sha256(stableJson({
+    agentId: String(identity.agentId),
+    generation: identity.generation,
+    turn,
+    step,
+    provider,
+    model,
+  })).slice(0, 40)}`
+  const policyRecords = new SqliteStateRecords(host.database, host.tenantId)
+  const existingDispatchReceipt =
+    policyRecords.readSync<ArtifactDispatchPolicyReceipt>(
+      'model-dispatch-policy-receipt',
+      dispatchReceiptId,
+    )
+  const dispatchObservedAt = isoNow()
+  const dispatchReceipt: ArtifactDispatchPolicyReceipt =
+    existingDispatchReceipt ?? {
+    schemaVersion: '1.0.0',
+    receiptId: dispatchReceiptId,
+    referenceIds: [],
+    tenantId: host.tenantId,
+    missionId,
+    ...(binding?.workspace === undefined
+      ? {}
+      : { taskId: binding.workspace.taskId }),
+    provider,
+    model,
+    dispatch: {
+      agentId: String(identity.agentId),
+      agentGeneration: identity.generation,
+      turn,
+      step,
+    },
+    // DSH RC.2 does not expose an authoritative price/version contract.
+    // Persist that absence at dispatch time rather than applying a mutable
+    // UI/catalog price to historical usage after the fact.
+    pricingSnapshot: {
+      status: 'UNAVAILABLE',
+      currency: 'USD',
+      version: 'dsh-rc2-provider-pricing-unavailable@1',
+      observedAt: dispatchObservedAt,
+    },
+    classification,
+    residencyPolicyRef: binding?.dataResidencyPolicy.id
+      ?? 'dsh-local-user-provider-policy@1',
+    redactionPolicyRef: binding?.redactionPolicy.id
+      ?? 'redaction-default@1',
+    policyRevision: Number(
+      binding?.dataResidencyPolicy.revision
+      ?? binding?.redactionPolicy.revision
+      ?? 0,
+    ),
+    disposition: authority.allowed ? 'ALLOWED' : 'DENIED',
+    evidenceRefs: authority.receiptRef === undefined
+      ? []
+      : [authority.receiptRef],
+    createdAt: dispatchObservedAt,
+  }
+  if (existingDispatchReceipt === null) {
+    policyRecords.putSync(
+      'model-dispatch-policy-receipt',
+      dispatchReceipt.receiptId,
+      dispatchReceipt,
+      { createOnly: true },
+    )
+  } else if (
+    existingDispatchReceipt.provider !== provider
+    || existingDispatchReceipt.model !== model
+    || (
+      existingDispatchReceipt.dispatch !== undefined
+      && (
+        existingDispatchReceipt.dispatch.agentId !== String(identity.agentId)
+        || existingDispatchReceipt.dispatch.agentGeneration !== identity.generation
+        || existingDispatchReceipt.dispatch.turn !== turn
+        || existingDispatchReceipt.dispatch.step !== step
+      )
+    )
+    || existingDispatchReceipt.disposition
+      !== (authority.allowed ? 'ALLOWED' : 'DENIED')
+  ) {
+    throw new MilitaryError(
+      'IDEMPOTENCY_CONFLICT',
+      'model dispatch policy receipt changed for the same step',
+    )
+  }
   if (!authority.allowed) {
     throw new Error(`model authority denied: ${authority.reason ?? 'no matching authority'}`)
   }
@@ -60,7 +152,6 @@ export async function reserveModelRequestBudget(
         binding.resourceBudgetPolicy.id,
         Number(binding.resourceBudgetPolicy.revision),
       )
-  const scope = await modelScope(host, identity, binding)
   const reservationId = modelBudgetReservationId(identity, turn, step)
   const reservedAt = isoNow()
   const requested: ResourceCounters = {

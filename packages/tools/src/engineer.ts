@@ -1,4 +1,4 @@
-import type {} from '@dsh-military/plugin-host'
+import type {} from '@dsh-military/runtime'
 import { isAbsolute, normalize, resolve } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
 import type { ToolDefinition } from '@deepseek-ai/dsh-tools'
@@ -21,6 +21,7 @@ import {
   asStringArray,
   reportTerminalOutcome,
   runDurableTerminalMutation,
+  runMissionCommand,
 } from './common.js'
 import {
   parseSpecsApplyDraft,
@@ -48,6 +49,7 @@ export function engineerTools(ctx: Context): readonly ToolDefinition[] {
       output: { schema: { type: 'json' }, render: (_args, value) => text(value) },
       async execute(args, exec) {
         const agent = requireCallingAgent(exec.agent)
+        const identity = identityFor(ctx, agent)
         const workspace = await requireEngineerWorkspace(ctx, agent)
         return await ctx.militaryHost.specs.read({
           workspaceRoot: workspace.root,
@@ -96,6 +98,7 @@ export function engineerTools(ctx: Context): readonly ToolDefinition[] {
       output: { schema: { type: 'json' }, render: (_args, value) => text(value) },
       async execute({ draft }, exec) {
         const agent = requireCallingAgent(exec.agent)
+        const identity = identityFor(ctx, agent)
         const workspace = await requireEngineerWorkspace(ctx, agent)
         const materialized = await materializeEngineerSpecsDraft(
           ctx,
@@ -115,7 +118,7 @@ export function engineerTools(ctx: Context): readonly ToolDefinition[] {
           readonly validatedCommands: readonly string[]
         }
         const terminal = await runDurableTerminalMutation(ctx, {
-          identity: identityFor(ctx, agent),
+          identity,
           actionKey: `specs:${compiled.order.orderId}`,
           draft: {
             arguments: draft,
@@ -131,14 +134,27 @@ export function engineerTools(ctx: Context): readonly ToolDefinition[] {
               exec.signal,
             )
             try {
-              await ctx.militaryHost.application.runtime.recordSpecsCommit(
-                workspace.task.taskId,
-                result as {
-                  readonly commit: string
-                  readonly treeHash: string
-                  readonly changedPaths: readonly string[]
+              await runMissionCommand(ctx, {
+                identity,
+                missionId: workspace.task.missionId,
+                taskId: workspace.task.taskId,
+                taskVersion: workspace.task.taskVersion,
+                type: 'specs.commit-record',
+                payload: {
+                  orderId: compiled.order.orderId,
+                  commit: String((result as { readonly commit: string }).commit),
                 },
-              )
+                idempotencyKey: `specs-commit-record:${compiled.order.orderId}:${String((result as { readonly commit: string }).commit)}`,
+                operation: () =>
+                  ctx.militaryHost.application.runtime.recordSpecsCommit(
+                    workspace.task.taskId,
+                    result as {
+                      readonly commit: string
+                      readonly treeHash: string
+                      readonly changedPaths: readonly string[]
+                    },
+                  ),
+              })
             } catch (error) {
               throw new MilitaryError(
                 'PERSISTENCE_FAILED',
@@ -359,6 +375,22 @@ export async function stageEngineerSpecsChunk(
     mediaType: 'application/vnd.dsh-military.specs-chunk+json',
     classification: 'confidential',
     description: `Staged Specs chunk ${document}#${input.chunkIndex}`,
+    tenantId: ctx.militaryHost.tenantId,
+    missionId: String(task.missionId),
+    taskId: String(task.taskId),
+    ownerPrincipalId: 'military-host',
+    audiencePrincipalIds: ['military-host'],
+    audienceScopes: ['artifact:read', 'military:specs-stage'],
+    residencyPolicyRef: 'local-artifact-store@1',
+    idempotencyKey: [
+      'specs-chunk',
+      String(task.missionId),
+      String(task.taskId),
+      Number(task.taskVersion),
+      document,
+      input.chunkIndex,
+      envelope.contentSha256,
+    ].join(':'),
   })
   return {
     artifactId: String(artifact.artifactId),

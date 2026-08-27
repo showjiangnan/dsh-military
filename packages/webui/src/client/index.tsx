@@ -15,6 +15,10 @@ import {
   KnowledgeCenterTrigger,
 } from './knowledge-center.js'
 import { installMilitaryUiStyles } from './native-ui.js'
+import {
+  MilitaryRuntimeOverlay,
+  MilitaryRuntimeTrigger,
+} from './runtime-center.js'
 
 const SETTINGS_NAMESPACES = [
   'military-model-routing',
@@ -60,10 +64,20 @@ export function apply(ctx: ClientContext): void {
         data-wide={String(wide)}
       >
         <MilitarySettingsTrigger wide={wide} />
+        <MilitaryRuntimeTrigger wide={wide} />
         <KnowledgeCenterTrigger wide={wide} />
       </div>
     )
   })), 'dsh-military: native settings-sized sidebar actions')
+
+  ctx.effect(() => additiveSlots.inject('shell.overlay', () => additiveSlots.register({
+    name: 'shell.overlay',
+    id: 'military-runtime',
+    order: 115,
+    label: () => 'Military Session 运行中心',
+  }, () => (
+    <MilitaryRuntimeOverlay connection={connection} />
+  ))), 'dsh-military: Session runtime centre overlay')
 
   ctx.effect(() => additiveSlots.inject('shell.overlay', () => additiveSlots.register({
     name: 'shell.overlay',

@@ -7,6 +7,7 @@ import { promisify } from 'node:util'
 import { Context } from '@deepseek-ai/cordis'
 import { remoteMethods } from '@deepseek-ai/dsh-typert-protocol'
 import {
+  localSingleUserWebPrincipal,
   MilitaryWorkspaceRemoteService,
   type MilitaryHostRuntime,
 } from '@dsh-military/plugin-host'
@@ -54,7 +55,7 @@ test('Specs workspace projection accepts only Host catalog ids and reports Git r
       'military',
       'archive-workspace',
       'asset-workspace',
-      '0.9.0-alpha.24',
+      '0.9.0-alpha.25',
       binding.dshBaselineCommit,
       'CURRENT',
       '{}',
@@ -63,6 +64,7 @@ test('Specs workspace projection accepts only Host catalog ids and reports Git r
     await gate.bind(binding)
     const host = {
       tenantId: 'tenant-workspace',
+      webPrincipal: localSingleUserWebPrincipal('tenant-workspace'),
       database,
       application: {
         workspaces: {

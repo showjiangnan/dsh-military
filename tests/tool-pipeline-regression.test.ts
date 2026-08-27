@@ -3,12 +3,16 @@ import test from 'node:test'
 import type { Context } from '@deepseek-ai/cordis'
 import type { ToolExecution, ToolExecutionResult } from '@deepseek-ai/dsh-tools'
 import type { MilitaryHostRuntime } from '@dsh-military/plugin-host'
+import { SqliteMilitaryDatabase } from '@dsh-military/storage-sqlite'
 import { createAgentPlaneState } from '../packages/plugin-host/src/agent-plane-state.js'
 import { registerToolPipeline } from '../packages/plugin-host/src/tool-pipeline.js'
+import { testProductionPlane } from './helpers.js'
 
 type Handler = (...args: unknown[]) => unknown
 
-test('a pre-execution ToolProfile denial preserves its reason and skips settlement', async () => {
+test('a pre-execution ToolProfile denial preserves its reason and skips settlement', async t => {
+  const database = new SqliteMilitaryDatabase({ path: ':memory:' })
+  t.after(() => database.close())
   const handlers = new Map<string, Handler>()
   const evidence: unknown[] = []
   let settlementLookups = 0
@@ -21,9 +25,12 @@ test('a pre-execution ToolProfile denial preserves its reason and skips settleme
     generation: 1,
   }
   const host = {
+    tenantId: 'tenant-test',
+    database,
     isMilitaryAgent(candidate: unknown) { return candidate === agent },
     async identityFor() { return identity },
     application: {
+      production: testProductionPlane('tenant-test'),
       oversight: { requireAdmission() {} },
       policies: {
         async toolProfile() {
@@ -51,13 +58,15 @@ test('a pre-execution ToolProfile denial preserves its reason and skips settleme
   const ctx = {
     on(name: string, handler: Handler) { handlers.set(name, handler) },
   } as unknown as Context
-  registerToolPipeline(ctx, host, createAgentPlaneState())
+  const state = createAgentPlaneState()
+  state.generalWorkflowStageByAgent.set(String(agent.id), 'START_MISSION')
+  registerToolPipeline(ctx, host, state)
 
   const execution = {
-    callId: 'denied-bash-call',
-    rootCallId: 'denied-bash-call',
-    name: 'bash',
-    arguments: { command: 'sleep 545' },
+    callId: 'denied-mission-start-call',
+    rootCallId: 'denied-mission-start-call',
+    name: 'military_mission_start',
+    arguments: { title: 'ToolProfile denial' },
     agent,
   } as unknown as ToolExecution
   const pre = requiredHandler(handlers, 'tools/pre-execute')
@@ -72,12 +81,18 @@ test('a pre-execution ToolProfile denial preserves its reason and skips settleme
       readonly code: string
       readonly message: string
       readonly retryable: boolean
+      readonly nextTool: string
+      readonly correctedShape: {
+        readonly tool: string
+      }
       readonly recovery: string
     }
   }
   assert.equal(failure.error.code, 'POLICY_DENIED')
-  assert.match(failure.error.message, /bash.*general-tools@3/u)
+  assert.match(failure.error.message, /military_mission_start.*general-tools@3/u)
   assert.equal(failure.error.retryable, false)
+  assert.equal(failure.error.nextTool, 'military_status')
+  assert.equal(failure.error.correctedShape.tool, 'military_status')
   assert.match(failure.error.recovery, /military_status.*military_spawn_department_agent/u)
 
   const post = requiredHandler(handlers, 'tools/post-execute')
@@ -91,10 +106,14 @@ test('a pre-execution ToolProfile denial preserves its reason and skips settleme
   assert.equal(settlementLookups, 0)
 })
 
-test('the post-budget grace step admits only terminal coordination tools', async () => {
+test('the post-budget grace step admits only terminal coordination tools', async t => {
+  const database = new SqliteMilitaryDatabase({ path: ':memory:' })
+  t.after(() => database.close())
   const handlers = new Map<string, Handler>()
   const agent = { id: 'engineer-finalization-only' }
   const host = {
+    tenantId: 'tenant-test',
+    database,
     isMilitaryAgent(candidate: unknown) { return candidate === agent },
     async identityFor() {
       return {
@@ -106,6 +125,7 @@ test('the post-budget grace step admits only terminal coordination tools', async
       }
     },
     application: {
+      production: testProductionPlane('tenant-test'),
       oversight: { requireAdmission() {} },
     },
   } as unknown as MilitaryHostRuntime
@@ -134,7 +154,9 @@ test('the post-budget grace step admits only terminal coordination tools', async
   assert.equal(failure.error.retryable, false)
 })
 
-test('ToolProfile parallelism, timeout, terminal latch and repeated-invalid recovery are executable', async () => {
+test('ToolProfile parallelism, timeout, terminal latch and repeated-invalid recovery are executable', async t => {
+  const database = new SqliteMilitaryDatabase({ path: ':memory:' })
+  t.after(() => database.close())
   const handlers = new Map<string, Handler>()
   const reservations = new Map<string, Record<string, unknown>>()
   const evidence: unknown[] = []
@@ -154,17 +176,19 @@ test('ToolProfile parallelism, timeout, terminal latch and repeated-invalid reco
   const profile = {
     toolProfileId: 'general-tools',
     revision: 5,
-    allowTools: ['military_get_context', 'military_spawn_department_agent'],
+    allowTools: ['ask_user_question', 'military_status'],
     denyTools: [],
     maxParallelCalls: 1,
-    timeoutOverrides: { military_get_context: 5 },
+    timeoutOverrides: { military_status: 5 },
   }
   const host = {
     tenantId: 'tenant-test',
+    database,
     config: { tenantId: 'tenant-test' },
     isMilitaryAgent(candidate: unknown) { return candidate === agent },
     async identityFor() { return identity },
     application: {
+      production: testProductionPlane('tenant-test'),
       oversight: { requireAdmission() {} },
       policies: {
         async toolProfile() { return profile },
@@ -217,9 +241,9 @@ test('ToolProfile parallelism, timeout, terminal latch and repeated-invalid reco
   const around = requiredHandler(handlers, 'tools/execute')
   const post = requiredHandler(handlers, 'tools/post-execute')
 
-  const first = execution(agent, 'parallel-1', 'military_get_context')
+  const first = execution(agent, 'parallel-1', 'military_status')
   assert.equal((await pre(first, async () => ({ kind: 'allow' })) as { kind: string }).kind, 'allow')
-  const parallel = execution(agent, 'parallel-2', 'military_get_context')
+  const parallel = execution(agent, 'parallel-2', 'military_status')
   const parallelDenied = await pre(parallel, async () => ({ kind: 'allow' })) as {
     readonly kind: string
     readonly reason: string
@@ -236,9 +260,19 @@ test('ToolProfile parallelism, timeout, terminal latch and repeated-invalid reco
   })) as ToolExecutionResult
   assert.equal(timeout.isError, true)
   assert.equal((timeout.error?.info as { code?: string } | undefined)?.code, 'MILITARY_TOOL_TIMEOUT')
+  const timeoutFailure = JSON.parse(
+    (timeout.content[0] as { readonly text: string }).text,
+  ) as {
+    readonly error: {
+      readonly nextTool: string
+      readonly correctedShape: { readonly tool: string }
+    }
+  }
+  assert.equal(timeoutFailure.error.nextTool, 'military_status')
+  assert.equal(timeoutFailure.error.correctedShape.tool, 'military_status')
   await post(first, timeout, async () => ({ kind: 'accept' }))
 
-  const terminal = execution(agent, 'terminal-1', 'military_spawn_department_agent')
+  const terminal = execution(agent, 'terminal-1', 'ask_user_question')
   assert.equal((await pre(terminal, async () => ({ kind: 'allow' })) as { kind: string }).kind, 'allow')
   await post(terminal, {
     isError: false,
@@ -246,25 +280,28 @@ test('ToolProfile parallelism, timeout, terminal latch and repeated-invalid reco
     content: [],
   } as unknown as ToolExecutionResult, async () => ({ kind: 'accept' }))
   const afterTerminal = await pre(
-    execution(agent, 'terminal-sibling', 'military_get_context'),
+    execution(agent, 'terminal-sibling', 'military_status'),
     async () => ({ kind: 'allow' }),
   ) as { readonly kind: string; readonly reason: string }
   assert.equal(afterTerminal.kind, 'deny')
   assert.equal(JSON.parse(afterTerminal.reason).error.code, 'TURN_ALREADY_CONCLUDED')
 
   agent.session.events = [{ type: 'step/start', data: { turn: 1, step: 2 } }]
-  const invalid = execution(agent, 'invalid-1', 'military_get_context', { unexpected: true })
+  const invalid = execution(agent, 'invalid-1', 'military_status', { unexpected: true })
   await post(invalid, {
     isError: true,
     error: { message: 'INVALID_ARGUMENT: unexpected is not allowed' },
     content: [],
   } as unknown as ToolExecutionResult, async () => ({ kind: 'accept' }))
   const repeated = await pre(
-    execution(agent, 'invalid-2', 'military_get_context', { unexpected: true }),
+    execution(agent, 'invalid-2', 'military_status', { unexpected: true }),
     async () => ({ kind: 'allow' }),
   ) as { readonly kind: string; readonly reason: string }
   assert.equal(repeated.kind, 'deny')
-  assert.equal(JSON.parse(repeated.reason).error.code, 'REPEATED_INVALID_CALL')
+  const repeatedFailure = JSON.parse(repeated.reason).error
+  assert.equal(repeatedFailure.code, 'REPEATED_INVALID_CALL')
+  assert.equal(repeatedFailure.nextTool, 'military_status')
+  assert.equal(repeatedFailure.correctedShape.tool, 'military_status')
   assert.ok(evidence.length >= 3)
 })
 

@@ -30,7 +30,7 @@ await architecture('oversight owns pre-step admission', 'packages/plugin-host/sr
 await architecture('oversight owns tool admission', 'packages/plugin-host/src/tool-pipeline.ts', ["'tools/pre-execute'", 'oversight.requireAdmission'])
 await architecture('General route respects session model selection and the preset default', 'packages/plugin-host/src/request-routing.ts', ['validateUserSelection', 'applyPresetDefault', 'dsh-session-model-selector'])
 await architecture('department binding is durable before child prompt admission', 'packages/runtime/src/agents.ts', ['await this.#bindings.create(binding)', 'await this.#transport.spawn'])
-await architecture('Worker receives the lease-owned worktree instruction', 'packages/plugin-host/src/child-transport.ts', ['request.executionCwd', '分配的隔离执行工作树：', '必须使用严格位于该工作树内的绝对路径'])
+await architecture('Worker receives the lease-owned Task-rooted workspace instruction', 'packages/plugin-host/src/child-transport.ts', ['request.executionCwd', '你在隔离执行工作树中工作', '所有文件操作只使用 military_workspace_read/list/search/write/edit', 'Host 会把相对路径绑定到本 Task 的隔离工作树'])
 await architecture('Task-bound Worker/Engineer filesystem operations are fenced to their lease-owned workspace', 'packages/plugin-host/src/tool-authorization.ts', ['executionPath(binding.workspace.leaseId)', 'taskBoundToolPathPolicy', 'outside the assigned filesystem root'])
 await architecture('Worker and Engineer workspaces are Task-scoped while Worker material-clean admission remains mandatory', 'packages/plugin-host/src/host-runtime.ts', ["template.role !== 'worker' && template.role !== 'engineer'", 'request.taskId === undefined', "template.role === 'worker'", 'materialStatusPaths', 'pathScope'])
 await architecture('Engineer façade exposes one atomic apply transaction', 'packages/tools/src/engineer.ts', ["name: 'military_specs_apply_order'", 'recordSpecsCommit', 'reportTerminalOutcome', 'exec.concludeTurn()', 'STOP_SUCCESS_DO_NOT_REAPPLY'])
@@ -40,13 +40,21 @@ await architecture('RC.2 baseline is exact', 'VERSION.json', [RC2, RC2_COMMIT])
 await architecture('RC.2 Web bundle uses the lazy module loader factory', 'scripts/build.mjs', ['window.__ModuleLoader__.load', "'packages/webui/lib/client.cjs'"])
 await architecture('nested child sessions inherit the durable root session id', 'packages/storage-sqlite/src/repositories.ts', ['SELECT root_session_id', 'return row.root_session_id'])
 await architecture('invalid template and tag settings fail at the settings write boundary', 'packages/plugin-host/src/settings.ts', ['validate(value) { void parseTemplateProfiles', 'validate(value) { void parseTacticalTags'])
-await architecture('resource releases follow child disposal', 'packages/plugin-host/src/host-runtime.ts', ['finally {', 'workspaces.release(binding.workspace.leaseId)'])
+await architecture(
+  'resource releases follow child disposal',
+  'packages/plugin-host/src/host-runtime.ts',
+  [
+    'cleanupFailures',
+    "cleanup('workspace'",
+    'workspaces.release(workspace.leaseId)',
+  ],
+)
 await architecture('Mission mutations use the single-writer command kernel', 'packages/tools/src/common.ts', ['createMissionCommand', 'missionKernel.execute'])
 await architecture('candidate submission closes verification, integration and specs maintenance', 'packages/tools/src/worker.ts', ["result.verification.disposition === 'ACCEPTED'", 'application.integration.execute', 'specs.recordIntegration'])
 await architecture('model calls receive a deterministic Context Manifest', 'packages/plugin-host/src/context-audit.ts', ['contextCompiler.compile', 'persistContextManifest', "type: 'context/manifest-created'", 'renderContextManifest'])
 await architecture('department tool calls consume short-lived capability grants after path admission', 'packages/plugin-host/src/tool-authorization.ts', ['authorizeToolPath', 'capabilityGrants.consume', 'idempotencyKey: reservation.reservationId'])
 await architecture('model execution uses durable reservation/settlement', 'packages/plugin-host/src/request-routing.ts', ['reserveModelRequestBudget', 'settleModelRequestBudget'])
-await architecture('tool execution uses durable reservation/settlement', 'packages/plugin-host/src/tool-pipeline.ts', ['reserveToolExecutionBudget', 'settleToolExecutionBudget'])
+await architecture('tool execution uses durable reservation/settlement', 'packages/plugin-host/src/tool-pipeline.ts', ['reserveToolExecutionBudget', 'toolExecutionUsageReceipt', 'Promise.allSettled', "topic: 'tool-execution.settle'"])
 await architecture('department children hold durable concurrent-Agent capacity', 'packages/runtime/src/agents.ts', ['reserveAgentConcurrencyBudget', 'concurrencyReservationId'])
 await architecture('Task tool and wall-clock limits narrow durable child authority', 'packages/runtime/src/agents.ts', ['request.taskOrder?.budget.toolCalls', 'maximumWallClockSeconds', 'maximumUses: Math.max('])
 await architecture('Task output limits narrow actual department LLM requests', 'packages/plugin-host/src/request-routing.ts', ['taskMaxOutputTokens', 'Math.min(', 'maxTokens:'])
@@ -57,7 +65,19 @@ await architecture('Military visual Settings use Host-authoritative control, ope
 await architecture('Military performance evaluation preserves the fixed benchmark projection inside the governed decision center', 'packages/webui/src/client/evaluation-center.tsx', ['<MilitaryBenchmarkCenter'])
 await architecture('Military model catalog joins every live DSH route without performance gating and audits it on the Host', 'packages/plugin-host/src/control-plane-remote.ts', ['ctx.llm.listProviders()', 'ctx.llm.listModels(provider.id)', 'this.host.ensureDshModelCapability(', 'available: true', 'selectable: true', 'this.auditModelCatalog(entries)'])
 await architecture('all role prompts are visible, editable, linted and revisioned', 'packages/webui/src/client/role-workbench.tsx', ['data-role-prompt-editor', 'simplifiedChineseReview', '恢复自带提示词', 'revision.simplifiedChineseReview'])
-await architecture('Simplified Chinese confirmations are recomputed and hash-bound on the Host', 'packages/plugin-host/src/control-plane-remote.ts', ['createSimplifiedChineseReviewReceipt', 'sourceHash', 'resultHash', 'confirmedStarts'])
+await architecture(
+  'Simplified Chinese confirmations are recomputed and hash-bound on the Host',
+  [
+    'packages/plugin-host/src/control-plane-remote.ts',
+    'packages/plugin-host/src/control-plane-support.ts',
+  ],
+  [
+    'createSimplifiedChineseReviewReceipt',
+    'sourceHash',
+    'resultHash',
+    'confirmedStarts',
+  ],
+)
 await architecture('Specs workspace selection accepts only Host catalog identities', 'packages/plugin-host/src/workspace-remote.ts', ["value.type !== 'INSPECT_WORKSPACE'", 'workspaceId', 'this.catalog(signal)', 'this.inspect(workspace'])
 await architecture('fixed benchmark separates deterministic and Provider observations', 'packages/plugin-host/src/benchmark-remote.ts', ["'RUN_DETERMINISTIC'", "'ASSESS_PROVIDER_SESSION'", 'MILITARY_BENCHMARK_DATASET_HASH', 'providerSampleStability'])
 await architecture('private Skill simulation shares real recall and delivery rendering', 'packages/plugin-host/src/private-skill-remote.ts', ["type === 'SIMULATE_RECALL'", 'resolveTacticalRecall', 'renderTacticApplicabilityCards', 'createsTask: false'])
@@ -78,6 +98,44 @@ await architecture('RC.2 Session log remains free of out-of-repository required 
 await architecture('experimental Agent Team is projection-only', 'packages/core/src/agent-team-boundary.ts', ['authoritative: false', 'candidate-acceptance', 'assertAgentTeamProjectionOnly'])
 await architecture('model input and RC.2 reasoning-passback reserves are explicitly enforced', 'packages/core/src/model-capabilities.ts', ['assertModelInputCapability', 'rc2ContextReserves', 'previousReasoningTokens'])
 await architecture('RC.2 dynamic Web client declares manifest edges', 'packages/webui/package.json', ['dsh', 'client', 'external', 'peerDependencies', 'devDependencies'])
+await architecture('Workflow obligations and Task execution lifecycles use the durable SQLite CAS provider', 'packages/storage-sqlite/src/execution-lifecycle-state.ts', ['SqliteExecutionLifecycleStateStore', 'execution-workflow-obligation', 'execution-task-lifecycle', 'updateWorkflow', 'updateTask'])
+await architecture('Activation liveness requires durable heartbeat and settlement receipts', 'packages/core/src/execution-lifecycle.ts', ['heartbeatActivation', 'heartbeatExpiresAt', 'settleActivation', 'settlementReceiptId', "'RECOVERY_REQUIRED'"])
+await architecture('transactional outbox owns claim, retry, dead-letter, delivery receipt and partition offset', 'packages/storage-sqlite/src/outbox-dispatcher.ts', ['#claim(', '#retry(', '#deadLetter(', 'outbox_delivery_receipts', 'outbox_consumer_offsets'])
+await architecture('Mission terminal fences reject later Task registration and preserve explicit cancellation', 'packages/core/src/runtime.ts', ['#requireMissionOpen(order.missionId)', 'cancelMission(input:', "'mission/cancelled'", "'task/cancelled'"])
+await architecture('Operations Center exposes previewed CAS-fenced explicit Mission cancellation', 'packages/plugin-host/src/operations-remote.ts', ["case 'CANCEL_MISSION'", 'expectedStateHash', 'previewHash', 'missionKernel.execute', 'runtime.cancelMission', 'forgetDepartmentChild'])
+await architecture('Mission scheduler gates dispatch by active Wave and completed dependencies', 'packages/core/src/runtime.ts', ['activeWaveIds', 'dependencySatisfied(', "'wave/opened'", "'wave/barrier-satisfied'", "'mission/completed'"])
+await architecture('Planning rejects unknown dependencies, cycles and same-Wave write conflicts', 'packages/core/src/planning.ts', ["'UNKNOWN_DEPENDENCY'", "'CYCLE'", "'WRITE_CONFLICT'", 'inside one Wave'])
+await architecture('first child request receives a synchronous Host-owned phase surface', 'packages/plugin-host/src/index.ts', ['registerContinuableSetup', 'initialPhaseVisibleTools', 'installMilitaryPromptSurface'])
+await architecture('every tool call is admitted against the current phase intersection', 'packages/plugin-host/src/tool-pipeline.ts', ['resolvePhaseVisibleTools', 'installedPhaseTools', "'PHASE_TOOL_NOT_VISIBLE'", 'REPEATED_INVALID_CALL'])
+await architecture('Military tool failures share nextTool and correctedShape envelopes', 'packages/core/src/tool-errors.ts', ['serializeToolErrorEnvelope', 'nextTool', 'correctedShape', 'redactToolErrorValue'])
+await architecture('Task Create keeps Host-owned planning and fencing fields out of the base model schema', 'packages/tools/src/task-draft.ts', ['compileTaskDraft', '`task-${sha256(', "'.dsh-military/control'", 'modelSteps: draft.budget.modelSteps ?? 16'])
+await architecture('Desired/Applied role settings block execution until the whole revision converges', 'packages/plugin-host/src/role-workbench.ts', ['desiredRevision', 'appliedRevision', 'startup readiness barrier', 'requireRoleWorkbenchApplied'])
+await architecture('catalog presence, protocol compatibility and performance evidence remain independent', 'packages/plugin-host/src/model-catalog-bridge.ts', ["catalogPresence: 'PRESENT'", 'protocolCompatibility', "performanceEvidence: 'UNASSESSED'", 'policyEligibility'])
+await architecture('dispatch pins the exact model capability profile revision', 'packages/runtime/src/agents.ts', ['modelCapabilityProfileId', 'modelCapabilityProfileRevision', 'does not match exact route profile revision'])
+await architecture('Runtime Center projects the authoritative hierarchy with freshness metadata', 'packages/plugin-host/src/runtime-remote.ts', ['WorkflowObligation', 'sourceRevision', 'generatedAt', 'staleAfter', 'health:'])
+await architecture('Military Web features share cancellation, revision, visibility and cross-tab query behavior', 'packages/webui/src/client/query-client.ts', ['AbortController', 'revisionRef', 'visibilitychange', 'BroadcastChannel', 'withCallerAbort'])
+await architecture('WebUI adapters compose RC.2 primitives and DSH theme tokens', 'packages/webui/src/client/ui-adapter.tsx', ['FormField', 'AsyncBoundary', 'StateDot', 'var(--dsw-'])
+await architecture('Artifact references are authority-bearing and separate from content blobs', 'packages/infrastructure/src/artifacts.ts', ['Content blobs and authorization-bearing references are separate', 'referenceId', 'artifactId', 'classification', 'audiencePrincipalIds', 'legalHoldIds', 'rotateEncryptionKey', 'garbageCollect'])
+await architecture('Web remotes use the explicit local DSH principal boundary', 'packages/plugin-host/src/web-authority.ts', ['LOCAL_SINGLE_USER', 'DSH_RC2_LOCAL_PROCESS', 'requestPrincipalAvailable: false', 'requireWebAuthority'])
+await architecture('integration stages in a hashed exact worktree and reconciles before cleanup', 'packages/infrastructure/src/integration.ts', ['#stagingPath(', 'sha256(', '#requireExactStagingPath(', 'registeredWorktreeHead', 'reconcilePending'])
+await architecture('workspace recovery fails closed on unknown or out-of-root worktrees', 'packages/infrastructure/src/workspaces.ts', ['#managedWorktreePath(', 'outside its exact managed lease path', 'requires recovery', 'exact repository registration'])
+await architecture('all standalone SQLite writes are auto-wrapped and expired async writers are rejected', 'packages/storage-sqlite/src/database.ts', ['automatically wraps every standalone run/exec', 'return this.transaction(() => Reflect.apply', 'expired asynchronous transaction context', 'maintenance<T>'])
+await architecture(
+  'Evaluation preserves N/A and incomplete authoritative evidence',
+  [
+    'packages/core/src/evaluation.ts',
+    'packages/core/src/evaluation-analytics.ts',
+  ],
+  [
+    "status: 'NOT_APPLICABLE'",
+    "status: 'INCOMPLETE_EVIDENCE'",
+    'numerator:',
+    'denominator:',
+  ],
+)
+await architecture('production composition declares replaceable distributed seams and fail-closed readiness', 'packages/core/src/production-control.ts', ['distributed targets require every provider', 'LOCAL_SINGLE_HOST', "providerValue.status !== 'READY'", "providerValue.deployment !== 'EXTERNAL'"])
+await architecture('SQLite production mode truthfully declares local limitations and backup evidence', 'packages/storage-sqlite/src/production-control.ts', ['replace with a MilitaryLedger PostgreSQL adapter', 'object-store adapter', 'KMS', 'consistent VACUUM INTO backup'])
+await architecture('external Flash acceptance enforces N>=50 and Wilson lower bounds', 'scripts/verify-flash-acceptance.mjs', ['independentSessionsPerScenario: 50', 'firstToolPointEstimate: 0.95', 'firstToolWilsonLowerBound: 0.85', 'e2ePointEstimate: 0.90', 'e2eWilsonLowerBound: 0.80'])
 
 const severityOrder = { CRITICAL: 0, HIGH: 1, MEDIUM: 2, LOW: 3 }
 findings.sort((left, right) => severityOrder[left.severity] - severityOrder[right.severity]
@@ -108,13 +166,7 @@ function scan(path, text) {
   }
   match(path, text, /\[\s*['"](?:push|pull|fetch|remote|rebase|clone)['"]/gu, 'CRITICAL', 'REMOTE_GIT_OPERATION', 'Remote or history-rewriting Git argv is forbidden in the plugin runtime.')
   match(path, text, /\[\s*['"]push['"][^\]]*['"]--force(?:-with-lease)?['"]/gu, 'CRITICAL', 'FORCE_PUSH', 'Force push is forbidden.')
-  for (const occurrence of occurrences(text, /\[\s*['"]reset['"]\s*,\s*['"]--hard['"]/gu)) {
-    const allowed = path === 'packages/infrastructure/src/integration.ts'
-      && text.includes('// SAFETY: execute() proved the controlled local-main worktree was clean')
-      && text.includes('await git.requireMaterialClean(signal)')
-      && text.includes("['reset', '--hard', beforeHead]")
-    if (!allowed) add('HIGH', 'DESTRUCTIVE_GIT', path, occurrence.line, 'git reset --hard is permitted only as the reviewed clean-main integration rollback.')
-  }
+  match(path, text, /\[\s*['"]reset['"]\s*,\s*['"]--hard['"]/gu, 'HIGH', 'DESTRUCTIVE_GIT', 'git reset --hard is forbidden; isolated staging and ff-only integration must make rollback unnecessary.')
   match(path, text, /\[\s*['"]clean['"]\s*,\s*['"]-fd/gu, 'HIGH', 'DESTRUCTIVE_GIT', 'git clean is forbidden.')
   match(path, text, /catch\s*\{\s*\}/gu, 'HIGH', 'EMPTY_CATCH', 'Empty catch blocks hide evidence.')
   match(path, text, /\b(?:TODO|FIXME|HACK)\b/gu, 'MEDIUM', 'UNRESOLVED_MARKER', 'Unresolved implementation marker.')
@@ -171,12 +223,19 @@ async function reviewSourcePollution() {
 }
 
 async function architecture(name, path, needles) {
-  let text = ''
-  try { text = await readFile(path, 'utf8') } catch {}
+  const paths = Array.isArray(path) ? path : [path]
+  const parts = []
+  for (const candidate of paths) {
+    try {
+      parts.push(await readFile(candidate, 'utf8'))
+    } catch {}
+  }
+  const text = parts.join('\n')
   const missing = needles.filter(needle => !text.includes(needle))
   const passed = missing.length === 0
-  checks.push({ name, passed, path, missing })
-  if (!passed) add('HIGH', 'ARCHITECTURE_GAP', path, 0, `${name} is missing: ${missing.join(', ')}`)
+  const reportedPath = paths.join(', ')
+  checks.push({ name, passed, path: reportedPath, missing })
+  if (!passed) add('HIGH', 'ARCHITECTURE_GAP', reportedPath, 0, `${name} is missing: ${missing.join(', ')}`)
 }
 
 function match(path, text, pattern, severity, code, message) {

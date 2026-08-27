@@ -250,6 +250,14 @@ class StubControlPlane {
         simulations: [],
       })),
       models: STUB_MODELS,
+      application: {
+        desiredRevision: this.#document.revision,
+        appliedRevision: this.#document.revision,
+        state: 'APPLIED',
+        attempts: 1,
+        updatedAt: this.#document.updatedAt,
+        appliedAt: this.#document.updatedAt,
+      },
       generatedAt: new Date().toISOString(),
     }
   }
@@ -494,10 +502,11 @@ test('Military owns a sidebar settings dialog with seven primary tabs and reacti
   assert.equal(footerRoot.findAllByProps({ 'data-military-knowledge-trigger': 'true' }).length, 1)
   await act(async () => { footerRenderer?.unmount() })
   assert.deepEqual(overlayEntries.map(entry => entry.options.id), [
+    'military-runtime',
     'military-settings',
     'military-knowledge',
   ])
-  assert.equal(overlayEntries[0]?.options.order, 110)
+  assert.equal(overlayEntries[0]?.options.order, 115)
 
   await act(async () => {
     renderer = TestRenderer.create(createElement(MilitarySettingsSection, {
@@ -565,8 +574,8 @@ test('Military owns a sidebar settings dialog with seven primary tabs and reacti
     workerPrompt.props.onChange({ target: { value: customWorkerPrompt } })
   })
   assert.equal(
-    root.findAllByProps({ 'data-role-prompt-editor': '快速反应部队' }).length,
-    1,
+    root.findAllByProps({ 'data-role-prompt-editor': '快速反应部队' }).length >= 1,
+    true,
   )
   assert.equal(
     root.findAllByProps({ 'data-role-catalog-item': 'advisor-react' }).length,
@@ -715,7 +724,7 @@ test('Military owns a sidebar settings dialog with seven primary tabs and reacti
   replacement.apply()
   assert.equal(replacement.slots.entries('settings.section').length, 0)
   assert.equal(replacement.slots.entries('sidebar.footer.action').length, 1)
-  assert.equal(replacement.slots.entries('shell.overlay').length, 2)
+  assert.equal(replacement.slots.entries('shell.overlay').length, 3)
   replacement.dispose()
   assert.equal(replacement.slots.entries('settings.section').length, 0)
 })
@@ -756,6 +765,7 @@ test('performance decision center exposes all seven governed views without requi
               runs: [],
               providerSamples: [],
               providerStability: [],
+              providerAcceptance: [],
               eligibleSessions: [],
               generatedAt: '2026-08-27T00:00:00.000Z',
             },

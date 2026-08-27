@@ -1,5 +1,5 @@
 /** Read a content-addressed Military artifact under the caller's capability and data policy. */
-import type {} from '@dsh-military/plugin-host'
+import type {} from '@dsh-military/runtime'
 import type { Context } from '@deepseek-ai/cordis'
 import type { ToolDefinition } from '@deepseek-ai/dsh-tools'
 import { brand, MilitaryError } from '@dsh-military/contracts'

@@ -2,12 +2,23 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import type { Context } from '@deepseek-ai/cordis'
+import type { Agent } from '@deepseek-ai/dsh-agent'
 import {
   brand,
   generalMilitaryToolNames,
+  type MilitaryRole,
   workerMilitaryToolNames,
 } from '@dsh-military/contracts'
-import { defaultModelProfiles, defaultToolProfiles } from '@dsh-military/plugin-host'
+import {
+  defaultModelProfiles,
+  defaultToolProfiles,
+  ENGINEER_PHASE_TOOLS,
+  INSPECTOR_PHASE_TOOLS,
+  RESEARCH_PHASE_TOOLS,
+  resolvePhaseVisibleTools,
+  STAFF_PHASE_TOOLS,
+  WORKER_PHASE_TOOLS,
+} from '@dsh-military/plugin-host'
 import {
   compileTaskDraft,
   engineerTools,
@@ -21,6 +32,7 @@ import {
   staffTools,
   workerTools,
 } from '@dsh-military/tools'
+import { createAgentPlaneState } from '../packages/plugin-host/src/agent-plane-state.js'
 
 const context = {} as Context
 
@@ -56,10 +68,9 @@ test('Flash receives a shallow Task draft while Host owns canonical identity and
     readonly required: readonly string[]
   }
   for (const required of [
-    'taskKey',
     'objective',
     'assignedRole',
-    'scope',
+    'writePaths',
     'acceptanceCriteria',
   ]) {
     assert.ok(parameters.required.includes(required), `missing required draft field ${required}`)
@@ -70,6 +81,15 @@ test('Flash receives a shallow Task draft while Host owns canonical identity and
     'waveId',
     'taskId',
     'taskVersion',
+    'taskKey',
+    'direction',
+    'wave',
+    'scope',
+    'dependencies',
+    'stopConditions',
+    'escalationConditions',
+    'contextFootprint',
+    'budget',
     'complexity',
     'requiredEvidence',
     'acceptance',
@@ -79,17 +99,11 @@ test('Flash receives a shallow Task draft while Host owns canonical identity and
   }
 
   const input = {
-    taskKey: 'specs-bootstrap',
-    direction: 'Make intent executable',
-    wave: 'Wave 1',
     objective: 'Create the initial sustainable specs.',
     whyItMatters: 'Workers need a canonical implementation contract.',
     taskType: 'specs',
     assignedRole: 'engineer',
-    scope: {
-      readPaths: ['.'],
-      writePaths: ['specs', 'docs'],
-    },
+    writePaths: ['specs', 'docs'],
     acceptanceCriteria: ['All specs references resolve.', 'A local-main commit receipt exists.'],
   }
   const missionId = brand<string, 'MissionId'>('mission-flash-contract')
@@ -118,10 +132,20 @@ test('Flash receives a shallow Task draft while Host owns canonical identity and
     wallClockSeconds: 7_200,
     maxOutputTokens: 16_384,
   })
+  assert.deepEqual(first.order.scope, {
+    readPaths: ['.'],
+    writePaths: ['specs', 'docs'],
+    forbiddenPaths: ['.git', '.dsh-military/control', '.dsh-military/secrets'],
+  })
   assert.throws(
     () => compileTaskDraft({
       value: {
         ...input,
+        taskKey: 'advanced-invalid-budget',
+        scope: {
+          readPaths: ['.'],
+          writePaths: ['specs', 'docs'],
+        },
         budget: { modelSteps: 65 },
       },
       missionId,
@@ -341,7 +365,62 @@ test('immutable ToolProfiles expose only the Military vocabulary for each role',
     if (profile.toolProfileId !== 'general-tools') {
       assert.equal(profile.allowTools.includes('report'), true, profile.toolProfileId)
     }
-    assert.equal(Number(profile.revision), 6)
+    assert.equal(Number(profile.revision), 7)
+  }
+})
+
+test('every Host-owned model phase exposes one to four ToolProfile-authorized tools', async () => {
+  const profiles = new Map(defaultToolProfiles().map(profile => [profile.toolProfileId, profile]))
+  const assertPhaseMap = (
+    profileId: string,
+    phases: Readonly<Record<string, ReadonlySet<string>>>,
+  ): void => {
+    const profile = profiles.get(profileId)
+    assert.ok(profile)
+    for (const [phase, tools] of Object.entries(phases)) {
+      assert.ok(tools.size >= 1 && tools.size <= 4, `${profileId}.${phase} has ${tools.size} tools`)
+      for (const name of tools) {
+        assert.ok(profile.allowTools.includes(name), `${profileId}.${phase} leaks ${name}`)
+      }
+    }
+  }
+  assertPhaseMap('worker-tools', WORKER_PHASE_TOOLS)
+  assertPhaseMap('engineer-tools', ENGINEER_PHASE_TOOLS)
+  assertPhaseMap('staff-tools', STAFF_PHASE_TOOLS)
+  assertPhaseMap('inspector-tools', { ACTIVE: INSPECTOR_PHASE_TOOLS })
+  assertPhaseMap('research-tools', { ACTIVE: RESEARCH_PHASE_TOOLS })
+
+  const roles: readonly MilitaryRole[] = [
+    'general',
+    'advisor',
+    'chief-of-staff',
+    'worker',
+    'engineer',
+    'inspector',
+    'trajectory',
+    'effectiveness',
+    'museum',
+    'evaluation-examiner',
+    'evaluation-chair',
+    'harness',
+  ]
+  for (const role of roles) {
+    const agent = { id: `phase-${role}` } as unknown as Agent
+    const state = createAgentPlaneState()
+    const host = {
+      async identityFor() {
+        return {
+          agentId: `phase-${role}`,
+          sessionId: `session-${role}`,
+          role,
+          displayName: role,
+          generation: 1,
+        }
+      },
+    } as unknown as Parameters<typeof resolvePhaseVisibleTools>[0]
+    const visible = await resolvePhaseVisibleTools(host, agent, state)
+    assert.ok(visible)
+    assert.ok(visible.size >= 1 && visible.size <= 4, `${role} has ${visible.size} tools`)
   }
 })
 

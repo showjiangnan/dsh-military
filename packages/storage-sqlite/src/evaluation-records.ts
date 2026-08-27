@@ -59,29 +59,39 @@ export class SqliteEvaluationDatasetArchive implements EvaluationDatasetArchive 
   }
 
   async write(manifest: EvaluationDatasetManifest): Promise<void> {
-    const current = await this.read(
-      brand<string, 'EvaluationRequestId'>(manifest.evaluationRequestId),
-    )
-    if (current !== null) {
-      if (stableJson(current) !== stableJson(manifest)) {
-        throw new MilitaryError(
-          'IDEMPOTENCY_CONFLICT',
-          'evaluation request already owns another frozen dataset manifest',
-        )
+    this.#database.transaction(() => {
+      const row = this.#database.db.prepare(`
+        SELECT manifest_json
+        FROM evaluation_dataset_manifests
+        WHERE tenant_id = ? AND evaluation_request_id = ?
+      `).get(
+        this.#tenantId,
+        manifest.evaluationRequestId,
+      ) as ManifestRow | undefined
+      if (row !== undefined) {
+        const current = JSON.parse(
+          row.manifest_json,
+        ) as EvaluationDatasetManifest
+        if (stableJson(current) !== stableJson(manifest)) {
+          throw new MilitaryError(
+            'IDEMPOTENCY_CONFLICT',
+            'evaluation request already owns another frozen dataset manifest',
+          )
+        }
+        return
       }
-      return
-    }
-    this.#database.db.prepare(`
-      INSERT INTO evaluation_dataset_manifests(
-        tenant_id, evaluation_request_id, dataset_hash, manifest_json, frozen_at
-      ) VALUES (?, ?, ?, ?, ?)
-    `).run(
-      this.#tenantId,
-      manifest.evaluationRequestId,
-      String(manifest.datasetHash),
-      stableJson(manifest),
-      String(manifest.frozenAt),
-    )
+      this.#database.db.prepare(`
+        INSERT INTO evaluation_dataset_manifests(
+          tenant_id, evaluation_request_id, dataset_hash, manifest_json, frozen_at
+        ) VALUES (?, ?, ?, ?, ?)
+      `).run(
+        this.#tenantId,
+        manifest.evaluationRequestId,
+        String(manifest.datasetHash),
+        stableJson(manifest),
+        String(manifest.frozenAt),
+      )
+    })
   }
 }
 
@@ -133,8 +143,12 @@ export class SqliteEvaluationRecordStore implements EvaluationRecordStore {
           mediaType: 'application/vnd.dsh-military.performance-report+json',
           classification: record.report.classification,
           description: `Military performance report ${String(record.report.reportId)} revision ${Number(record.report.reportRevision)}`,
+          tenantId: this.#tenantId,
+          ownerPrincipalId: 'military-evaluation-engine',
+          audiencePrincipalIds: ['military-host', 'military-evaluation-engine'],
+          audienceScopes: ['artifact:read', 'military:evaluation-report'],
         })
-    await this.#database.transactionAsync(async () => {
+    this.#database.transaction(() => {
       const key = String(record.request.evaluationRequestId)
       const previous = this.#database.db.prepare(`
         SELECT storage_revision, record_json
@@ -276,38 +290,42 @@ export class SqliteEvaluationRecordStore implements EvaluationRecordStore {
     lease: EvaluationLeaseFence,
     leaseUntil: string,
   ): Promise<void> {
-    const changed = this.#database.db.prepare(`
-      UPDATE evaluation_jobs
-      SET lease_until = ?, updated_at = ?
-      WHERE tenant_id = ? AND evaluation_request_id = ?
-        AND lease_owner = ? AND lease_version = ?
-        AND state NOT IN ('COMPLETED', 'CANCELLED')
-    `).run(
-      leaseUntil,
-      new Date().toISOString(),
-      this.#tenantId,
-      String(lease.evaluationRequestId),
-      lease.owner,
-      lease.version,
-    )
-    if (Number(changed.changes) !== 1) {
-      throw new MilitaryError('REVISION_CONFLICT', 'evaluation lease renewal failed')
-    }
+    this.#database.transaction(() => {
+      const changed = this.#database.db.prepare(`
+        UPDATE evaluation_jobs
+        SET lease_until = ?, updated_at = ?
+        WHERE tenant_id = ? AND evaluation_request_id = ?
+          AND lease_owner = ? AND lease_version = ?
+          AND state NOT IN ('COMPLETED', 'CANCELLED')
+      `).run(
+        leaseUntil,
+        new Date().toISOString(),
+        this.#tenantId,
+        String(lease.evaluationRequestId),
+        lease.owner,
+        lease.version,
+      )
+      if (Number(changed.changes) !== 1) {
+        throw new MilitaryError('REVISION_CONFLICT', 'evaluation lease renewal failed')
+      }
+    })
   }
 
   async release(lease: EvaluationLeaseFence): Promise<void> {
-    this.#database.db.prepare(`
-      UPDATE evaluation_jobs
-      SET lease_owner = NULL, lease_until = NULL, updated_at = ?
-      WHERE tenant_id = ? AND evaluation_request_id = ?
-        AND lease_owner = ? AND lease_version = ?
-    `).run(
-      new Date().toISOString(),
-      this.#tenantId,
-      String(lease.evaluationRequestId),
-      lease.owner,
-      lease.version,
-    )
+    this.#database.transaction(() => {
+      this.#database.db.prepare(`
+        UPDATE evaluation_jobs
+        SET lease_owner = NULL, lease_until = NULL, updated_at = ?
+        WHERE tenant_id = ? AND evaluation_request_id = ?
+          AND lease_owner = ? AND lease_version = ?
+      `).run(
+        new Date().toISOString(),
+        this.#tenantId,
+        String(lease.evaluationRequestId),
+        lease.owner,
+        lease.version,
+      )
+    })
   }
 
   #recordReport(

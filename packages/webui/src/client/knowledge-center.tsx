@@ -29,6 +29,10 @@ import type {
   TacticalTag,
 } from '@dsh-military/contracts'
 import { useDialogFocus } from './dialog-accessibility.js'
+import {
+  callMilitaryRpc,
+  useMilitaryRefreshLoop,
+} from './query-client.js'
 
 type Scope = SettingsScope<Record<string, unknown>>
 
@@ -131,8 +135,8 @@ function KnowledgeCenter(props: {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const refreshInFlight = useRef(false)
-  const refresh = useCallback(async (signal?: AbortSignal): Promise<void> => {
-    if (refreshInFlight.current) return
+  const refresh = useCallback(async (signal?: AbortSignal): Promise<boolean> => {
+    if (refreshInFlight.current) return true
     refreshInFlight.current = true
     try {
       const next = await fetchKnowledgeSnapshot(connection, signal)
@@ -140,25 +144,22 @@ function KnowledgeCenter(props: {
         setSnapshot(next)
         setError('')
       }
+      return signal?.aborted !== true
     } catch (refreshError) {
       if (signal?.aborted !== true) {
         setError(refreshError instanceof Error ? refreshError.message : String(refreshError))
       }
+      return false
     } finally {
       refreshInFlight.current = false
       if (signal?.aborted !== true) setLoading(false)
     }
   }, [connection])
-  useEffect(() => {
-    const controller = new AbortController()
-    void refresh(controller.signal)
-    const timer = window.setInterval(() => { void refresh(controller.signal) }, 2_000)
-    return () => {
-      window.clearInterval(timer)
-      controller.abort()
-      refreshInFlight.current = false
-    }
-  }, [refresh])
+  useMilitaryRefreshLoop({
+    key: 'military-knowledge-snapshot',
+    refresh,
+    intervalMs: 5_000,
+  })
   const dispatch = useCallback(async (action: Record<string, unknown>, message: string): Promise<void> => {
     if (busy) return
     setBusy(true)
@@ -1374,14 +1375,13 @@ export async function fetchKnowledgeSnapshot(
   connection: Pick<ConnectionHandle, 'rpc'>,
   signal?: AbortSignal,
 ): Promise<KnowledgeSnapshot> {
-  const response = await connection.rpc.call(
-    '/api',
-    'militaryPrivateSkills/snapshot',
-    { args: {} },
-    signal,
-  )
-  if (!response.ok) throw new Error(response.error.message)
-  return parseKnowledgeSnapshot(response.value)
+  return parseKnowledgeSnapshot(await callMilitaryRpc(
+    connection,
+    'militaryPrivateSkills',
+    'snapshot',
+    {},
+    { signal, key: 'military-private-skills-snapshot' },
+  ))
 }
 
 export async function dispatchKnowledgeAction(
@@ -1392,13 +1392,14 @@ export async function dispatchKnowledgeAction(
   const operationId = typeof action.operationId === 'string'
     ? action.operationId
     : `web-${Date.now().toString(36)}-${globalThis.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2)}`
-  const invoke = async () => await connection.rpc.call(
-      '/api',
-      'militaryPrivateSkills/execute',
-      { args: { action: { ...action, operationId } } },
-      signal,
+  const invoke = async () => await callMilitaryRpc(
+      connection,
+      'militaryPrivateSkills',
+      'execute',
+      { action: { ...action, operationId } },
+      { signal, dedupe: false },
     )
-  let response: Awaited<ReturnType<typeof invoke>>
+  let response: unknown
   try {
     response = await invoke()
   } catch (error) {
@@ -1407,8 +1408,7 @@ export async function dispatchKnowledgeAction(
     // arrive as structured responses and are never retried here.
     response = await invoke().catch(() => { throw error })
   }
-  if (!response.ok) throw new Error(response.error.message)
-  return response.value
+  return response
 }
 
 function viewCount(view: ViewId, operation: KnowledgeSnapshot['operation']): number {

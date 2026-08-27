@@ -6,7 +6,7 @@ WebUI 不只是展示军事组织名词，而是所有高风险管理动作的�
 
 ## 1.1 实施状态
 
-`0.9.0-alpha.24` 已实现独立 Settings/Knowledge Modal、七个一级选项卡、角色
+`0.9.0-alpha.25` 已实现独立 Settings/Knowledge Modal、七个一级选项卡、角色
 工作台、revision 冲突、字段 Diff、可移植导入导出、诊断与恢复、Specs
 Workspace、固定基准、知识供应链透明度、模拟召回和键盘/IME/高对比度合同。
 这些页面读取 Military 自有 Remote/Projection，不依赖未知外部 Session Event。
@@ -169,19 +169,22 @@ rank、匹配/排除原因和最终投放片段。
 
 当前固定基准页首先展示 `military-flash-core-v1`、dataset hash、九个场景和
 deterministic/Provider 两类结果。真实样本固定 exact route、role revision、
-reasoning、ToolProfile 和预算；N<10 或区间过宽不形成稳定结论。支持：
+reasoning、ToolProfile 和预算；N<10 或区间过宽不形成观察趋势的稳定结论，
+发布 acceptance 仍要求每个 exact configuration × scenario N≥50。支持：
 
 - 运行全部确定性场景；
 - 从既有真实 Session 生成 Provider 观察；
 - 查看首次命中、Schema、纠正、完成、写 receipt、父唤醒、tokens 和延迟；
-- 按 exact route/场景查看样本量、通过率和稳定性。
+- 按 exact route/场景查看样本量、通过率和稳定性；
+- 导出 Host-assessed evidence，并显示逐场景 N≥50、首次工具/E2E Wilson 门和
+  四类零安全失败的发行 acceptance。
 
-完整委员会报告的难度校正、双评委、导出、申诉和 superseding revision 仍属于
-后续页面。样本不足时不显示“稳定”或模型晋升结论。
+完整委员会报告的难度校正、可选叙事评委、导出、申诉和 superseding revision
+由绩效七视图提供。样本不足时不显示“稳定”、外部 acceptance 或模型晋升结论。
 
 ## 12. 可访问性与规模
 
-- 两个弹窗具有初始焦点、Tab/Shift+Tab 捕获和关闭后焦点返回；
+- 三个弹窗具有初始焦点、Tab/Shift+Tab 捕获和关闭后焦点返回；
 - 七个一级选项卡使用 `tablist/tab/tabpanel`，支持方向键和 Home/End；
 - 角色目录使用 `listbox/option` 与 roving focus；
 - 简体中文 IME composition 期间不执行快捷键；
@@ -221,7 +224,7 @@ reasoning、ToolProfile 和预算；N<10 或区间过宽不形成稳定结论。
 - 六层 Prompt 预览、readiness、离线模拟和显式 Canary；
 - Host workspace 选择、长路径、Git dirty/untracked 和未知 ID 拒绝；
 - 恢复预览、错误确认短语和幂等 receipt；
-- 固定九场景与 Provider N<5 样本保护；
+- 固定九场景、Provider 趋势 N<10 保护及发行 N<50/Wilson/安全失败拒绝；
 - sanitized 知识透明度和真实/模拟 recall 同结果；
 - 问题被另一标签页回答；
 - 浏览器刷新后长任务恢复；

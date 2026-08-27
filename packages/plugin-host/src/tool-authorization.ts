@@ -6,10 +6,13 @@ import {
   isoNow,
   type AgentExecutionBinding,
   type AgentIdentity,
+  type DataClassification,
   type IsoDateTime,
   type PermissionProfile,
   type ResourceBudgetReservation,
   type ResourceCounters,
+  type ResourceUsageReceipt,
+  type MilitaryResourceBudgets,
 } from '@dsh-military/contracts'
 import {
   normalizeWorkspacePath,
@@ -19,6 +22,7 @@ import {
   zeroCounters,
 } from '@dsh-military/core'
 import type { MilitaryHostRuntime } from './context.js'
+import { hostToolFailure, roleRecoveryTool } from './tool-error.js'
 
 /**
  * Complete department-tool admission boundary. It canonicalizes and scopes a
@@ -38,7 +42,13 @@ export async function authorizeDepartmentToolExecution(
   if (profile.denyTools.includes(exec.name) || !profile.allowTools.includes(exec.name)) {
     return {
       kind: 'deny',
-      reason: `tool ${exec.name} is outside ${profile.toolProfileId}@${Number(profile.revision)}`,
+      reason: hostToolFailure(exec.agent, {
+        code: 'POLICY_DENIED',
+        message: `tool ${exec.name} is outside ${profile.toolProfileId}@${Number(profile.revision)}`,
+        retryable: false,
+        nextTool: roleRecoveryTool(binding.agent.role),
+        recovery: 'Use nextTool to report the immutable ToolProfile mismatch; do not substitute a generic or unlisted tool.',
+      }),
     }
   }
   const permission = await host.application.policies.permissionProfile(
@@ -47,7 +57,16 @@ export async function authorizeDepartmentToolExecution(
   )
   const pathAuthorization = await authorizeToolPath(host, binding, permission, exec)
   if (pathAuthorization.denial !== undefined) {
-    return { kind: 'deny', reason: pathAuthorization.denial }
+    return {
+      kind: 'deny',
+      reason: hostToolFailure(exec.agent, {
+        code: 'FORBIDDEN_SCOPE',
+        message: pathAuthorization.denial,
+        retryable: false,
+        nextTool: exec.name,
+        recovery: 'Call nextTool only with correctedShape and a Task-relative path inside the immutable scope; never copy a Host absolute path.',
+      }),
+    }
   }
   try {
     const context = await host.application.authorization.resolve(
@@ -58,13 +77,34 @@ export async function authorizeDepartmentToolExecution(
       context,
       action: 'tool.execute',
       resource: `${exec.name}:${pathAuthorization.resource ?? '*'}`,
-      classification: 'internal',
+      classification: toolExecutionClassification(
+        exec,
+        binding.dataClassification ?? 'internal',
+      ),
     })
     if (!authority.allowed) {
-      return { kind: 'deny', reason: `authority denied: ${authority.reason ?? 'no matching authority'}` }
+      return {
+        kind: 'deny',
+        reason: hostToolFailure(exec.agent, {
+          code: 'UNAUTHORIZED',
+          message: `authority denied: ${authority.reason ?? 'no matching authority'}`,
+          retryable: false,
+          nextTool: roleRecoveryTool(binding.agent.role),
+          recovery: 'Use nextTool to report the authority denial; do not retry the denied operation.',
+        }),
+      }
     }
   } catch (error) {
-    return { kind: 'deny', reason: `authority denied: ${errorMessage(error)}` }
+    return {
+      kind: 'deny',
+      reason: hostToolFailure(exec.agent, {
+        code: 'UNAUTHORIZED',
+        message: `authority resolution failed: ${errorMessage(error)}`,
+        retryable: false,
+        nextTool: roleRecoveryTool(binding.agent.role),
+        recovery: 'Use nextTool to report the authority failure; do not retry the denied operation.',
+      }),
+    }
   }
 
   const downstream = await next()
@@ -73,7 +113,16 @@ export async function authorizeDepartmentToolExecution(
   try {
     reservation = await reserveToolExecutionBudget(host, binding.agent, binding, exec)
   } catch (error) {
-    return { kind: 'deny', reason: `resource budget denied: ${errorMessage(error)}` }
+    return {
+      kind: 'deny',
+      reason: hostToolFailure(exec.agent, {
+        code: 'BUDGET_RESERVATION_REQUIRED',
+        message: `resource budget admission failed: ${errorMessage(error)}`,
+        retryable: false,
+        nextTool: roleRecoveryTool(binding.agent.role),
+        recovery: 'Use nextTool once to report the budget block; do not repeat the blocked side effect.',
+      }),
+    }
   }
   try {
     await host.application.capabilityGrants.consume(binding.capabilityGrantId, {
@@ -87,13 +136,42 @@ export async function authorizeDepartmentToolExecution(
       reservation.reservationId,
       'CAPABILITY_GRANT_DENIED',
     ).catch(() => undefined)
-    return { kind: 'deny', reason: `capability grant denied: ${errorMessage(error)}` }
+    return {
+      kind: 'deny',
+      reason: hostToolFailure(exec.agent, {
+        code: 'POLICY_DENIED',
+        message: `capability grant admission failed: ${errorMessage(error)}`,
+        retryable: false,
+        nextTool: roleRecoveryTool(binding.agent.role),
+        recovery: 'Use nextTool once to report the grant block; do not repeat the blocked side effect.',
+      }),
+    }
   }
   return downstream
 }
 
+/** Use observed call context; a permission ceiling is never an actual label. */
+export function toolExecutionClassification(
+  exec: Pick<ToolExecution, 'arguments'>,
+  fallback: DataClassification,
+): DataClassification {
+  if (typeof exec.arguments !== 'object'
+    || exec.arguments === null
+    || Array.isArray(exec.arguments)) return fallback
+  const value = (exec.arguments as Record<string, unknown>).classification
+  return value === 'public'
+    || value === 'internal'
+    || value === 'confidential'
+    || value === 'restricted'
+    ? value
+    : fallback
+}
+
 /** Deterministic call-level key shared by budget and Capability Grant admission. */
-export function toolBudgetReservationId(identity: AgentIdentity, exec: ToolExecution): string {
+export function toolBudgetReservationId(
+  identity: AgentIdentity,
+  exec: { readonly callId: unknown },
+): string {
   const digest = sha256(stableJson({
     agentId: String(identity.agentId),
     generation: identity.generation,
@@ -186,9 +264,58 @@ export async function settleToolExecutionBudget(
   result: unknown,
   completedAt: IsoDateTime,
 ): Promise<void> {
-  const reservationId = toolBudgetReservationId(identity, exec)
-  const reservation = await host.application.resourceBudgets.getReservation(reservationId)
+  const reservation = await host.application.resourceBudgets.getReservation(
+    toolBudgetReservationId(identity, exec),
+  )
   if (reservation.state === 'SETTLED') return
+  const receipt = await toolExecutionUsageReceipt(
+    host,
+    identity,
+    exec,
+    result,
+    completedAt,
+  )
+  await host.application.resourceBudgets.settle(receipt)
+}
+
+export async function toolExecutionUsageReceipt(
+  host: MilitaryHostRuntime,
+  identity: AgentIdentity,
+  exec: ToolExecution,
+  result: unknown,
+  completedAt: IsoDateTime,
+): Promise<ResourceUsageReceipt> {
+  return await toolExecutionUsageReceiptFromIntent(
+    host.application.resourceBudgets,
+    {
+    identity,
+    toolName: exec.name,
+    callId: String(exec.callId),
+    result,
+    completedAt,
+    },
+  )
+}
+
+export interface ToolExecutionUsageIntent {
+  readonly identity: AgentIdentity
+  readonly toolName: string
+  readonly callId: string
+  readonly result: unknown
+  readonly completedAt: IsoDateTime
+}
+
+export async function toolExecutionUsageReceiptFromIntent(
+  resourceBudgets: MilitaryResourceBudgets,
+  intent: ToolExecutionUsageIntent,
+): Promise<ResourceUsageReceipt> {
+  const reservationId = toolBudgetReservationId(intent.identity, {
+    callId: intent.callId,
+  })
+  const reservation = await resourceBudgets.getReservation(reservationId)
+  if (reservation.state === 'SETTLED') {
+    throw new Error(`tool budget reservation ${reservationId} is already SETTLED`)
+  }
   if (reservation.state !== 'RESERVED') {
     throw new Error(`tool budget reservation ${reservationId} is ${reservation.state}`)
   }
@@ -196,14 +323,14 @@ export async function settleToolExecutionBudget(
     ...zeroCounters(),
     wallClockSeconds: Math.max(
       0,
-      Math.ceil((Date.parse(completedAt) - Date.parse(reservation.reservedAt)) / 1000),
+      Math.ceil((Date.parse(intent.completedAt) - Date.parse(reservation.reservedAt)) / 1000),
     ),
     toolCalls: 1,
-    apiCalls: isNetworkTool(exec.name) ? 1 : 0,
-    storageBytes: new TextEncoder().encode(stableJson(result)).byteLength,
+    apiCalls: isNetworkTool(intent.toolName) ? 1 : 0,
+    storageBytes: new TextEncoder().encode(stableJson(intent.result)).byteLength,
   }
   const overages = subtractCounters(actual, reservation.granted)
-  await host.application.resourceBudgets.settle({
+  return {
     schemaVersion: '1.0.0',
     receiptId: `${reservationId}:usage`,
     reservationId,
@@ -212,11 +339,11 @@ export async function settleToolExecutionBudget(
     actual,
     overages,
     disposition: Object.values(overages).some(value => value > 0) ? 'OVER_BUDGET' : 'SETTLED',
-    sourceEventIds: [`tool:${String(exec.callId)}`],
+    sourceEventIds: [`tool:${intent.callId}`],
     idempotencyKey: `${reservationId}:settle`,
     startedAt: reservation.reservedAt,
-    completedAt,
-  })
+    completedAt: intent.completedAt,
+  }
 }
 
 async function authorizeToolPath(
@@ -231,8 +358,18 @@ async function authorizeToolPath(
   if (args['sandbox_permissions'] !== undefined || args['justification'] !== undefined) {
     return { denial: 'department Agents cannot request sandbox escalation outside their immutable permission profile' }
   }
-  const write = exec.name === 'write' || exec.name === 'edit'
-  const read = exec.name === 'read' || exec.name === 'read_image' || exec.name === 'glob' || exec.name === 'grep'
+  const taskFacade = exec.name.startsWith('military_workspace_')
+  const write = exec.name === 'write'
+    || exec.name === 'edit'
+    || exec.name === 'military_workspace_write'
+    || exec.name === 'military_workspace_edit'
+  const read = exec.name === 'read'
+    || exec.name === 'read_image'
+    || exec.name === 'glob'
+    || exec.name === 'grep'
+    || exec.name === 'military_workspace_read'
+    || exec.name === 'military_workspace_list'
+    || exec.name === 'military_workspace_search'
   if (!write && !read) return {}
   const raw = typeof args['file_path'] === 'string'
     ? args['file_path']
@@ -244,13 +381,15 @@ async function authorizeToolPath(
   let requireAbsolute = false
   if (binding.workspace !== undefined) {
     executionRoot = resolve(host.application.workspaces.executionPath(binding.workspace.leaseId))
-    const pathPolicy = taskBoundToolPathPolicy({
-      executionRoot,
-      sessionCwd: exec.agent?.session.header.cwd,
-      raw,
-    })
-    if (pathPolicy.denial !== undefined) return { denial: pathPolicy.denial }
-    requireAbsolute = pathPolicy.requireAbsolute
+    if (!taskFacade) {
+      const pathPolicy = taskBoundToolPathPolicy({
+        executionRoot,
+        sessionCwd: exec.agent?.session.header.cwd,
+        raw,
+      })
+      if (pathPolicy.denial !== undefined) return { denial: pathPolicy.denial }
+      requireAbsolute = pathPolicy.requireAbsolute
+    }
     const order = await host.application.runtime.getTask(brand<string, 'TaskId'>(binding.workspace.taskId))
     if (Number(order.taskVersion) !== binding.workspace.taskVersion) {
       return { denial: 'workspace Task version is stale' }

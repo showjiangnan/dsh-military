@@ -1,18 +1,19 @@
 # dsh-military：验证驱动的多代理组织 Bundle
 
-> 源码实现：`0.9.0-alpha.24`；文档契约：`0.9.0-draft`  
+> 源码实现：`0.9.0-alpha.25`；文档契约：`0.9.0-draft`
 > 完整支持基线：`dsh@0.1.1-rc.2`，commit `b150a551b8d465e31e418e1b2eaf5e79bbb7d28e`  
 > 固定公开 preset：`military`  
 > 文档语言：中文；机器契约使用稳定英文标识。
 
 ## 1. 项目定位
 
-> **0.9.0-alpha.24 的 Web 边界：** 当前源码实现侧栏独立
+> **0.9.0-alpha.25 的 Web 边界：** 当前源码实现侧栏独立
 > `Military 设置中心` 入口、原生弹窗、七个左侧一级选项卡、General/11 部门
 > 单角色工作台、模型目录、简体中文提示词/辅助检查、Prompt 预览、Flash
 > readiness/模拟、revision/回滚、成本、诊断/恢复、Specs 工作区、固定评测，
-> 以及七视图知识中心、供应链透明度和模拟召回。Mission/Task/Radio/Freeze 等
-> 附加运行视图必须通过插件自有 Remote/Projection 实现；RC.2 没有外部
+> 以及 Request→Integration Runtime Center、七视图知识中心、供应链透明度和
+> 模拟召回。Mission/Task/Radio/Decision 等运行视图通过插件自有
+> Remote/Projection 实现；RC.2 没有外部
 > required Session Event 注册面，因此源码不会把 `military/*` 私有事件写入
 > DSH Session Log。
 
@@ -85,7 +86,7 @@ preset default
 
 部署可把军事显示词切换为中性术语，机器 ID 和权限语义保持不变。
 
-## 5. 0.9.0-alpha.24 的源码实现与工程收敛
+## 5. 0.9.0-alpha.25 的源码实现与工程收敛
 
 本版在 0.2.0 组织设计之上补齐了实施前的关键契约：
 
@@ -93,7 +94,9 @@ preset default
 2. **单一契约真源。** Event Catalog 生成判别联合 Schema、TypeScript 和 Golden JSONL；共享字段执行 Schema/TS parity。
 3. **身份、租户和授权。** 所有跨会话、设置、战术、评估和外部动作使用 Authority Context 与 Authorization Receipt。
 4. **隔离 Workspace Integration。** Worker 不直接污染主工作树；Candidate Patch 通过验证和全局回归后才进入 local `main`。
-5. **物理存储与事务。** SQLite 参考 DDL、CAS、Transactional Outbox、Inbox dedupe、Artifact commit 和 migration ledger。
+5. **物理存储与事务。** SQLite 短事务 Command Saga、CAS、ordered
+   Transactional Outbox、Workspace/Execution state、Artifact commit 和
+   migration ledger。
 6. **General 模型优先级。** preset 默认 + 用户会话覆盖，子代理模板路由不跟随切换。
 7. **持久 Decision Broker。** delegated child 只提交问题集，根 General 有序调用 `ask_user_question`。
 8. **RC.2 能力探测。** 完整版本固定 RC.2；关键 seam 缺失时 fail closed。
@@ -104,9 +107,9 @@ preset default
     Accepted Outcome 经济性、可恢复分片、不可变申诉谱系和七视图决策中心。
 12. **Golden Trace 与模型检查。** 关键并发状态、故障窗口、TLA+ 参考和 RC.2 Fixture。
 13. **资源硬预算。** 多级 reservation、背压、无信息增益检测和预算耗尽处置。
-14. **WebUI 控制中心。** 当前实现事务化角色设置、诊断/恢复、Workspace、
-    固定评测、知识透明度/模拟召回和键盘/IME/高对比度合同；运行态
-    Mission/Task/Radio/Freeze Conversation Node 仍属于后续里程碑。
+14. **WebUI 控制中心。** 当前实现 Desired/Applied 角色设置、诊断/恢复、
+    Workspace、Request→Integration Runtime Center、固定评测、知识透明度/
+    模拟召回和键盘/IME/高对比度合同。
 15. **产品安全边界。** 军事名称仅是软件组织隐喻，支持中性显示，不用于现实伤害或人员处分。
 
 ## 6. 核心不变量
@@ -167,6 +170,8 @@ preset default
 6. [RC.2 兼容与适配迁移](docs/65-rc2-compatibility-and-adapter-migration.md)
 7. [Legacy → RC.2 升级运行手册](docs/66-legacy-to-rc2-upgrade-runbook.md)
 8. [Military 控制中心、Flash 工作台与可访问性](docs/67-military-control-center-flash-workbench-and-accessibility.md)
+9. [General 全流程、DSH 全模型与设置持久化](docs/68-general-workflow-live-models-and-settings-persistence.md)
+10. [执行活性、Flash 外部验收与生产可信度](docs/69-execution-liveness-flash-and-production-readiness.md)
 
 ### 源码实现与发布
 
@@ -216,7 +221,7 @@ python scripts/validate_artifacts.py
 
 ## 10. 实施状态
 
-本目录已与 `dsh-military 0.9.0-alpha.24` 源码和 release artifact 同步。默认发布
+本目录已与 `dsh-military 0.9.0-alpha.25` 源码和 release artifact 同步。默认发布
 门禁覆盖本地 strict 与精确 RC.2 checkout 声明编译、构建、148 项测试、
 SQLite/Git/preset/私有 Skill 供应链故障恢复、静态与语义审查、13 个 package
 的 pack/publint、空 DSH Home 安装、真实 Loader 激活和三次 Profile 启动 E2E。
@@ -241,7 +246,8 @@ Military/Standard Session 隔离
 → 角色目录 → 六层有效 Prompt → Flash readiness → 离线模拟/显式 Canary
 → Session 诊断 → 恢复预览/确认 → 幂等 operation receipt
 → Host workspace ID → canonical/Git/lease/integration 可视化
-→ 固定九场景 dataset → 完整 sequence/receipt → Provider 去重 → N<10/宽区间不判稳定
+→ 固定九场景 dataset → 完整 sequence/receipt → Provider 去重
+→ 趋势 N<10/宽区间不判稳定 → 发行 N≥50/Wilson/零安全失败
 → canonical 绩效 Dataset → exact configuration → Mission-cluster 区间
 → Flash/Pro 质量硬门 → Accepted Outcome Pareto → immutable Report/Appeal
 → 来源导入/清洗/Flash 分块提炼 → 审批 → immutable DRAFT Skill

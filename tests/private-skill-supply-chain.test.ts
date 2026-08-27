@@ -40,6 +40,7 @@ import {
 import {
   DshFlashTacticalExtractor,
   installPrivateSkillProvider,
+  localSingleUserWebPrincipal,
   PrivateSkillRemoteService,
   renderTacticApplicabilityCards,
   taskTacticContextCards,
@@ -61,6 +62,7 @@ test('Knowledge Center RPC publishes only the shallow execute and redacted snaps
     const service = new PrivateSkillRemoteService(context, {
       database,
       tenantId: 'tenant-private-skill-rpc',
+      webPrincipal: localSingleUserWebPrincipal('tenant-private-skill-rpc'),
     } as never)
     assert.equal(service.typertRemote.serviceKey, 'militaryPrivateSkills')
     assert.deepEqual(remoteMethods(service), [
@@ -362,6 +364,7 @@ test('private Skill pipeline sanitizes and chunks before Flash, requires user ap
       const service = new PrivateSkillRemoteService(controlContext, {
         database: controlDatabase,
         tenantId: 'tenant-private-skill-control',
+        webPrincipal: localSingleUserWebPrincipal('tenant-private-skill-control'),
         application: { ingestion, tags, artifacts },
         tactics,
         featureSettings: () => ({
@@ -929,10 +932,30 @@ test('source revocation wins a queued SQLite race against private Skill approval
       new SqliteTacticalProcedureStore(database, tenant),
       callback => database.afterCommit(callback),
     )
+    let releaseBundle!: () => void
+    let markBundleBlocked!: () => void
+    const bundleGate = new Promise<void>(resolve => {
+      releaseBundle = resolve
+    })
+    const bundleBlocked = new Promise<void>(resolve => {
+      markBundleBlocked = resolve
+    })
+    const localBundles = new LocalPrivateSkillBundleStore(
+      `${temporary.path}/skills`,
+      artifacts,
+    )
     const ingestion = new TacticalIngestionRuntime({
       artifacts,
       rawVault: new LocalArtifactStore(`${temporary.path}/raw`),
-      bundles: new LocalPrivateSkillBundleStore(`${temporary.path}/skills`, artifacts),
+      bundles: {
+        async write(
+          input: Parameters<LocalPrivateSkillBundleStore['write']>[0],
+        ) {
+          markBundleBlocked()
+          await bundleGate
+          return await localBundles.write(input)
+        },
+      },
       tags,
       repository,
       tactics,
@@ -948,21 +971,6 @@ test('source revocation wins a queued SQLite race against private Skill approval
     const processed = await ingestion.process(job.requestId)
     const candidate = await ingestion.candidateById(processed.candidateId!)
 
-    let releaseBlock!: () => void
-    let markBlocked!: () => void
-    const gate = new Promise<void>(resolve => { releaseBlock = resolve })
-    const blocked = new Promise<void>(resolve => { markBlocked = resolve })
-    const blocker = database.transactionAsync(async () => {
-      markBlocked()
-      await gate
-    })
-    await blocked
-    const revocation = ingestion.revokeSource({
-      sourceHandle: source.sourceHandle,
-      requestedBy: 'user-1',
-      reason: 'OWNER_REQUEST',
-    })
-    await Promise.resolve()
     const approval = ingestion.reviewCandidate({
       candidateId: candidate.candidateId,
       expectedCandidateHash: sha256(stableJson(candidate)),
@@ -970,12 +978,18 @@ test('source revocation wins a queued SQLite race against private Skill approval
       action: 'APPROVE_AS_DRAFT',
       actor: { kind: 'USER', id: 'user-1' },
     })
+    await bundleBlocked
+    await ingestion.revokeSource({
+      sourceHandle: source.sourceHandle,
+      requestedBy: 'user-1',
+      reason: 'OWNER_REQUEST',
+    })
     const rejectedApproval = assert.rejects(
       approval,
       errorCode('TACTICAL_SOURCE_NOT_AUTHORIZED'),
     )
-    releaseBlock()
-    await Promise.all([blocker, revocation, rejectedApproval])
+    releaseBundle()
+    await rejectedApproval
     assert.equal((await ingestion.source(source.sourceHandle)).status, 'REVOKED')
     assert.equal((await ingestion.operationSnapshot()).bundles.length, 0)
   } finally {
@@ -1090,15 +1104,6 @@ test('SQLite resumes exact private Skill chunks and preserves candidates, review
         evidenceRefs: [`verification:${to}`],
       })
     }
-    let releasePromotionBlock!: () => void
-    let markPromotionBlocked!: () => void
-    const promotionGate = new Promise<void>(resolve => { releasePromotionBlock = resolve })
-    const promotionBlocked = new Promise<void>(resolve => { markPromotionBlocked = resolve })
-    const promotionBlocker = database.transactionAsync(async () => {
-      markPromotionBlocked()
-      await promotionGate
-    })
-    await promotionBlocked
     const rollback = ingestion.promote({
       skillId: String(skill.skillId),
       version: skill.version,
@@ -1107,7 +1112,6 @@ test('SQLite resumes exact private Skill chunks and preserves candidates, review
       reason: 'queued rollback',
       evidenceRefs: ['verification:queued-rollback'],
     })
-    await Promise.resolve()
     const quarantine = ingestion.promote({
       skillId: String(skill.skillId),
       version: skill.version,
@@ -1116,11 +1120,7 @@ test('SQLite resumes exact private Skill chunks and preserves candidates, review
       reason: 'queued quarantine',
       evidenceRefs: [],
     })
-    releasePromotionBlock()
-    const [, quarantineReceipt] = await Promise.all([
-      promotionBlocker.then(async () => await rollback),
-      quarantine,
-    ])
+    const [, quarantineReceipt] = await Promise.all([rollback, quarantine])
     assert.equal(quarantineReceipt.from, 'TESTING')
     assert.equal(tactics.get(skill.skillId, skill.version).lifecycle, 'QUARANTINED')
     database.close()

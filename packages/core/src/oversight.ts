@@ -7,7 +7,7 @@ export interface FreezeRecord {
   readonly taskId?: string
   readonly reasonCodes: readonly string[]
   readonly evidenceRefs: readonly string[]
-  readonly state: 'FROZEN' | 'RELEASED' | 'TERMINATED'
+  readonly state: 'FROZEN' | 'PAUSED' | 'RELEASED' | 'TERMINATED'
   readonly frozenAt: string
   readonly releasedAt?: string
   readonly correctionOrderRef?: string
@@ -87,6 +87,28 @@ export class OversightController {
     const terminated = cloneFrozen({ ...record, state: 'TERMINATED' as const })
     this.#records.put(agent, terminated)
     return terminated
+  }
+
+  /**
+   * Record a transient execution stop without permanently poisoning the
+   * stable General identity or a future Task Attempt.
+   */
+  pause(agent: AgentIdentity, reason: string): FreezeRecord {
+    const existing = this.#records.get(agent)
+    if (existing?.state === 'TERMINATED') return cloneFrozen(existing)
+    const record = cloneFrozen({
+      freezeId: existing?.freezeId ?? uuid('pause'),
+      agent,
+      reasonCodes: [...new Set([
+        ...(existing?.reasonCodes ?? []),
+        reason,
+      ])],
+      evidenceRefs: [...(existing?.evidenceRefs ?? [])],
+      state: 'PAUSED' as const,
+      frozenAt: existing?.frozenAt ?? now(this.#clock),
+    })
+    this.#records.put(agent, record)
+    return record
   }
 
   requireAdmission(agent: AgentIdentity): void {

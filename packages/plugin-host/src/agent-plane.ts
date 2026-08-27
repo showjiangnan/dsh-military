@@ -8,6 +8,7 @@ import { registerContextAudit } from './context-audit.js'
 import { registerGeneralOutputGuard } from './general-output-guard.js'
 import { registerRequestRouting } from './request-routing.js'
 import { registerToolPipeline } from './tool-pipeline.js'
+import type { MilitaryHostRuntime } from './context.js'
 
 export const name = 'dsh-military-agent-plane'
 export const inject = [
@@ -26,7 +27,7 @@ export const inject = [
  * this file intentionally contains no handler logic.
  */
 export function apply(ctx: Context): void {
-  const host = ctx.militaryHost
+  const host = ctx.militaryHost as MilitaryHostRuntime
   const state = createAgentPlaneState()
   registerAgentLifecycle(ctx, host, state)
   registerContextAudit(ctx, host, state)

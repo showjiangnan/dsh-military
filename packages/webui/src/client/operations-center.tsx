@@ -2,7 +2,6 @@ import {
   createElement,
   Fragment,
   useCallback,
-  useEffect,
   useMemo,
   useState,
   type CSSProperties,
@@ -23,6 +22,10 @@ import type {
   RecoveryOperationPreview,
   RecoveryOperationReceipt,
 } from '@dsh-military/contracts/operations-control'
+import {
+  callMilitaryRpc,
+  useMilitaryRefreshLoop,
+} from './query-client.js'
 
 interface Props {
   readonly connection: Pick<ConnectionHandle, 'rpc'>
@@ -32,6 +35,9 @@ interface Props {
 export function MilitaryOperationsCenter({ connection, onResult }: Props): ReactNode {
   const [snapshot, setSnapshot] = useState<MilitaryOperationsSnapshot>()
   const [selectedSessionId, setSelectedSessionId] = useState('')
+  const [selectedBackupId, setSelectedBackupId] = useState('')
+  const [selectedMissionId, setSelectedMissionId] = useState('')
+  const [missionCancellationReason, setMissionCancellationReason] = useState('')
   const [timeline, setTimeline] = useState<MilitaryDiagnosticReport>()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -45,7 +51,7 @@ export function MilitaryOperationsCenter({ connection, onResult }: Props): React
   const [confirmation, setConfirmation] = useState('')
   const [receipt, setReceipt] = useState<RecoveryOperationReceipt>()
 
-  const refresh = useCallback(async (signal?: AbortSignal): Promise<void> => {
+  const refresh = useCallback(async (signal?: AbortSignal): Promise<boolean> => {
     try {
       const next = await fetchOperationsSnapshot(connection, signal)
       setSnapshot(next)
@@ -53,23 +59,31 @@ export function MilitaryOperationsCenter({ connection, onResult }: Props): React
         next.sessions.some(value => value.sessionId === current)
           ? current
           : (next.sessions[0]?.sessionId ?? ''))
+      setSelectedBackupId(current =>
+        next.recovery.production.backups.some(value =>
+          value.backupId === current)
+          ? current
+          : (next.recovery.production.backups[0]?.backupId ?? ''))
+      const missionIds = next.missions
+        .filter(value => value.state === 'ACTIVE')
+        .map(value => value.missionId)
+      setSelectedMissionId(current =>
+        missionIds.includes(current) ? current : (missionIds[0] ?? ''))
       setError('')
+      return true
     } catch (refreshError) {
       if (signal?.aborted !== true) {
         setError(refreshError instanceof Error ? refreshError.message : String(refreshError))
       }
+      return false
     }
   }, [connection])
 
-  useEffect(() => {
-    const controller = new AbortController()
-    void refresh(controller.signal)
-    const timer = globalThis.setInterval(() => { void refresh(controller.signal) }, 10_000)
-    return () => {
-      controller.abort()
-      globalThis.clearInterval(timer)
-    }
-  }, [refresh])
+  useMilitaryRefreshLoop({
+    key: 'military-operations-snapshot',
+    refresh,
+    intervalMs: 10_000,
+  })
 
   const run = useCallback(async <T,>(operationCall: () => Promise<T>): Promise<T | undefined> => {
     if (busy) return undefined
@@ -106,13 +120,20 @@ export function MilitaryOperationsCenter({ connection, onResult }: Props): React
     const operationId = `recovery-${Date.now().toString(36)}-${randomSuffix()}`
     const scope = operation === 'WAKE_PARENT'
       ? selectedSessionId
-      : undefined
+      : operation === 'CANCEL_MISSION'
+        ? selectedMissionId
+      : isBackupTargetOperation(operation)
+        ? selectedBackupId
+        : undefined
     const value = await run(async () =>
       await dispatchOperationsAction(connection, {
         type: 'PREVIEW_RECOVERY',
         operation,
         operationId,
         ...(scope === undefined ? {} : { scope }),
+        ...(operation === 'CANCEL_MISSION'
+          ? { reason: missionCancellationReason }
+          : {}),
       }) as RecoveryOperationPreview)
     if (value !== undefined) {
       setPreview(value)
@@ -130,6 +151,7 @@ export function MilitaryOperationsCenter({ connection, onResult }: Props): React
         operation: preview.operation,
         operationId: preview.operationId,
         scope: preview.scope,
+        previewHash: preview.previewHash,
         confirmation,
       }) as RecoveryOperationReceipt)
     if (value !== undefined) {
@@ -142,6 +164,10 @@ export function MilitaryOperationsCenter({ connection, onResult }: Props): React
   }
 
   const sessions = snapshot?.sessions ?? []
+  const backups = snapshot?.recovery.production.backups ?? []
+  const missions = snapshot?.missions.filter(value =>
+    value.state === 'ACTIVE') ?? []
+  const missionIds = missions.map(value => value.missionId)
   const selected = sessions.find(value => value.sessionId === selectedSessionId)
   const roleIds = unique(sessions.map(value => value.roleId))
   const taskIds = unique(timeline?.events
@@ -336,10 +362,13 @@ export function MilitaryOperationsCenter({ connection, onResult }: Props): React
             >
               <option value="VERIFY_DATABASE">验证 SQLite 完整性</option>
               <option value="CREATE_BACKUP">创建一致性备份</option>
+              <option value="VERIFY_BACKUP">验证已签名备份</option>
+              <option value="DRILL_BACKUP_RESTORE">隔离恢复演练</option>
               <option value="RECONCILE">Reconcile 本地 integration</option>
               <option value="REQUEUE_STALE_OUTBOX">重投已过期 Outbox claim</option>
               <option value="RELEASE_EXPIRED_RESOURCES">释放已证明过期资源</option>
               <option value="WAKE_PARENT">唤醒所选 live child 的父级</option>
+              <option value="CANCEL_MISSION">显式取消 Mission</option>
             </select>
           </label>
           {operation !== 'WAKE_PARENT' ? null : (
@@ -348,11 +377,82 @@ export function MilitaryOperationsCenter({ connection, onResult }: Props): React
               只有 live child 且存在直接父级时 Host 才会执行。
             </p>
           )}
+          {operation !== 'CANCEL_MISSION' ? null : (
+            <Fragment>
+              <label style={fieldStyle}>
+                <span>要取消的 Mission</span>
+                <select
+                  aria-label="选择要显式取消的 Mission"
+                  value={selectedMissionId}
+                  onChange={event => {
+                    setSelectedMissionId(event.target.value)
+                    setPreview(undefined)
+                    setConfirmation('')
+                  }}
+                >
+                  {missionIds.length === 0 ? (
+                    <option value="">暂无绑定 Mission</option>
+                  ) : missions.map(value => (
+                    <option key={value.missionId} value={value.missionId}>
+                      {value.title} · {value.missionId}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label style={fieldStyle}>
+                <span>取消原因（至少 3 个字符）</span>
+                <textarea
+                  aria-label="Mission 取消原因"
+                  value={missionCancellationReason}
+                  maxLength={500}
+                  rows={3}
+                  onChange={event => {
+                    setMissionCancellationReason(event.target.value)
+                    setPreview(undefined)
+                    setConfirmation('')
+                  }}
+                />
+              </label>
+              <p style={hintStyle}>
+                这是高风险显式命令：取消非终态 Task、关闭 continuation、释放
+                exact Activation 资源，但不会把取消标记为完成，也不会终止稳定
+                General identity。必须先预览 CAS Diff，再输入完整确认短语。
+              </p>
+            </Fragment>
+          )}
+          {!isBackupTargetOperation(operation) ? null : (
+            <label style={fieldStyle}>
+              <span>受治理备份</span>
+              <select
+                aria-label="选择受治理备份"
+                value={selectedBackupId}
+                onChange={event => {
+                  setSelectedBackupId(event.target.value)
+                  setPreview(undefined)
+                  setConfirmation('')
+                }}
+              >
+                {backups.length === 0 ? (
+                  <option value="">暂无备份</option>
+                ) : backups.map(value => (
+                  <option key={value.backupId} value={value.backupId}>
+                    {value.backupId} · {value.status}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
         </div>
         <Button
           variant="outline"
           size="sm"
-          disabled={busy || (operation === 'WAKE_PARENT' && selectedSessionId === '')}
+          disabled={busy
+            || (operation === 'WAKE_PARENT' && selectedSessionId === '')
+            || (operation === 'CANCEL_MISSION'
+              && (selectedMissionId === ''
+                || missionCancellationReason.trim().length < 3))
+            || (isBackupTargetOperation(operation)
+              && selectedBackupId === '')}
           onClick={() => { void previewRecovery() }}
         >
           预览作用域与影响
@@ -362,6 +462,10 @@ export function MilitaryOperationsCenter({ connection, onResult }: Props): React
             <strong id="recovery-confirmation-heading">
               {preview.operation} · {preview.risk} 风险 · {preview.scope}
             </strong>
+            <p style={microStyle}>
+              状态 fence {shortId(preview.expectedStateHash)} ·
+              预览到期 {formatDate(preview.expiresAt)}。状态变化或过期时必须重新预览。
+            </p>
             <ul style={compactListStyle}>
               {preview.changes.map(change => <li key={change}>{change}</li>)}
             </ul>
@@ -427,14 +531,13 @@ export async function fetchOperationsSnapshot(
   connection: Pick<ConnectionHandle, 'rpc'>,
   signal?: AbortSignal,
 ): Promise<MilitaryOperationsSnapshot> {
-  const response = await connection.rpc.call(
-    '/api',
-    'militaryOperations/snapshot',
-    { args: {} },
-    signal,
+  return await callMilitaryRpc<MilitaryOperationsSnapshot>(
+    connection,
+    'militaryOperations',
+    'snapshot',
+    {},
+    { signal, key: 'military-operations-snapshot' },
   )
-  if (!response.ok) throw new Error(response.error.message)
-  return response.value as MilitaryOperationsSnapshot
 }
 
 export async function dispatchOperationsAction(
@@ -442,14 +545,13 @@ export async function dispatchOperationsAction(
   action: Record<string, unknown>,
   signal?: AbortSignal,
 ): Promise<unknown> {
-  const response = await connection.rpc.call(
-    '/api',
-    'militaryOperations/execute',
-    { args: { action } },
-    signal,
+  return await callMilitaryRpc(
+    connection,
+    'militaryOperations',
+    'execute',
+    { action },
+    { signal, dedupe: false },
   )
-  if (!response.ok) throw new Error(response.error.message)
-  return response.value
 }
 
 function FilterSelect(props: {
@@ -500,6 +602,13 @@ function healthDot(
 
 function unique(values: readonly string[]): readonly string[] {
   return [...new Set(values)].sort()
+}
+
+function isBackupTargetOperation(
+  operation: RecoveryOperationKind,
+): boolean {
+  return operation === 'VERIFY_BACKUP'
+    || operation === 'DRILL_BACKUP_RESTORE'
 }
 
 function formatDate(value: string): string {

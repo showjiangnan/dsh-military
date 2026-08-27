@@ -7,7 +7,7 @@ dsh@0.1.1-rc.2
 commit b150a551b8d465e31e418e1b2eaf5e79bbb7d28e
 ```
 
-`0.9.0-alpha.24` 源码只对该提交声明完整支持。旧版部署继续使用其匹配发布包，不在同一进程混装两个 DSH runtime identity。
+`0.9.0-alpha.25` 源码只对该提交声明完整支持。旧版部署继续使用其匹配发布包，不在同一进程混装两个 DSH runtime identity。
 
 ## 2. 稳定面
 
@@ -38,7 +38,12 @@ RC.2 的 known-event catalog 不提供第三方 required-event 注册。Military
 
 ### Worker cwd
 
-标准 continuable child 继承父 Session 的 cwd。写 Task 的真实 worktree 通过不可变 `AgentExecutionBinding.workspace` 和首轮指令传入；Worker 文件工具必须使用该 worktree 内的绝对路径，Host 将其归一化后再与 Task read/write/forbidden scope 比较。
+标准 continuable child 继承父 Session 的 cwd。写 Task 的真实 worktree 通过不可变
+`AgentExecutionBinding.workspace` 绑定给 Host；Worker 只看到
+`military_workspace_read/search/write/edit` 的 Task-rooted 相对路径合同。Host 在
+不可见的 execution root 下完成 canonical 解析，再与 Task
+read/write/forbidden scope 比较；模型提交绝对路径、盘符或 `..` 逃逸会在副作用
+前被拒绝。
 
 ### DeepSeek
 

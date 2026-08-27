@@ -35,9 +35,11 @@ export function registerCompletionInterlock(
         turn,
       })
       if (stage === null) {
+        state.generalWorkflowStageByAgent.delete(String(agent.id))
         state.interlockNoProgress.delete(key)
         return
       }
+      state.generalWorkflowStageByAgent.set(String(agent.id), stage)
       await rejectMissingTerminalSubmission({
         host,
         state,

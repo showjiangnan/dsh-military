@@ -31,14 +31,19 @@ import type {
   MilitarySessionGate,
   MilitaryTags,
   MilitaryVerification,
+  MilitaryWebPrincipal,
 } from '@dsh-military/contracts'
 import type { InMemoryTacticalRegistry } from '@dsh-military/core'
 import type {
   MilitaryApplication,
+  MilitaryToolHostRuntime,
   SpecialDepartmentAutomation,
   SpawnedDepartmentAgent,
 } from '@dsh-military/runtime'
-import type { SqliteMilitaryDatabase } from '@dsh-military/storage-sqlite'
+import type {
+  SqliteMilitaryDatabase,
+  SqliteOutboxDispatcher,
+} from '@dsh-military/storage-sqlite'
 import type { Config } from './config.js'
 import type { AgentIdentityDirectory } from './identity.js'
 import type { MilitarySpecsControl } from './specs-control.js'
@@ -124,16 +129,22 @@ export interface MilitaryTerminalMutationReceipt<T> {
   readonly replayed: boolean
 }
 
-export interface MilitaryHostRuntime {
+export interface MilitaryHostRuntime extends MilitaryToolHostRuntime {
   readonly tenantId: string
   readonly config: Config
   readonly application: MilitaryApplication
   readonly database: SqliteMilitaryDatabase
+  readonly outbox: SqliteOutboxDispatcher
   readonly identities: AgentIdentityDirectory
   readonly tactics: InMemoryTacticalRegistry
   readonly specs: MilitarySpecsControl
   readonly departmentAgents: MilitaryDepartmentAgents
   readonly specialDepartments: SpecialDepartmentAutomation<Agent>
+  /**
+   * Trusted Host-attached authority for RC.2 Web remotes. This is explicitly
+   * local single-user authority, not a fabricated request identity.
+   */
+  readonly webPrincipal: MilitaryWebPrincipal
   isMilitaryAgent(agent: Agent): boolean
   identity(agent: Agent): AgentIdentity
   identityFor(agent: Agent): Promise<AgentIdentity>
@@ -164,6 +175,13 @@ export interface MilitaryHostRuntime {
     model: string,
     signal?: AbortSignal,
   ): Promise<import('@dsh-military/contracts').ModelCapabilityProfile>
+  /** Promote only exact-route tool protocol evidence produced by a live canary. */
+  recordDshModelProtocolCanary(
+    provider: string,
+    model: string,
+    passed: boolean,
+    observedAt?: string,
+  ): Promise<import('@dsh-military/contracts').ModelCapabilityProfile>
   /**
    * Snapshot the exact RC.2 preset-scoped tool schemas while the Military
    * agent plane is being composed. The Host plane cannot otherwise observe
@@ -187,12 +205,16 @@ export interface MilitaryHostRuntime {
   runTerminalMutation<T>(
     input: MilitaryTerminalMutationInput<T>,
   ): Promise<MilitaryTerminalMutationReceipt<T>>
+  readMutationReceipt<T>(
+    identity: AgentIdentity,
+    actionKey: string,
+  ): { readonly fingerprint: string; readonly value: T } | null
   close(): Promise<void>
 }
 
 declare module '@deepseek-ai/cordis' {
   interface Context {
-    militaryHost: MilitaryHostRuntime
+    militaryHost: MilitaryToolHostRuntime
     military: MilitaryRuntime
     militaryMissionKernel: MilitaryMissionKernel
     militaryContextCompiler: MilitaryContextCompiler

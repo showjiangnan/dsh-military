@@ -39,13 +39,14 @@ pack/publint、空 Profile 安装、Loader 激活、重启 E2E 和发行校验�
 | 层次 | 当前实现 |
 |---|---|
 | 领域单元 | Ledger、CAS、状态机、Decision Broker、Radio、Budget、Template、Tag |
-| 持久化 | SQLite migration、重启、Session Binding、AgentExecutionBinding |
+| 持久化 | SQLite migration、Command Saga、Outbox、Workspace/Execution state、重启与 CAS |
 | 文件/Git | specs 初始化、local `main`、worktree、Patch、Integration |
 | 组合静态 | preset 隔离、Host model-silent、Web lazy bundle |
 | 合同 | TypeScript、Schema、Event/Error Catalog、generation hash |
-| 控制中心 | 角色 revision、Prompt/lint/readiness、诊断/恢复、Workspace、固定基准 |
+| 控制中心 | Desired/Applied 角色 revision、Runtime hierarchy、诊断/恢复、Workspace、固定基准 |
 | 知识 | sanitized pipeline、lineage、shared recall resolver/renderer、撤回 |
 | Web 可访问性 | tabs/listbox/dialog、focus trap/return、IME、zoom/contrast/overflow |
+| 生产控制 | provider topology、queue order、capacity/backpressure、telemetry、signed backup/restore |
 | 真实 RC.2 E2E | 从 tarball 安装；官方 Loader 三次启动；纵向流程与恢复 PASS |
 
 每次测试生成 `TEST-REPORT.md` 和 `TEST-REPORT.json`，保留测试文件、通过/失败数量、Node 版本、RC.2 commit 和运行边界。
@@ -84,7 +85,7 @@ Host profile 通过发行 tarball 叠加：
 
 ```bash
 dsh plugin --profile web add \
-  ./dsh-military-bundle-0.9.0-alpha.24.tgz
+  ./dsh-military-bundle-0.9.0-alpha.25.tgz
 ```
 
 Bundle 自包含全部私有运行时 package、Installer 与
@@ -112,6 +113,8 @@ layer 添加。两类 RC.2 platform peer 都由 Profile fallback 提供单例，
 10. 打开 Military 设置中心，检查 12 角色、七个选项卡和工作区/恢复/评测；
 11. 打开知识与技能，检查七视图、透明度和模拟召回；
 12. 执行 `/brainstorm` 和最小 Candidate 验收场景。
+13. 打开 Military Session 运行中心，核对 Request→Integration parent link 与
+    source revision/staleness。
 
 ## 7. 数据目录
 
@@ -149,8 +152,19 @@ DSH_RC2_ROOT=/exact/built/deepseek-harness pnpm release:verify
 回滚说明、版本、Profile 与 E2E 报告。构建使用固定
 `SOURCE_DATE_EPOCH`，并比较两次独立 `npm pack` 的 SHA-256。
 
-安装后浏览器矩阵至少验证：展开/收起侧栏点击域、两个 Modal、七个一级
+安装后浏览器矩阵至少验证：展开/收起侧栏点击域、三个 Modal、七个一级
 选项卡、角色 listbox 键盘路径、焦点捕获/返回、简体中文 IME、200% zoom、
 长 model ID/path、forced-colors/high-contrast CSS、Workspace opaque ID、
 deterministic benchmark 和无 Task 模拟召回。浏览器检查不能替代 Host/SQLite/
 Git 自动测试，自动测试也不能替代真实 Provider 统计样本。
+
+真实 Flash evidence 由绩效页导出后单独执行：
+
+```bash
+npm run acceptance:flash -- \
+  --evidence /absolute/path/provider-acceptance.json \
+  --route provider/exact-flash-model
+```
+
+每个场景必须有 50 个独立 exact-route Session 并通过 Wilson/零安全失败门。
+此命令不发起 Provider 请求，也不属于无凭据的源码门；没有证据时准确失败。

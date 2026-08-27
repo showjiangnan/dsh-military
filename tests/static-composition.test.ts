@@ -129,7 +129,11 @@ test('Remote snapshots copy frozen SQLite state-record arrays before sorting the
   )
   assert.match(
     operations,
-    /recentReceipts: \[\.\.\.this\.state\.listSync/u,
+    /const recoveryReceipts = \[\.\.\.this\.state\.listSync/u,
+  )
+  assert.match(
+    operations,
+    /recentReceipts: recoveryReceipts\.slice/u,
   )
   assert.match(
     privateSkills,

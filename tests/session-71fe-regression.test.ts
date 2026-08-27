@@ -18,7 +18,10 @@ import {
   type TaskId,
   type TaskVersion,
 } from '@dsh-military/contracts'
-import { AdaptiveExecutionRouter } from '@dsh-military/core'
+import {
+  AdaptiveExecutionRouter,
+  ExecutionLifecycleCoordinator,
+} from '@dsh-military/core'
 import {
   createAgentPlaneState,
 } from '../packages/plugin-host/src/agent-plane-state.js'
@@ -313,7 +316,7 @@ test('a terse continuation inherits the prior project obligation but not a compl
   }), null)
 })
 
-test('every live DSH catalog route receives a runnable Military capability without performance gating', async () => {
+test('catalog presence remains separate from protocol and performance evidence', async () => {
   const capability = inferDshCatalogModelCapability({
     provider: 'third-party-provider',
     model: 'economy-flash-compatible',
@@ -321,10 +324,14 @@ test('every live DSH catalog route receives a runnable Military capability witho
   })
   assert.equal(capability.provider, 'third-party-provider')
   assert.equal(capability.model, 'economy-flash-compatible')
-  assert.equal(capability.status, 'VALIDATED')
-  assert.equal(capability.toolCalling, true)
-  assert.equal(capability.supportedReasoning.includes('high'), true)
-  assert.equal(capability.supportedReasoning.includes('max'), true)
+  assert.equal(capability.status, 'DRAFT')
+  assert.equal(capability.catalogPresence, 'PRESENT')
+  assert.equal(capability.protocolCompatibility, 'DSH_TOOL_REQUEST_AVAILABLE')
+  assert.equal(capability.policyEligibility, 'ELIGIBLE_UNVERIFIED')
+  assert.equal(capability.performanceEvidence, 'UNASSESSED')
+  assert.equal(capability.toolCalling, false)
+  assert.equal(capability.capabilityEvidence?.toolCalling, 'UNVERIFIED')
+  assert.deepEqual(capability.supportedReasoning, ['off'])
   assert.ok(capability.contextWindowTokens >= 4_096)
   assert.ok(capability.maxOutputTokens >= 1_024)
 
@@ -449,7 +456,9 @@ function workflowHost(
   }>,
 ): MilitaryHostRuntime {
   return {
+    tenantId: 'tenant-workflow-test',
     application: {
+      executionLifecycle: new ExecutionLifecycleCoordinator(),
       runtime: {
         async missionForSession(rootSessionId: SessionId) {
           assert.equal(rootSessionId, sessionId)

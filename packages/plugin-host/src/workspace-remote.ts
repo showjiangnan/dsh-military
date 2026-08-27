@@ -18,6 +18,7 @@ import {
 } from '@dsh-military/contracts'
 import { sha256 } from '@dsh-military/core'
 import type { MilitaryHostRuntime } from './context.js'
+import { requireWebAuthority } from './web-authority.js'
 import { canonicalizeToolTarget } from './tool-authorization.js'
 
 const execFileAsync = promisify(execFile)
@@ -68,6 +69,7 @@ export class MilitaryWorkspaceRemoteService extends TypertRemoteService {
 
   @Remote
   async snapshot(signal: AbortSignal): Promise<MilitaryWorkspaceSnapshot> {
+    requireWebAuthority(this.host, 'military.workspace.manage')
     return {
       schemaVersion: MILITARY_WORKSPACE_SCHEMA_VERSION,
       workspaces: await this.catalog(signal),
@@ -77,6 +79,7 @@ export class MilitaryWorkspaceRemoteService extends TypertRemoteService {
 
   @Remote
   async execute(action: unknown, signal: AbortSignal): Promise<MilitaryWorkspaceStatus> {
+    requireWebAuthority(this.host, 'military.workspace.manage')
     signal.throwIfAborted()
     const value = record(action, 'Military workspace action')
     if (value.type !== 'INSPECT_WORKSPACE') {

@@ -6,6 +6,8 @@ export interface MilitaryDiagnosticSession {
   readonly sessionId: string
   readonly rootSessionId: string
   readonly parentSessionId?: string
+  /** Exact Mission from an immutable execution binding, when one exists. */
+  readonly missionId?: string
   readonly roleId: string
   readonly displayName: string
   readonly templateRevision: number
@@ -19,6 +21,14 @@ export interface MilitaryDiagnosticSession {
   readonly outputTokens: number
   readonly startedAt?: string
   readonly updatedAt?: string
+}
+
+export interface MilitaryOperationMission {
+  readonly missionId: string
+  readonly title: string
+  readonly state: 'ACTIVE' | 'COMPLETED' | 'CANCELLED'
+  readonly revision: number
+  readonly updatedAt: string
 }
 
 export type DiagnosticCategory =
@@ -106,6 +116,14 @@ export interface RecoveryHealthItem {
     | 'RECEIPTS'
     | 'GRANTS'
     | 'OUTBOX'
+    | 'COMMAND_SAGA'
+    | 'RADIO'
+    | 'LEASES'
+    | 'RECOVERY_DRIFT'
+    | 'CAPACITY'
+    | 'TELEMETRY'
+    | 'PROVIDERS'
+    | 'SLO'
   readonly label: string
   readonly status: RecoveryHealthStatus
   readonly summary: string
@@ -116,16 +134,26 @@ export interface RecoveryHealthItem {
 export type RecoveryOperationKind =
   | 'VERIFY_DATABASE'
   | 'CREATE_BACKUP'
+  | 'VERIFY_BACKUP'
+  | 'DRILL_BACKUP_RESTORE'
   | 'RECONCILE'
   | 'REQUEUE_STALE_OUTBOX'
   | 'RELEASE_EXPIRED_RESOURCES'
   | 'WAKE_PARENT'
+  | 'CANCEL_MISSION'
 
 export interface RecoveryOperationPreview {
   readonly schemaVersion: typeof MILITARY_OPERATIONS_SCHEMA_VERSION
   readonly operation: RecoveryOperationKind
   readonly operationId: string
   readonly scope: string
+  /** Present only for an explicit Mission cancellation preview. */
+  readonly reason?: string
+  /** Hash of the exact preview body and expected canonical state. */
+  readonly previewHash: string
+  /** CAS fence over the Host state that the proposed changes were computed from. */
+  readonly expectedStateHash: string
+  readonly expiresAt: string
   readonly confirmationPhrase: string
   readonly risk: 'LOW' | 'MEDIUM' | 'HIGH'
   readonly changes: readonly string[]
@@ -139,6 +167,7 @@ export interface RecoveryOperationReceipt {
   readonly operation: RecoveryOperationKind
   readonly operationId: string
   readonly scope: string
+  readonly reason?: string
   readonly status: 'COMPLETED' | 'FAILED'
   readonly changes: readonly string[]
   readonly evidence: readonly string[]
@@ -150,6 +179,7 @@ export interface RecoveryOperationReceipt {
 export interface MilitaryOperationsSnapshot {
   readonly schemaVersion: typeof MILITARY_OPERATIONS_SCHEMA_VERSION
   readonly sessions: readonly MilitaryDiagnosticSession[]
+  readonly missions: readonly MilitaryOperationMission[]
   readonly recovery: {
     readonly databasePathLabel: string
     readonly dataRootLabel: string
@@ -157,7 +187,9 @@ export interface MilitaryOperationsSnapshot {
     readonly dshRelease: '0.1.1-rc.2'
     readonly dshCommit: 'b150a551b8d465e31e418e1b2eaf5e79bbb7d28e'
     readonly items: readonly RecoveryHealthItem[]
+    readonly production: ProductionPlaneSnapshot
     readonly recentReceipts: readonly RecoveryOperationReceipt[]
   }
   readonly generatedAt: string
 }
+import type { ProductionPlaneSnapshot } from './production-control.js'

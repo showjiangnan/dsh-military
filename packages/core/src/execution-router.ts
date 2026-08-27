@@ -18,9 +18,20 @@ export class AdaptiveExecutionRouter implements MilitaryExecutionRouter {
     readonly allowCanary?: boolean
   }): Promise<ExecutionStrategy> {
     const eligible = input.candidateModels.filter(model =>
-      model.toolCalling
-      && model.contextWindowTokens >= input.capability.minimumContextTokens
-      && input.capability.inputModalities.every(modality => model.inputModalities.includes(modality)))
+      (
+        model.toolCalling
+        || model.protocolCompatibility === 'DSH_TOOL_REQUEST_AVAILABLE'
+        || model.protocolCompatibility === 'NATIVE_TOOL_CALLING_VERIFIED'
+        || model.protocolCompatibility === 'BRIDGED_TOOL_CALLING_VERIFIED'
+      )
+      && model.policyEligibility !== 'INELIGIBLE'
+      && (
+        model.capabilityEvidence?.contextWindow === 'CONSERVATIVE_FALLBACK'
+        || model.contextWindowTokens >= input.capability.minimumContextTokens
+      )
+      && input.capability.inputModalities.every(modality =>
+        model.capabilityEvidence?.inputModalities === 'UNDECLARED'
+        || model.inputModalities.includes(modality)))
     if (eligible.length === 0) throw new MilitaryError('AGENT_TEMPLATE_CAPABILITY_UNSUPPORTED', 'no model satisfies the task capability profile')
     eligible.sort((a, b) => b.contextWindowTokens - a.contextWindowTokens || b.maxOutputTokens - a.maxOutputTokens)
     const model = eligible[0]!

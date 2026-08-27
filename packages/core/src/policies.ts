@@ -37,8 +37,12 @@ export class InMemoryMilitaryPolicyRegistry implements MilitaryPolicyRegistry {
     return get(this.#permissions, id, revision)
   }
 
-  async modelCapability(provider: string, model: string): Promise<ModelCapabilityProfile> {
-    return get(this.#models, `${provider}\u0000${model}`)
+  async modelCapability(
+    provider: string,
+    model: string,
+    revision?: number,
+  ): Promise<ModelCapabilityProfile> {
+    return get(this.#models, `${provider}\u0000${model}`, revision)
   }
 
   async verifierProfile(id: string, revision?: number): Promise<VerifierProfile> {

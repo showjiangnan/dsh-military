@@ -51,6 +51,32 @@ export class InMemoryAgentTemplateRegistry implements MilitaryAgentTemplates {
     versions.push(cloneFrozen(profile))
   }
 
+  async reviseBatch(
+    revisions: readonly {
+      readonly profile: AgentTemplateProfile
+      readonly expectedRevision: Revision
+    }[],
+  ): Promise<void> {
+    const seen = new Set<string>()
+    for (const change of revisions) {
+      const id = String(change.profile.templateId)
+      if (seen.has(id)) throw new MilitaryError('INVALID_ARGUMENT', `duplicate template ${id}`)
+      seen.add(id)
+      const versions = this.#profiles.get(id)
+      const latest = versions?.at(-1)
+      if (latest === undefined
+        || Number(latest.revision) !== Number(change.expectedRevision)
+        || Number(change.profile.revision) !== Number(change.expectedRevision) + 1) {
+        throw new MilitaryError('REVISION_CONFLICT')
+      }
+      validate(change.profile)
+    }
+    for (const change of revisions) {
+      this.#profiles.get(String(change.profile.templateId))!
+        .push(cloneFrozen(change.profile))
+    }
+  }
+
   async setStatus(templateId: AgentTemplateId, status: AgentTemplateProfile['status']): Promise<void> {
     const latest = await this.get(templateId)
     const next = cloneFrozen({ ...latest, status })

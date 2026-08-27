@@ -14,13 +14,13 @@ import {
 const initialRevision = brand<number, 'Revision'>(1)
 // Policy and template revisions are immutable, so upgrades must install a new
 // revision instead of rewriting records already stored in SQLite. Tool revision
-// 6 retains RC.2's child-scoped `report` and adds Task-gated large Specs
-// staging; template revision 6 makes the lightweight, tool-capable Flash route
+// 7 adds the Task-rooted, project-relative filesystem facade used by small
+// models; template revision 7 makes that deterministic protocol explicit.
 // the governed default.
-const flashModelRevision = brand<number, 'Revision'>(3)
-export const defaultToolProfileRevision = brand<number, 'Revision'>(6)
+export const defaultFlashModelRevision = brand<number, 'Revision'>(3)
+export const defaultToolProfileRevision = brand<number, 'Revision'>(7)
 const toolProfileRevision = defaultToolProfileRevision
-const templateRevision = brand<number, 'Revision'>(6)
+const templateRevision = brand<number, 'Revision'>(7)
 // Built-in policy revisions are immutable package assets. A stable timestamp
 // keeps repeat startup seeding and packed release bytes reproducible.
 const defaultProfileTimestamp = brand<string, 'IsoDateTime'>('2026-08-24T00:00:00.000Z')
@@ -81,19 +81,32 @@ export function defaultModelProfiles(): readonly ModelCapabilityProfile[] {
     options: Pick<ModelCapabilityProfile, 'status' | 'benchmarks'>,
   ): ModelCapabilityProfile => ({
     schemaVersion: '1.0.0', profileId, revision, status: options.status,
+    catalogPresence: 'PRESENT',
+    protocolCompatibility: 'NATIVE_TOOL_CALLING_VERIFIED',
+    policyEligibility: options.status === 'CANARY' ? 'CANARY_ONLY' : 'ELIGIBLE',
+    performanceEvidence: options.status === 'VALIDATED' ? 'VALIDATED' : 'CANARY',
     provider: 'deepseek-official', model,
     supportedReasoning: ['off', 'low', 'high', 'max'],
     contextWindowTokens: 1_000_000, maxOutputTokens,
     toolCalling: true, vision: false, inputModalities: ['text'], reasoningPassback: 'all-reasoning-turns', maximumRequestImageBytes: 20_971_520,
+    capabilityEvidence: {
+      contextWindow: 'ADAPTER_DECLARED',
+      maxOutput: 'ADAPTER_DECLARED',
+      toolCalling: 'BUILT_IN_VERIFIED',
+      reasoning: 'ADAPTER_DECLARED',
+      inputModalities: 'ADAPTER_DECLARED',
+      residency: 'POLICY_BOUND',
+    },
     dataResidencyPolicyRefs: ['dsh-provider-default@1'],
-    benchmarks: [...options.benchmarks], validatedAt: stamp,
+    benchmarks: [...options.benchmarks], observedAt: stamp,
+    ...(options.status === 'VALIDATED' ? { validatedAt: stamp } : {}),
   })
   return [
     make('deepseek-v4-pro-rc2', 'deepseek-v4-pro', 256_000, initialRevision, {
       status: 'VALIDATED',
       benchmarks: [],
     }),
-    make('deepseek-v4-flash-rc2', 'deepseek-v4-flash', 256_000, flashModelRevision, {
+    make('deepseek-v4-flash-rc2', 'deepseek-v4-flash', 256_000, defaultFlashModelRevision, {
       // The user-supplied pre-fix session remains a failure baseline. CANARY
       // keeps that fact visible while templates opt in explicitly; the route
       // is never selected through an implicit fallback.
@@ -134,6 +147,12 @@ export function defaultToolProfiles(): readonly ToolProfile[] {
       web_search: 120_000,
       write: 120_000,
       edit: 120_000,
+      military_workspace_read: 120_000,
+      military_workspace_list: 120_000,
+      military_workspace_search: 120_000,
+      military_workspace_write: 120_000,
+      military_workspace_edit: 120_000,
+      military_workspace_operation_status: 30_000,
       military_submit_candidate: 180_000,
     }),
     profile('engineer-tools', [...rc2ReadOnlyTools, ...engineerMilitaryToolNames], 2, {
@@ -257,6 +276,7 @@ export function defaultTemplates(): readonly AgentTemplateProfile[] {
       reasoningEffort: input.reasoning ?? 'high', maxOutputTokens: 16_384,
       fallbackTemplateIds: [], dataResidency: 'external-allowed',
       modelCapabilityProfileId: 'deepseek-v4-flash-rc2',
+      modelCapabilityProfileRevision: defaultFlashModelRevision,
       dataResidencyPolicyRef: 'dsh-provider-default@1',
       allowFallback: false,
       allowCanaryModel: true,

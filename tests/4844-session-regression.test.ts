@@ -14,6 +14,7 @@ import {
   defaultTemplates,
   defaultToolProfiles,
   departmentWorkspaceInstruction,
+  WORKER_PHASE_TOOLS,
   MilitarySpecsControl,
   modelVisibleDepartmentTools,
 } from '@dsh-military/plugin-host'
@@ -86,7 +87,7 @@ test('the 4844 Pro export remains a complete lightweight-model regression contra
   assert.equal(fixture.postFixContract.liveFlashProviderValidationStillRequired, true)
 })
 
-test('Engineer first-request vocabulary is one nine-tool Specs workflow', () => {
+test('Engineer immutable ceiling is one compact Specs vocabulary before phase masking', () => {
   const template = requireTemplate('engineer-default')
   const profile = requireProfile('engineer-tools')
   const request = spawnRequest(template.templateId, '/tmp/military-project')
@@ -119,7 +120,7 @@ test('Engineer first-request vocabulary is one nine-tool Specs workflow', () => 
   assert.doesNotMatch(instruction, /Use this exact root for every/u)
 })
 
-test('Worker receives file tools with an explicit isolated-worktree path contract', () => {
+test('Worker receives project-relative Task-rooted filesystem tools', () => {
   const template = requireTemplate('worker-default')
   const profile = requireProfile('worker-tools')
   const request = spawnRequest(
@@ -127,14 +128,20 @@ test('Worker receives file tools with an explicit isolated-worktree path contrac
     '/tmp/military-state/worktrees/lease-1',
   )
   const tools = modelVisibleDepartmentTools(request, template, profile)
-  assert.equal(tools.includes('write'), true)
-  assert.equal(tools.includes('edit'), true)
+  assert.equal(tools.includes('write'), false)
+  assert.equal(tools.includes('edit'), false)
+  assert.equal(tools.includes('military_workspace_write'), true)
+  assert.equal(tools.includes('military_workspace_edit'), true)
   assert.equal(tools.includes('bash'), false)
-  assert.ok(tools.length <= 14)
+  assert.ok(tools.length <= 18)
+  assert.ok(
+    Object.values(WORKER_PHASE_TOOLS).every(phaseTools => phaseTools.size <= 4),
+    'the Host-owned phase mask must expose at most four tools to Flash',
+  )
   const instruction = departmentWorkspaceInstruction(request, template)
-  assert.match(instruction, /分配的隔离执行工作树/u)
-  assert.match(instruction, /严格位于该工作树内的绝对路径/u)
-  assert.match(instruction, /只提交一个 Candidate/u)
+  assert.match(instruction, /始终传项目相对路径/u)
+  assert.match(instruction, /不要复制或猜测工作树绝对路径/u)
+  assert.match(instruction, /military_submit_candidate/u)
 })
 
 test('Task allowedTools constrain both model vocabulary and capability grants', () => {
@@ -142,26 +149,26 @@ test('Task allowedTools constrain both model vocabulary and capability grants', 
   const profile = requireProfile('worker-tools')
   const order = {
     ...task(undefined, 'task-tool-ceiling', ['src']),
-    allowedTools: ['read', 'write'],
+    allowedTools: ['military_workspace_read', 'military_workspace_write'],
   }
   const request = {
     ...spawnRequest(template.templateId, '/tmp/worktrees/tool-ceiling'),
     taskOrder: order,
   }
   assert.deepEqual(modelVisibleDepartmentTools(request, template, profile), [
-    'read',
-    'write',
     'military_get_context',
     'military_get_order',
+    'military_workspace_read',
+    'military_workspace_write',
     'military_submit_blocker',
     'report',
   ])
   assert.deepEqual(taskGrantedTools(profile, order), [
-    'read',
     'report',
-    'write',
     'military_get_context',
     'military_get_order',
+    'military_workspace_read',
+    'military_workspace_write',
     'military_submit_blocker',
   ])
 })

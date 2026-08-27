@@ -137,6 +137,7 @@ export async function assertDispatchFlashReady(input: {
     input.host,
     input.binding.provider,
     input.binding.model,
+    input.binding.modelCapabilityProfileRevision,
   )
   const checkedAt = new Date().toISOString()
   const report = flashReadiness({
@@ -173,6 +174,7 @@ async function dispatchModelStatus(
   host: MilitaryHostRuntime,
   provider: string,
   model: string,
+  revision?: number,
 ): Promise<MilitaryModelValidationStatus> {
   try {
     await ctx.llm.resolveModelInfo(provider, model)
@@ -180,7 +182,11 @@ async function dispatchModelStatus(
     return 'UNAVAILABLE'
   }
   try {
-    const profile = await host.application.policies.modelCapability(provider, model)
+    const profile = await host.application.policies.modelCapability(
+      provider,
+      model,
+      revision,
+    )
     return profile.status === 'VALIDATED'
       ? 'VALIDATED'
       : profile.status === 'CANARY'
