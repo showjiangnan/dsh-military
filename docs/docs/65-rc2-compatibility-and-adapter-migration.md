@@ -7,7 +7,7 @@ dsh@0.1.1-rc.2
 commit b150a551b8d465e31e418e1b2eaf5e79bbb7d28e
 ```
 
-`0.9.0-alpha.25` 源码只对该提交声明完整支持。旧版部署继续使用其匹配发布包，不在同一进程混装两个 DSH runtime identity。
+`0.9.0-alpha.27` 源码只对该提交声明完整支持。旧版部署继续使用其匹配发布包，不在同一进程混装两个 DSH runtime identity。
 
 ## 2. 稳定面
 

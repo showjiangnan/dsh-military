@@ -85,7 +85,7 @@ Host profile 通过发行 tarball 叠加：
 
 ```bash
 dsh plugin --profile web add \
-  ./dsh-military-bundle-0.9.0-alpha.25.tgz
+  ./dsh-military-bundle-0.9.0-alpha.27.tgz
 ```
 
 Bundle 自包含全部私有运行时 package、Installer 与

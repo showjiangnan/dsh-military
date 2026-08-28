@@ -151,7 +151,7 @@ Agent/Model/API/Artifact 各有 classification ceiling。路由到外部模型�
 
 Workspace 路径授权必须处理绝对路径、符号链接、大小写、Git worktree 和临时文件。普通 Session 与 Military Session 同 cwd 不代表互相获得会话控制权。
 
-## 0.9.0-alpha.25 Web 控制面安全
+## 0.9.0-alpha.27 Web 控制面安全
 
 - Client 只提交角色草稿、用户选择的 lint 位置、不透明 workspace ID、已有
   Session ID 和受限 operation intent；

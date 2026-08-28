@@ -15,12 +15,17 @@ const initialRevision = brand<number, 'Revision'>(1)
 // Policy and template revisions are immutable, so upgrades must install a new
 // revision instead of rewriting records already stored in SQLite. Tool revision
 // 7 adds the Task-rooted, project-relative filesystem facade used by small
-// models; template revision 7 makes that deterministic protocol explicit.
-// the governed default.
-export const defaultFlashModelRevision = brand<number, 'Revision'>(3)
+// models. Model revisions 2/4 add the independent catalog, protocol, policy and
+// evidence axes; template revision 8 pins the new Flash capability revision.
+export const defaultProModelRevision = brand<number, 'Revision'>(2)
+export const defaultFlashModelRevision = brand<number, 'Revision'>(4)
 export const defaultToolProfileRevision = brand<number, 'Revision'>(7)
+export const defaultTemplateRevision = brand<number, 'Revision'>(8)
 const toolProfileRevision = defaultToolProfileRevision
-const templateRevision = brand<number, 'Revision'>(7)
+const templateRevision = defaultTemplateRevision
+const previousDefaultFlashModelRevision = brand<number, 'Revision'>(3)
+const previousDefaultTemplateRevision = brand<number, 'Revision'>(7)
+const oldestSupportedTemplateUpgradeRevision = 6
 // Built-in policy revisions are immutable package assets. A stable timestamp
 // keeps repeat startup seeding and packed release bytes reproducible.
 const defaultProfileTimestamp = brand<string, 'IsoDateTime'>('2026-08-24T00:00:00.000Z')
@@ -102,7 +107,7 @@ export function defaultModelProfiles(): readonly ModelCapabilityProfile[] {
     ...(options.status === 'VALIDATED' ? { validatedAt: stamp } : {}),
   })
   return [
-    make('deepseek-v4-pro-rc2', 'deepseek-v4-pro', 256_000, initialRevision, {
+    make('deepseek-v4-pro-rc2', 'deepseek-v4-pro', 256_000, defaultProModelRevision, {
       status: 'VALIDATED',
       benchmarks: [],
     }),
@@ -305,4 +310,53 @@ export function defaultTemplates(): readonly AgentTemplateProfile[] {
     make({ id: 'evaluation-examiner', displayName: '绩效评估委员', department: 'evaluation-committee', role: 'evaluation-examiner', tool: 'evaluation-tools', permission: 'evaluation-readonly', taskTypes: ['evaluation'] }),
     make({ id: 'evaluation-chair', displayName: '军事评估委员会主席', department: 'evaluation-committee', role: 'evaluation-chair', tool: 'evaluation-tools', permission: 'evaluation-readonly', taskTypes: ['evaluation-report'], reasoning: 'max', concurrency: 2 }),
   ]
+}
+
+/**
+ * Return the immutable built-in template revisions required to reach the
+ * current package asset. RC.2 registries deliberately require contiguous
+ * revisions, so an alpha.24 database at revision 6 must receive the exact
+ * alpha.25 revision 7 asset before revision 8 can be appended.
+ */
+export function defaultTemplateUpgradePath(
+  template: AgentTemplateProfile,
+  existingRevision: AgentTemplateProfile['revision'],
+): readonly AgentTemplateProfile[] {
+  const existing = Number(existingRevision)
+  const target = Number(template.revision)
+  if (existing >= target) return []
+  if (existing < oldestSupportedTemplateUpgradeRevision) {
+    throw new Error(
+      `cannot seed template ${String(template.templateId)} from unsupported revision ${existing}`,
+    )
+  }
+
+  const revisions: AgentTemplateProfile[] = []
+  if (existing < Number(previousDefaultTemplateRevision)
+    && target >= Number(previousDefaultTemplateRevision)) {
+    revisions.push({
+      ...template,
+      revision: previousDefaultTemplateRevision,
+      modelPolicy: {
+        ...template.modelPolicy,
+        modelCapabilityProfileRevision: previousDefaultFlashModelRevision,
+      },
+    })
+  }
+  if (existing < target
+    && Number(revisions.at(-1)?.revision) !== target) {
+    revisions.push(template)
+  }
+
+  let expected = existing + 1
+  for (const revision of revisions) {
+    if (Number(revision.revision) !== expected) {
+      throw new Error(
+        `cannot seed template ${String(template.templateId)} across revision gap `
+        + `${existing} -> ${target}`,
+      )
+    }
+    expected += 1
+  }
+  return revisions
 }

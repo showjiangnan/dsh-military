@@ -124,7 +124,7 @@ export class EvaluationDatasetRuntime implements MilitaryEvaluationDataset {
       requestHash,
       datasetHash: datasetArtifact.sha256,
       datasetArtifact,
-      generatorVersion: '0.9.0-alpha.25',
+      generatorVersion: '0.9.0-alpha.27',
       rubricVersion: '2.0.0',
       timeRange: request.period,
       filters: {

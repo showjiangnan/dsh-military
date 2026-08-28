@@ -37,7 +37,7 @@ RC.2 `ui-settings` 拥有唯一 `settings.describe` mirror，并监听 document 
 
 ## 4. 运行态投影边界
 
-RC.2 没有外部 required Session Event 注册面。0.9.0-alpha.25 因而不注册
+RC.2 没有外部 required Session Event 注册面。0.9.0-alpha.27 因而不注册
 Military Conversation Node，也不把 Mission/Task/Radio/Freeze/Candidate 写入
 DSH Session Log。Settings 基础字段读取 RC.2 shared mirror；角色治理、诊断/
 恢复、Workspace、固定评测、Runtime Center 和私有知识通过插件自有窄 Typert

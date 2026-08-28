@@ -2,7 +2,7 @@
 
 ## 当前结论
 
-`0.9.0-alpha.25` 已完成 RC.2 源码与发行闭环：精确上游声明编译、13 个 package
+`0.9.0-alpha.27` 已完成 RC.2 源码与发行闭环：精确上游声明编译、13 个 package
 合同、干净 Profile 安装、Loader/Preset/Web Client 激活、Mission 纵向流程、
 持久化恢复、语义审查和可重复 tarball 均进入默认发布门禁。
 
@@ -48,7 +48,7 @@ pnpm install --frozen-lockfile
 DSH_RC2_ROOT=/exact/built/deepseek-harness pnpm release:verify
 ```
 
-门禁依次覆盖生成物、strict typecheck、RC.2 合同快照、构建、216 项自动测试、
+门禁依次覆盖生成物、strict typecheck、RC.2 合同快照、构建、217 项自动测试、
 Mission fault/restart regression、semantic audit、静态 review、文档工程、精确
 上游声明编译、13/13 pack/publint、Bundle/Installer 两次打包一致性、空 DSH
 Home 安装、真实 Loader 激活和三次 Profile 启动 E2E。

@@ -2,7 +2,7 @@
 
 ## 1. 实现状态
 
-`dsh-military 0.9.0-alpha.25` 已形成独立 npm workspace 源码工程，唯一完整兼容目标是：
+`dsh-military 0.9.0-alpha.27` 已形成独立 npm workspace 源码工程，唯一完整兼容目标是：
 
 ```text
 dsh@0.1.1-rc.2

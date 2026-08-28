@@ -57,7 +57,7 @@ export const MILITARY_BENCHMARK_DATASET_HASH = sha256(stableJson({
   scenarios: MILITARY_BENCHMARK_SCENARIOS,
 }))
 const OPERATION_ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/u
-const BUNDLE_VERSION = '0.9.0-alpha.25'
+const BUNDLE_VERSION = '0.9.0-alpha.27'
 
 /**
  * General's `general-host-authority@0` is an immutable Host boundary rather

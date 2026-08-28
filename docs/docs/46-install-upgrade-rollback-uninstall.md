@@ -43,7 +43,7 @@ ROLLBACK
 
 ### RC.2 本地发行安装
 
-`0.9.0-alpha.25` 标准安装只把自包含 Bundle 添加为 Profile layer；Installer 已
+`0.9.0-alpha.27` 标准安装只把自包含 Bundle 添加为 Profile layer；Installer 已
 嵌入 Bundle：
 
 ```bash
@@ -51,7 +51,7 @@ cd release
 shasum -a 256 -c checksums.sha256
 
 dsh plugin --profile web add \
-  ./dsh-military-bundle-0.9.0-alpha.25.tgz
+  ./dsh-military-bundle-0.9.0-alpha.27.tgz
 
 pnpm --dir "${DSH_HOME:-$HOME/.dsh}/profiles/web" exec \
   dsh-military-install install \
@@ -62,7 +62,7 @@ pnpm --dir "${DSH_HOME:-$HOME/.dsh}/profiles/web" exec \
   --dsh-home "${DSH_HOME:-$HOME/.dsh}"
 ```
 
-独立 `dsh-military-installer-0.9.0-alpha.25.tgz` 只用于 preset-only 生命周期，
+独立 `dsh-military-installer-0.9.0-alpha.27.tgz` 只用于 preset-only 生命周期，
 不能作为 DSH Bundle layer 添加。Profile 使用 `file:` 引用时，安装中的旧 tarball
 在该 Profile 升级并验证前必须保留。
 
@@ -74,6 +74,8 @@ pnpm --dir "${DSH_HOME:-$HOME/.dsh}/profiles/web" exec \
 - 计算新 preset generation；
 - 旧 generation 转 `ARCHIVED`；
 - 运行 forward migration；
+- 对内置不可变模板按顺序补齐已发布的中间 revision，禁止跨 revision gap
+  直接改写；高于当前内置 revision 的用户配置保持原样；
 - 启动 shadow probe；
 - 对 Golden Mission 重放；
 - 切换新会话到 current generation；

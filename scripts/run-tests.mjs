@@ -12,7 +12,7 @@ const metrics = parseTap(test.stdout)
 const report = {
   generatedAt,
   baseline: { release: '0.1.1-rc.2', commit: 'b150a551b8d465e31e418e1b2eaf5e79bbb7d28e' },
-  sourceVersion: '0.9.0-alpha.25',
+  sourceVersion: '0.9.0-alpha.27',
   node: process.version,
   testFiles: files,
   buildExitCode: build.code,

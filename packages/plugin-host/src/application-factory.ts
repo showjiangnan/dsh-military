@@ -98,6 +98,7 @@ import {
   defaultGeneralPolicy,
   defaultModelProfiles,
   defaultPermissionProfiles,
+  defaultTemplateUpgradePath,
   defaultTemplates,
   defaultToolProfiles,
   defaultVerifierProfiles,
@@ -201,17 +202,14 @@ export async function createMilitaryApplication(ctx: Context, config: Applicatio
       await templates.create(template)
       continue
     }
-    if (Number(existing.revision) >= Number(template.revision)) continue
-    if (Number(existing.revision) + 1 !== Number(template.revision)) {
-      throw new Error(
-        `cannot seed template ${String(template.templateId)} across revision gap `
-        + `${Number(existing.revision)} -> ${Number(template.revision)}`,
+    let expectedRevision = existing.revision
+    for (const revision of defaultTemplateUpgradePath(template, existing.revision)) {
+      await templates.revise(
+        { ...revision, status: existing.status },
+        expectedRevision,
       )
+      expectedRevision = revision.revision
     }
-    await templates.revise(
-      { ...template, status: existing.status },
-      existing.revision,
-    )
   }
   const resourceBudgets = new SqliteMilitaryResourceBudgets(database, config.tenantId)
   for (const policy of defaultBudgetPolicies()) resourceBudgets.registerPolicy(policy)

@@ -1,17 +1,17 @@
 # 版本信息
 
 - 文档工程版本：`0.9.0-draft`
-- 源码实现版本：`0.9.0-alpha.25`
+- 源码实现版本：`0.9.0-alpha.27`
 - 领域事件 Envelope：`2.0.0`
 - 其余领域 Schema：各自按 SemVer 演进，当前主要基线为 `1.0.0`
-- 文档同步日期：`2026-08-27`
+- 文档同步日期：`2026-08-28`
 - 唯一支持的 DSH 基线：`dsh@0.1.1-rc.2`
 - 上游固定提交：
   `deepseek-ai/deepseek-harness@b150a551b8d465e31e418e1b2eaf5e79bbb7d28e`
 - 固定公开 preset id：`military`
 - 当前 preset generation：
   `military@sha256:054486e73b1b1f8385782497cda79e9a887897fbc338dd9bc6ca80d01a1e8146`
-- 最终 RC.2 发行门验证时间：`2026-08-27T14:59:52.680Z`
+- 最终 RC.2 发行门验证时间：`2026-08-28T01:20:51.341Z`
 
 Preset generation 由
 `reference/preset/agent-presets/military/generation-manifest.json` 计算并与源码
@@ -19,7 +19,7 @@ package 镜像校验，不手写。任何其他 DSH release、commit、回移植
 组合都不属于本版本支持范围；Compatibility Probe 通过也不会自动扩大正式支持
 矩阵。
 
-## alpha.25 执行、控制面与评测版本
+## alpha.27 执行、控制面、评测与无损升级版本
 
 本版本新增并冻结以下 Web/Host 契约版本：
 

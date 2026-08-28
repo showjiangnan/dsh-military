@@ -1,9 +1,15 @@
 # Changelog
 
-## 0.9.0-alpha.25 — 2026-08-27
+## 0.9.0-alpha.27 — 2026-08-28
 
 ### Execution liveness, crash recovery, Flash acceptance and production truth
 
+- Fixed real installed upgrade startup without deleting SQLite state. Built-in
+  Pro/Flash capability policies now advance to immutable revisions 2/4 and
+  bundled templates advance to revision 8. Alpha.24 template revision 6 is
+  upgraded through the exact revision-7 asset before revision 8, while newer
+  user revisions are left untouched; historical revisions remain available to
+  Sessions already pinned to them.
 - Split every executable request into durable `WorkflowObligation`, Task
   Version, Attempt, Activation and Dispatch aggregates. Runtime state now
   requires start/heartbeat/settlement receipts and never infers `RUNNING`
@@ -46,7 +52,7 @@
   scenario requires 50 independent Sessions, first-tool and E2E Wilson
   thresholds, and zero deterministic/safety violations. The gate only reads
   immutable Session/Host receipts and never launches or fabricates paid runs.
-- Added migrations `0009` and `0010`, 216 deterministic tests, four ADRs and
+- Added migrations `0009` and `0010`, 217 deterministic tests, four ADRs and
   documentation Part 69. Real external Flash acceptance remains
   `INSUFFICIENT_SAMPLE` until a deployment supplies the required evidence.
 - Final review serialized lifecycle mutations, made exact Dispatch replay

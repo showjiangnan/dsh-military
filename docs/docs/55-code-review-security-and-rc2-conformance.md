@@ -54,7 +54,7 @@ RC.2 已知事件目录不提供外部 required event 动态注册。审查脚�
 -无同步模块请求环；
 - Settings 使用 RC.2 共享 mirror；
 -业务组件不建立重复 wire reader；
-- 当前 0.9.0-alpha.25 Web 包不注册 Military Conversation Log Node；角色治理、
+- 当前 0.9.0-alpha.27 Web 包不注册 Military Conversation Log Node；角色治理、
   诊断/恢复、Workspace、固定基准、知识透明度和完整 Runtime Center 使用插件
   自有窄 Remote/Projection。运行节点以稳定业务 ID、source revision 和
   staleness 聚合，不把 Session Log 变成第二个 Mission 真源。

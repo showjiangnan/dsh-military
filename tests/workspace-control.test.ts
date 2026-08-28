@@ -55,7 +55,7 @@ test('Specs workspace projection accepts only Host catalog ids and reports Git r
       'military',
       'archive-workspace',
       'asset-workspace',
-      '0.9.0-alpha.25',
+      '0.9.0-alpha.27',
       binding.dshBaselineCommit,
       'CURRENT',
       '{}',

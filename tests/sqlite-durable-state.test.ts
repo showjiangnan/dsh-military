@@ -5,6 +5,7 @@ import {
   type CapabilityGrant,
   type CompactionAttempt,
   type MilitaryAuthorityContext,
+  type ModelCapabilityProfile,
   type PerformanceEvaluationAppeal,
   type TacticalTag,
   type UserAuthorizationReceipt,
@@ -16,7 +17,15 @@ import {
   semver,
   tacticalId,
 } from '@dsh-military/core'
-import { defaultGeneralPolicy, defaultModelProfiles } from '@dsh-military/plugin-host/defaults'
+import {
+  defaultFlashModelRevision,
+  defaultGeneralPolicy,
+  defaultModelProfiles,
+  defaultProModelRevision,
+  defaultTemplateRevision,
+  defaultTemplateUpgradePath,
+  defaultTemplates,
+} from '@dsh-military/plugin-host/defaults'
 import {
   SqliteAgentTemplateRegistry,
   SqliteCapabilityGrantStore,
@@ -234,7 +243,7 @@ test('all production governance and coordination providers survive SQLite restar
         'deepseek-official',
         'deepseek-v4-flash',
       )).revision),
-      3,
+      Number(defaultFlashModelRevision),
     )
     assert.equal(
       Number((await reopenedPolicies.modelCapability(
@@ -373,3 +382,146 @@ test('all production governance and coordination providers survive SQLite restar
     await temp.dispose()
   }
 })
+
+test('built-in model and template revisions upgrade without rewriting prior SQLite history', async () => {
+  const temporary = await temporaryDirectory('military-policy-upgrade-')
+  const database = new SqliteMilitaryDatabase({
+    path: `${temporary.path}/military.sqlite`,
+  })
+  try {
+    const tenantId = 'tenant-policy-upgrade'
+    const policies = new SqliteMilitaryPolicyRegistry(database, tenantId)
+    const currentModels = defaultModelProfiles()
+    const currentPro = currentModels.find(profile =>
+      profile.model === 'deepseek-v4-pro')
+    const currentFlash = currentModels.find(profile =>
+      profile.model === 'deepseek-v4-flash')
+    assert.ok(currentPro)
+    assert.ok(currentFlash)
+
+    const legacyPro = legacyModelProfile(currentPro, 1)
+    const legacyFlash = legacyModelProfile(currentFlash, 3)
+    policies.registerModel(legacyPro)
+    policies.registerModel(legacyFlash)
+    for (const profile of currentModels) policies.registerModel(profile)
+    for (const profile of currentModels) policies.registerModel(profile)
+
+    assert.equal(
+      Number((await policies.modelCapability(
+        currentPro.provider,
+        currentPro.model,
+      )).revision),
+      Number(defaultProModelRevision),
+    )
+    assert.equal(
+      Number((await policies.modelCapability(
+        currentFlash.provider,
+        currentFlash.model,
+      )).revision),
+      Number(defaultFlashModelRevision),
+    )
+    assert.deepEqual(
+      await policies.modelCapability(
+        legacyPro.provider,
+        legacyPro.model,
+        legacyPro.revision,
+      ),
+      legacyPro,
+    )
+    assert.deepEqual(
+      await policies.modelCapability(
+        legacyFlash.provider,
+        legacyFlash.model,
+        legacyFlash.revision,
+      ),
+      legacyFlash,
+    )
+
+    const templates = new SqliteAgentTemplateRegistry(database, tenantId)
+    const currentTemplate = defaultTemplates().find(template =>
+      String(template.templateId) === 'worker-default')
+    assert.ok(currentTemplate)
+    const {
+      modelCapabilityProfileRevision: _currentModelRevision,
+      ...legacyModelPolicy
+    } = currentTemplate.modelPolicy
+    assert.equal(
+      Number(_currentModelRevision),
+      Number(defaultFlashModelRevision),
+    )
+    const legacyTemplate = {
+      ...currentTemplate,
+      revision: brand<number, 'Revision'>(6),
+      modelPolicy: legacyModelPolicy,
+      capabilities: {
+        ...currentTemplate.capabilities,
+        toolProfileRevision: brand<number, 'Revision'>(6),
+      },
+    }
+    await templates.create(legacyTemplate)
+    let expectedRevision = legacyTemplate.revision
+    const upgradePath = defaultTemplateUpgradePath(
+      currentTemplate,
+      legacyTemplate.revision,
+    )
+    assert.deepEqual(
+      upgradePath.map(profile => Number(profile.revision)),
+      [7, Number(defaultTemplateRevision)],
+    )
+    assert.equal(
+      Number(upgradePath[0]?.modelPolicy.modelCapabilityProfileRevision),
+      Number(legacyFlash.revision),
+    )
+    for (const profile of upgradePath) {
+      await templates.revise(profile, expectedRevision)
+      expectedRevision = profile.revision
+    }
+    assert.equal(
+      Number((await templates.get(currentTemplate.templateId)).revision),
+      Number(currentTemplate.revision),
+    )
+    assert.equal(
+      Number((await templates.get(
+        currentTemplate.templateId,
+        legacyTemplate.revision,
+      )).capabilities.toolProfileRevision),
+      6,
+    )
+    assert.deepEqual(defaultTemplateUpgradePath(
+      currentTemplate,
+      currentTemplate.revision,
+    ), [])
+  } finally {
+    database.close()
+    await temporary.dispose()
+  }
+})
+
+function legacyModelProfile(
+  profile: ModelCapabilityProfile,
+  revision: number,
+): ModelCapabilityProfile {
+  return {
+    schemaVersion: profile.schemaVersion,
+    profileId: profile.profileId,
+    revision: brand<number, 'Revision'>(revision),
+    status: profile.status,
+    provider: profile.provider,
+    model: profile.model,
+    supportedReasoning: profile.supportedReasoning,
+    contextWindowTokens: profile.contextWindowTokens,
+    maxOutputTokens: profile.maxOutputTokens,
+    toolCalling: profile.toolCalling,
+    inputModalities: profile.inputModalities,
+    reasoningPassback: profile.reasoningPassback,
+    ...(profile.maximumRequestImageBytes === undefined
+      ? {}
+      : { maximumRequestImageBytes: profile.maximumRequestImageBytes }),
+    ...(profile.vision === undefined ? {} : { vision: profile.vision }),
+    dataResidencyPolicyRefs: profile.dataResidencyPolicyRefs,
+    benchmarks: profile.benchmarks,
+    ...(profile.validatedAt === undefined
+      ? {}
+      : { validatedAt: profile.validatedAt }),
+  }
+}

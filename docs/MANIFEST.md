@@ -4,13 +4,13 @@
 `MANIFEST.sha256` 不包含清单自身和验证报告，避免自引用哈希。
 
 - 文件数：429
-- 总字节数：2277160
+- 总字节数：2279528
 
 ## `./`
 
 | 文件 | 字节 |
 |---|---:|
-| `CHANGELOG.md` | 40905 |
+| `CHANGELOG.md` | 41324 |
 | `CONTRIBUTING_DOCS.md` | 5677 |
 | `GLOSSARY.md` | 8482 |
 | `IMPLEMENTATION-READINESS.md` | 5213 |
@@ -18,8 +18,8 @@
 | `README.md` | 15597 |
 | `REQUIREMENTS-TRACEABILITY.md` | 29544 |
 | `VERSION.json` | 275 |
-| `VERSION.md` | 4093 |
-| `dsh-military-design-specification.md` | 504839 |
+| `VERSION.md` | 4108 |
+| `dsh-military-design-specification.md` | 505806 |
 
 ## `adr/`
 
@@ -184,7 +184,7 @@
 | `docs/43-general-model-and-session-policy-precedence.md` | 5235 |
 | `docs/44-decision-broker-state-machine.md` | 3315 |
 | `docs/45-compatibility-probe-and-feature-matrix.md` | 2959 |
-| `docs/46-install-upgrade-rollback-uninstall.md` | 5023 |
+| `docs/46-install-upgrade-rollback-uninstall.md` | 5193 |
 | `docs/47-tactical-knowledge-supply-chain.md` | 4900 |
 | `docs/48-evaluation-statistics-and-fairness.md` | 14163 |
 | `docs/49-conformance-and-model-checking.md` | 4020 |
@@ -204,10 +204,10 @@
 | `docs/63-agentic-zero-trust-and-capability-grants.md` | 1212 |
 | `docs/64-observability-and-decision-chain-evaluation.md` | 1913 |
 | `docs/65-rc2-compatibility-and-adapter-migration.md` | 2932 |
-| `docs/66-legacy-to-rc2-upgrade-runbook.md` | 1424 |
+| `docs/66-legacy-to-rc2-upgrade-runbook.md` | 1576 |
 | `docs/67-military-control-center-flash-workbench-and-accessibility.md` | 13439 |
 | `docs/68-general-workflow-live-models-and-settings-persistence.md` | 7543 |
-| `docs/69-execution-liveness-flash-and-production-readiness.md` | 16761 |
+| `docs/69-execution-liveness-flash-and-production-readiness.md` | 17406 |
 | `docs/INDEX.md` | 9051 |
 
 ## `examples/`

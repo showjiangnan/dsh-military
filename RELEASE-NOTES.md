@@ -1,9 +1,25 @@
 # dsh-military release notes
 
-## 0.9.0-alpha.25 — DSH RC.2
+## 0.9.0-alpha.27 — DSH RC.2
 
 This release completes the execution-liveness and production-truth audit that
 followed the `alpha.24` installed repair.
+
+`alpha.27` also closes the installed upgrade path discovered while starting
+the user's long-lived `alpha.24` database. The new independent capability
+axes had changed the bundled Pro/Flash policy payloads without advancing their
+immutable revisions, so bootstrap correctly rejected the same revision with
+different content. Pro now advances from revision 1 to 2, Flash from 3 to 4,
+and bundled department templates from 7 to 8. Existing revisions remain
+queryable for historical Sessions; startup adds the new revisions instead of
+rewriting or deleting user data.
+
+The same real database exposed a second migration edge: unmodified departments
+were still at template revision 6 while customized departments had already
+advanced beyond the bundled default. Startup now preserves newer user
+revisions, and for revision-6 built-ins appends the exact revision-7 package
+asset before revision 8. The registry's contiguous-revision invariant remains
+intact; no gap is skipped and no historical row is replaced.
 
 Every executable user request now has its own durable Workflow Obligation.
 Task instruction versions are separate from execution Attempts; every initial
@@ -63,7 +79,7 @@ The UI can export this evidence and `npm run acceptance:flash` independently
 recomputes the gate. No paid calls are launched by the repository, and this
 release does not claim real Flash acceptance without those external samples.
 
-The source includes migrations `0009`/`0010`, 216 deterministic tests, four
+The source includes migrations `0009`/`0010`, 217 deterministic tests, four
 new ADRs and documentation Part 69. It remains pinned exclusively to DSH
 `0.1.1-rc.2` commit
 `b150a551b8d465e31e418e1b2eaf5e79bbb7d28e`.

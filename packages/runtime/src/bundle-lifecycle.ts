@@ -17,7 +17,7 @@ export class BundleLifecycleRuntime implements MilitaryBundleLifecycle {
   readonly #operator: BundleProfileOperator
   readonly #clock: Clock
   readonly #version: string
-  constructor(operator: BundleProfileOperator, version = '0.9.0-alpha.25', clock?: Clock) { this.#operator = operator; this.#version = version; this.#clock = clock ?? (() => new Date()) }
+  constructor(operator: BundleProfileOperator, version = '0.9.0-alpha.27', clock?: Clock) { this.#operator = operator; this.#version = version; this.#clock = clock ?? (() => new Date()) }
 
   async install(signal: AbortSignal): Promise<BundleLifecycleReceipt> { return this.#run('INSTALL', 'none', this.#version, 'NOT_APPLICABLE', signal, async () => this.#operator.install(signal)) }
   async upgrade(targetVersion: string, signal: AbortSignal): Promise<BundleLifecycleReceipt> { return this.#run('UPGRADE', this.#version, targetVersion, 'NOT_APPLICABLE', signal, async () => this.#operator.upgrade(targetVersion, signal)) }

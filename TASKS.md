@@ -978,7 +978,7 @@
     签名资产、备份恢复、灾备和 legal hold 演练；本地 SQLite 模式继续受支持。
 
 - [ ] **P2.15 完成纵向测试、真实 Flash 外部验收、文档与发行推送**
-  - 源码实现、216 项确定性测试、767 项文档/合同检查、exact RC.2、
+  - 源码实现、217 项确定性测试、767 项文档/合同检查、exact RC.2、
     13/13 pack/publint、可重复发布、空 Profile、三启动纵向 E2E、代码审查和
     source-only 归档均已完成；本项只因真实 Provider 的
     `exact configuration × scenario × N≥50` 外部证据尚未产生而保持未勾选。
@@ -1124,7 +1124,7 @@
     Profile/三启动 E2E；本机完成工兵 Flash→Pro、high→max、输出与并发参数
     保存、页面重载、DSH 进程重启持久化，再恢复原 Flash/high/16384/2 配置并
     二次重启确认，所有 live 模型 option 均启用且页面无“未验证”或保存失败。
-30. 完成 `0.9.0-alpha.25` 深度架构闭环：持久化
+30. 完成 `0.9.0-alpha.27` 深度架构闭环：持久化
     Workflow/Task-Version/Attempt/Activation/Dispatch、Radio/Decision/Rework、
     Candidate→Verification→Integration、Direction/Wave Scheduler、短事务
     Command Saga、统一 SQLite writer、ordered outbox、Workspace 重启恢复、
@@ -1134,7 +1134,7 @@
     reservation 串行化、lineage fence、Dispatch 精确重放、Activation 合法
     转移/终态原因、无 Workspace 子会话收敛、可恢复资源清理、Artifact
     完整性/索引重建/孤儿回收，以及按职责拆分 Evaluation、Ingestion、
-    Control Plane、Session、Host Runtime 与 SQLite 协调仓库。216 项确定性测试、767 项
+    Control Plane、Session、Host Runtime 与 SQLite 协调仓库。217 项确定性测试、767 项
     文档/合同检查、82 项架构审查、exact RC.2、13/13 pack/publint、可重复
     release、空 Profile 和三启动 E2E 全部通过；源码 ZIP 已证明不含 `lib/`、
     `release/`、本地报告、数据库或凭据。

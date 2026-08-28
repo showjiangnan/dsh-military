@@ -201,7 +201,7 @@ min(template/preset budget, resolved model context, deployment safety cap)
 
 达到 trigger 必须创建可审计 `CompactionAttempt`。无安全区间或摘要不缩小则暂停/handoff，不能继续溢出。General 切换到更小上下文模型前应先评估当前 surface；无法安全适配则拒绝切换。
 
-## 0.9.0-alpha.25 能力目录与样本纪律
+## 0.9.0-alpha.27 能力目录与样本纪律
 
 模型控制面把四个概念独立存储：
 

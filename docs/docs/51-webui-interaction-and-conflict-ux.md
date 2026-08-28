@@ -6,7 +6,7 @@ WebUI 不只是展示军事组织名词，而是所有高风险管理动作的�
 
 ## 1.1 实施状态
 
-`0.9.0-alpha.25` 已实现独立 Settings/Knowledge Modal、七个一级选项卡、角色
+`0.9.0-alpha.27` 已实现独立 Settings/Knowledge Modal、七个一级选项卡、角色
 工作台、revision 冲突、字段 Diff、可移植导入导出、诊断与恢复、Specs
 Workspace、固定基准、知识供应链透明度、模拟召回和键盘/IME/高对比度合同。
 这些页面读取 Military 自有 Remote/Projection，不依赖未知外部 Session Event。

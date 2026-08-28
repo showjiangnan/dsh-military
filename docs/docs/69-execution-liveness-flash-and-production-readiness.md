@@ -2,7 +2,7 @@
 
 ## 1. 本轮闭环的目标
 
-本章记录 `0.9.0-alpha.25` 对执行活性、状态机、恢复、轻量模型、WebUI、安全、
+本章记录 `0.9.0-alpha.27` 对执行活性、状态机、恢复、轻量模型、WebUI、安全、
 评测和生产 Provider 的纵向收敛。它补充并在冲突处取代第 60—68 章中仍以
 Session/Task 粗粒度描述的部分。
 
@@ -235,6 +235,14 @@ calling、reasoning、context、residency 或 `VALIDATED`。native tool route
 Dispatch 前校验 exact provider/model/adapter/capability profile，并写
 provider、model、classification、residency、redaction、policy revision 和
 pricing snapshot receipt。
+
+内置策略同样遵守不可变 revision。`alpha.27` 把 Pro capability 从 revision 1
+推进到 2、Flash 从 3 推进到 4，并把引用新 Flash capability 的部门模板从 7
+推进到 8。真实 `alpha.24` 数据库中的未定制模板仍位于 revision 6，因此启动
+必须先追加精确的 revision 7 资产，再追加 revision 8；已经高于或等于内置版本
+的用户修订保持不变。升级只追加连续新记录，旧 revision 继续服务已固定的历史
+Session；启动不得以相同 revision 覆写新增 capability axes，不得跳过模板
+revision，也不得通过删除 SQLite 数据规避冲突。
 
 角色设置一次保存完整 Desired revision。Reconciler 对 General 和全部部门
 校验/应用，全部成功才推进 Applied revision。UI 只有

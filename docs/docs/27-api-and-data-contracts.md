@@ -419,7 +419,7 @@ EVALUATION_APPEAL_EVIDENCE_REQUIRED
 
 所有回执必须在声明状态改变前持久化。模型不能构造 Authorization、Binding、Resume、Integration、Budget 或 Appeal resolution 的权威 Receipt；模型最多提出经过 Schema 校验的建议内容。
 
-## 11. 0.9.0-alpha.25 Web 控制面契约
+## 11. 0.9.0-alpha.27 Web 控制面契约
 
 Web Client 只通过六个窄 Typert Remote 访问 Host；每个 Remote 只有只读
 `snapshot` 和一个带判别字段的 `execute`，不暴露数据库、文件系统或 Git 对象。

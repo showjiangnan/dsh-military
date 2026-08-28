@@ -22,7 +22,7 @@ def content():
     return {
       'schemaVersion':'1.0.0','presetId':'military',
       'generation':f'military@sha256:{asset}','assetHash':asset,
-      'bundleVersion':'0.9.0-alpha.25',
+      'bundleVersion':'0.9.0-alpha.27',
       'dshBaseline':{'release':'0.1.1-rc.2','commit':'b150a551b8d465e31e418e1b2eaf5e79bbb7d28e'},
       'publicSelectionId':'military','hiddenArchiveId':f'military-generation-{asset[:16]}',
       'status':'CURRENT','files':rows,'createdAt':CREATED_AT,
