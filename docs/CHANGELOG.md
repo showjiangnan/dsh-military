@@ -1,5 +1,32 @@
 # Changelog
 
+## 0.9.0-alpha.28 — 2026-08-28
+
+### Lossless Workbench upgrade and Desired/Applied recovery
+
+- Added an installed-state Workbench migration that verifies each stale
+  Desired role against its exact immutable runtime revision before changing
+  any configuration.
+- Added package-owned revision-6/7/8 merge bases and immutable user-delta
+  replay. Unchanged roles advance to the runtime head; explicit status,
+  provider/model, reasoning, output/context budgets, concurrency and prompt
+  edits survive as one new revision when required.
+- Kept General, already-current Engineer history and newer Worker revisions
+  byte-for-byte unchanged in the real revision-3 failure topology.
+- Prevented plugin-created migration history and Host-derived capability
+  revisions from being misclassified as future user overrides.
+- Migrated the legacy `military-agent-templates` composition base and rebuilt
+  its compatibility mirror from runtime heads through Settings CAS, so reset
+  and restart cannot reintroduce revision-6 defaults.
+- Moved the final `APPLIED` transition after compatibility-mirror success.
+  Failed mirror writes remain retryable, and a retry never appends a duplicate
+  runtime template revision.
+- Updated application bootstrap to replay legacy user template fields across
+  contiguous bundled revisions while upgrading package-owned authority.
+- Added exact installed-topology, custom three-way-merge, future-upgrade,
+  CAS-failure and idempotency regressions. The suite now contains 220
+  deterministic tests.
+
 ## 0.9.0-alpha.27 — 2026-08-28
 
 ### Execution liveness, crash recovery, Flash acceptance and production truth

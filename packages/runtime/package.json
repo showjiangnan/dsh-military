@@ -1,6 +1,6 @@
 {
   "name": "@dsh-military/runtime",
-  "version": "0.9.0-alpha.27",
+  "version": "0.9.0-alpha.28",
   "description": "Complete dsh-military application service graph and orchestration runtimes.",
   "type": "module",
   "license": "Apache-2.0",
@@ -25,9 +25,9 @@
     "build": "tsc -p tsconfig.json"
   },
   "dependencies": {
-    "@dsh-military/contracts": "0.9.0-alpha.27",
-    "@dsh-military/core": "0.9.0-alpha.27",
-    "@dsh-military/infrastructure": "0.9.0-alpha.27"
+    "@dsh-military/contracts": "0.9.0-alpha.28",
+    "@dsh-military/core": "0.9.0-alpha.28",
+    "@dsh-military/infrastructure": "0.9.0-alpha.28"
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "^4.0.1",

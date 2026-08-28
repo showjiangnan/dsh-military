@@ -3,7 +3,7 @@ import { readFile, writeFile } from 'node:fs/promises'
 import { basename, dirname, resolve } from 'node:path'
 import { spawn } from 'node:child_process'
 
-const output = resolve(process.argv[2] ?? '../dsh-military-code-v0.9.0-alpha.27.zip')
+const output = resolve(process.argv[2] ?? '../dsh-military-code-v0.9.0-alpha.28.zip')
 const root = resolve('.')
 const python = String.raw`import os,subprocess,sys,zipfile
 root=os.path.abspath(sys.argv[1]); out=os.path.abspath(sys.argv[2])

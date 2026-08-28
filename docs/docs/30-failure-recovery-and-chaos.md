@@ -205,7 +205,7 @@ Attempt missingness 中分别归因。
 
 所有故障注入必须得到有限终态：`RECOVERED/PAUSED/QUARANTINED/CANCELLED/FAILED`，不得停留在未知“可能已完成”。
 
-## 0.9.0-alpha.27 Command Saga 恢复合同
+## 0.9.0-alpha.28 Command Saga 恢复合同
 
 Mission command 的外部 operation 具有稳定 idempotency key 和 durable state：
 
@@ -232,7 +232,7 @@ Provider 错误正文，也不会凭 UI 猜测副作用。
 - 同 idempotency key 使用不同 authority/semantic payload；
 - async SQLite transaction callback 的同步前缀 rollback。
 
-## 0.9.0-alpha.27 控制中心恢复合同
+## 0.9.0-alpha.28 控制中心恢复合同
 
 浏览器恢复流程是三步协议：
 

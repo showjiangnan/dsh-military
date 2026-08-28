@@ -102,7 +102,7 @@
 - **绩效评估不等于主观打分。** Harness 计算数据，委员会解释并给出有置信边界的建议。
 
 
-## 源码实现追踪（0.9.0-alpha.27）
+## 源码实现追踪（0.9.0-alpha.28）
 
 | 需求 | 源码实现 | 自动证据 |
 |---|---|---|
@@ -178,6 +178,9 @@
 | R-138 | SQLite 写锁不得跨外部异步工作且 repository 不得绕过 writer | `docs/30`、`docs/42`、ADR-0040 | `mission_command_operations` + guarded database handle | async callback rejection、standalone `run/exec` short transaction、maintenance boundary、Saga restart/finalization tests |
 | R-139 | Workspace 与 Outbox 在崩溃后保持唯一真源 | `docs/41`、`docs/42`、`docs/69` | workspace state + transactional outbox | adopt/quarantine、ordering/retry/dead-letter/offset tests |
 | R-140 | Direction/Wave/DAG barrier 真正控制派遣 | `docs/05`、`docs/69` | Mission Scheduler | unknown dependency/cycle/write conflict/Wave barrier tests |
+| R-141 | 已持久化 Workbench 必须无损跟随内置模板升级 | `docs/30`、`docs/67`、`docs/68` | exact runtime history + package revision base | revision 6→8、custom stale→current+1、历史缺失/内容不符 fail closed |
+| R-142 | Legacy Agent Template 镜像不得覆盖 Workbench 真值 | `docs/46`、`docs/66`、`docs/67` | Settings revision/CAS + runtime-head mirror | reset base、mirror conflict、APPLIED ordering、restart |
+| R-143 | Workbench 升级保持用户意图且可重复执行 | `docs/30`、`docs/51`、`docs/67` | `PLUGIN_MIGRATION` revision history | General/Engineer/Worker 保持、逐字段 user delta、第二次启动零新增 revision |
 | R-141 | 轻量模型只提交 Task 相对路径和浅层 draft，并获得唯一可执行纠错动作 | `docs/58`、`docs/69` | Task-rooted workspace tools + unified error envelope | path/symlink/operation-status/schema/terminal-latch、nextTool/correctedShape、secret/host-path redaction tests |
 | R-142 | 模型能力四轴分离且 exact adapter Dispatch 可审计 | `docs/29`、`docs/69` | capability bridge + dispatch receipt | native/bridge/canary/catalog/policy tests |
 | R-143 | 角色设置区分 Desired 与 Applied | `docs/51`、`docs/69` | workbench reconcile state | partial apply failure、retry、rollback、multi-tab fence tests |

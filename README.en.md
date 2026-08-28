@@ -2,7 +2,7 @@
 
 [简体中文（默认）](README.md) | English
 
-> Status: `0.9.0-alpha.27`. The project has passed exact DSH RC.2 type
+> Status: `0.9.0-alpha.28`. The project has passed exact DSH RC.2 type
 > checking, installation into a clean Web Profile, activation by the real
 > Loader, three-start recovery E2E, pack/publint checks for every package,
 > reproducible packaging, and checksum gates.
@@ -286,8 +286,8 @@ their complete verification material:
 
 ```text
 release/
-  dsh-military-bundle-0.9.0-alpha.27.tgz
-  dsh-military-installer-0.9.0-alpha.27.tgz
+  dsh-military-bundle-0.9.0-alpha.28.tgz
+  dsh-military-installer-0.9.0-alpha.28.tgz
   checksums.sha256
   INSTALL.md
   VERSION.json
@@ -303,7 +303,7 @@ cd release
 shasum -a 256 -c checksums.sha256
 
 dsh plugin --profile web add \
-  ./dsh-military-bundle-0.9.0-alpha.27.tgz
+  ./dsh-military-bundle-0.9.0-alpha.28.tgz
 
 pnpm --dir "${DSH_HOME:-$HOME/.dsh}/profiles/web" exec \
   dsh-military-install install \

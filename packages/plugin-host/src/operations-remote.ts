@@ -38,7 +38,7 @@ const RECOVERY_RECEIPT_NAMESPACE = 'military-recovery-operation'
 const RECOVERY_PREVIEW_NAMESPACE = 'military-recovery-preview'
 const RECOVERY_PREVIEW_TTL_MS = 5 * 60 * 1_000
 const OPERATION_ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/
-const SOURCE_VERSION = '0.9.0-alpha.27'
+const SOURCE_VERSION = '0.9.0-alpha.28'
 
 interface PersistenceInspection {
   readonly meta: SessionHeader

@@ -2,7 +2,7 @@
 
 [简体中文（默认）](README.md) | [English](README.en.md)
 
-> 状态：`0.9.0-alpha.27`；已通过精确 DSH RC.2 类型检查、干净 Web Profile
+> 状态：`0.9.0-alpha.28`；已通过精确 DSH RC.2 类型检查、干净 Web Profile
 > 安装、真实 Loader 激活、三次启动恢复 E2E、全部 package pack/publint、
 > 可重复打包和校验和门禁。
 
@@ -224,8 +224,8 @@ DSH_RC2_ROOT=/absolute/path/to/deepseek-harness pnpm release:verify
 
 ```text
 release/
-  dsh-military-bundle-0.9.0-alpha.27.tgz
-  dsh-military-installer-0.9.0-alpha.27.tgz
+  dsh-military-bundle-0.9.0-alpha.28.tgz
+  dsh-military-installer-0.9.0-alpha.28.tgz
   checksums.sha256
   INSTALL.md
   VERSION.json
@@ -241,7 +241,7 @@ cd release
 shasum -a 256 -c checksums.sha256
 
 dsh plugin --profile web add \
-  ./dsh-military-bundle-0.9.0-alpha.27.tgz
+  ./dsh-military-bundle-0.9.0-alpha.28.tgz
 
 pnpm --dir "${DSH_HOME:-$HOME/.dsh}/profiles/web" exec \
   dsh-military-install install \

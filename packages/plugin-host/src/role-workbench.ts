@@ -21,6 +21,7 @@ import {
 import type { MilitaryHostRuntime } from './context.js'
 import { SqliteStateRecords } from '@dsh-military/storage-sqlite'
 import {
+  defaultTemplateAtRevision,
   defaultGeneralPolicy,
   defaultFlashModelRevision,
   defaultTemplates,
@@ -121,6 +122,122 @@ export function templateRoleConfiguration(
         }),
     allowCanaryModel: profile.modelPolicy.allowCanaryModel === true,
   }
+}
+
+export interface RoleWorkbenchRebaseResult {
+  readonly document: RoleWorkbenchDocument
+  readonly changedRoleIds: readonly string[]
+  readonly customizedRoleIds: readonly string[]
+}
+
+/**
+ * Reconcile a persisted Desired document with immutable runtime template
+ * history without resetting user-owned fields.
+ *
+ * A stale configuration must first match the exact runtime revision it claims
+ * to represent. Package-owned fields then come from the current template,
+ * while deltas relative to the original bundled/user-history baseline are
+ * replayed as one new immutable revision only when the current runtime has not
+ * already preserved them.
+ */
+export async function rebaseRoleWorkbenchForRuntime(
+  host: MilitaryHostRuntime,
+  document: RoleWorkbenchDocument,
+  createdAt = new Date().toISOString(),
+): Promise<RoleWorkbenchRebaseResult> {
+  const changes: Array<{
+    readonly previous: PortableRoleConfiguration
+    readonly next: PortableRoleConfiguration
+    readonly customized: boolean
+  }> = []
+  for (const configuration of document.roles) {
+    if (configuration.roleId === GENERAL_ROLE_ID) continue
+    const templateId = configuration.roleId as AgentTemplateProfile['templateId']
+    const current = await host.application.templates.get(templateId)
+    if (configuration.templateRevision >= Number(current.revision)) continue
+    let exact: AgentTemplateProfile
+    try {
+      exact = await host.application.templates.get(
+        templateId,
+        configuration.templateRevision as AgentTemplateProfile['revision'],
+      )
+    } catch (error) {
+      throw new TypeError(
+        `cannot rebase workbench template ${configuration.roleId}`
+        + `@${configuration.templateRevision}: immutable runtime baseline is missing`,
+        { cause: error },
+      )
+    }
+    if (!configurationMatchesTemplate(configuration, exact)) {
+      throw new TypeError(
+        `cannot rebase workbench template ${configuration.roleId}`
+        + `@${configuration.templateRevision}: Desired settings do not match`
+        + ' the immutable runtime baseline',
+      )
+    }
+    const intent = roleMigrationIntent(document, configuration, current)
+    const replayed = replayRoleUserFields(intent, current)
+    const customized = roleIntentIsCustomized(intent)
+    const next = configurationMatchesTemplate(replayed, current)
+      ? templateRoleConfiguration(current)
+      : {
+          ...replayed,
+          templateRevision: Number(current.revision) + 1,
+        }
+    changes.push({ previous: configuration, next, customized })
+  }
+  if (changes.length === 0) {
+    return {
+      document,
+      changedRoleIds: [],
+      customizedRoleIds: [],
+    }
+  }
+
+  const workbenchRevision = document.revision + 1
+  const changedByRole = new Map(
+    changes.map(change => [change.previous.roleId, change] as const),
+  )
+  const migrationHistory = changes.map(change =>
+    roleMigrationHistory(
+      document,
+      change.previous,
+      change.next,
+      change.customized,
+      workbenchRevision,
+      createdAt,
+    ))
+  const rebased: RoleWorkbenchDocument = {
+    schemaVersion: MILITARY_CONTROL_SCHEMA_VERSION,
+    revision: workbenchRevision,
+    roles: document.roles.map(configuration =>
+      changedByRole.get(configuration.roleId)?.next ?? configuration),
+    history: [...document.history, ...migrationHistory]
+      .slice(-ROLE_WORKBENCH_HISTORY_LIMIT),
+    updatedAt: createdAt,
+  }
+  return {
+    document: rebased,
+    changedRoleIds: changes.map(change => change.previous.roleId),
+    customizedRoleIds: changes
+      .filter(change => change.customized)
+      .map(change => change.previous.roleId),
+  }
+}
+
+/** Return one current runtime head per non-General Workbench role, in UI order. */
+export async function runtimeTemplateHeadsForWorkbench(
+  host: MilitaryHostRuntime,
+  document: RoleWorkbenchDocument,
+): Promise<readonly AgentTemplateProfile[]> {
+  return await Promise.all(
+    document.roles
+      .filter(configuration => configuration.roleId !== GENERAL_ROLE_ID)
+      .map(async configuration =>
+        await host.application.templates.get(
+          configuration.roleId as AgentTemplateProfile['templateId'],
+        )),
+  )
 }
 
 export function parseRoleWorkbenchDocument(source: unknown): RoleWorkbenchDocument {
@@ -477,6 +594,9 @@ export function synchronizeRoleWorkbenchReadiness(
 export function synchronizeRoleWorkbench(
   host: MilitaryHostRuntime,
   document: RoleWorkbenchDocument,
+  options?: {
+    readonly afterRuntimeApplied?: () => Promise<void>
+  },
 ): Promise<void> {
   const previous = roleWorkbenchSynchronizationTails.get(host)
     ?? Promise.resolve()
@@ -485,8 +605,32 @@ export function synchronizeRoleWorkbench(
     .then(async () => {
       const records = new SqliteStateRecords(host.database, host.tenantId)
       const prior = roleWorkbenchApplicationState(host, document.revision)
-      if (prior.state === 'APPLIED'
-        && prior.appliedRevision === document.revision) return
+      if (
+        prior.state === 'APPLIED'
+        && prior.appliedRevision === document.revision
+      ) {
+        try {
+          await options?.afterRuntimeApplied?.()
+        } catch (error) {
+          const failedAt = new Date().toISOString()
+          host.database.transaction(() => {
+            records.putSync<RoleWorkbenchApplicationState>(
+              ROLE_WORKBENCH_APPLICATION_NAMESPACE,
+              'singleton',
+              {
+                desiredRevision: document.revision,
+                appliedRevision: prior.appliedRevision,
+                state: 'FAILED',
+                attempts: prior.attempts + 1,
+                updatedAt: failedAt,
+                error: boundedApplicationError(error),
+              },
+            )
+          })
+          throw error
+        }
+        return
+      }
       const startedAt = new Date().toISOString()
       host.database.transaction(() => {
         records.putSync<RoleWorkbenchApplicationState>(
@@ -503,6 +647,7 @@ export function synchronizeRoleWorkbench(
       })
       try {
         await applyRoleWorkbench(host, document)
+        await options?.afterRuntimeApplied?.()
         const appliedAt = new Date().toISOString()
         host.database.transaction(() => {
           records.putSync<RoleWorkbenchApplicationState>(
@@ -661,6 +806,188 @@ async function applyRoleWorkbench(
   host.updateGeneralRolePrompt(effectiveRolePrompt(general))
 }
 
+interface RoleMigrationIntent {
+  status: PortableRoleConfiguration['status'] | undefined
+  route: {
+    readonly provider: string
+    readonly model: string
+    readonly modelCapabilityProfileId: string
+    readonly modelCapabilityProfileRevision: number | undefined
+    readonly allowCanaryModel: boolean
+  } | undefined
+  reasoningEffort: PortableRoleConfiguration['reasoningEffort'] | undefined
+  maxOutputTokens: number | undefined
+  contextBudgetTokens: number | undefined
+  concurrencyLimit: number | undefined
+  promptOverride: string | undefined
+}
+
+function roleMigrationIntent(
+  document: RoleWorkbenchDocument,
+  configuration: PortableRoleConfiguration,
+  current: AgentTemplateProfile,
+): RoleMigrationIntent {
+  const intent = emptyRoleMigrationIntent()
+  const userHistory = document.history.filter(revision =>
+    revision.roleId === configuration.roleId
+    && revision.source !== 'BUNDLED'
+    && revision.source !== 'PLUGIN_MIGRATION')
+  for (const revision of userHistory) {
+    if (revision.previousConfiguration === undefined) continue
+    recordRoleUserDelta(
+      intent,
+      revision.previousConfiguration,
+      revision.configuration,
+    )
+  }
+  if (roleIntentIsCustomized(intent)) return intent
+
+  const packaged = defaultTemplates().find(template =>
+    String(template.templateId) === configuration.roleId)
+  const bundled = packaged === undefined
+    ? undefined
+    : defaultTemplateAtRevision(packaged, configuration.templateRevision)
+  const baseline = bundled === undefined
+    ? templateRoleConfiguration(current)
+    : templateRoleConfiguration(bundled)
+  recordRoleUserDelta(intent, baseline, configuration)
+  return intent
+}
+
+function replayRoleUserFields(
+  intent: RoleMigrationIntent,
+  current: AgentTemplateProfile,
+): PortableRoleConfiguration {
+  const target = templateRoleConfiguration(current)
+  const capabilityRevision = intent.route === undefined
+    ? target.modelCapabilityProfileRevision
+    : intent.route.modelCapabilityProfileRevision
+  const {
+    modelCapabilityProfileRevision: _targetCapabilityRevision,
+    ...targetWithoutCapabilityRevision
+  } = target
+  return {
+    ...targetWithoutCapabilityRevision,
+    status: intent.status ?? target.status,
+    provider: intent.route?.provider ?? target.provider,
+    model: intent.route?.model ?? target.model,
+    reasoningEffort: intent.reasoningEffort ?? target.reasoningEffort,
+    maxOutputTokens: intent.maxOutputTokens ?? target.maxOutputTokens,
+    contextBudgetTokens:
+      intent.contextBudgetTokens ?? target.contextBudgetTokens,
+    concurrencyLimit: intent.concurrencyLimit ?? target.concurrencyLimit,
+    promptOverride: intent.promptOverride ?? target.promptOverride,
+    modelCapabilityProfileId:
+      intent.route?.modelCapabilityProfileId
+        ?? target.modelCapabilityProfileId,
+    ...(capabilityRevision === undefined
+      ? {}
+      : { modelCapabilityProfileRevision: capabilityRevision }),
+    allowCanaryModel:
+      intent.route?.allowCanaryModel ?? target.allowCanaryModel,
+  }
+}
+
+function emptyRoleMigrationIntent(): RoleMigrationIntent {
+  return {
+    status: undefined,
+    route: undefined,
+    reasoningEffort: undefined,
+    maxOutputTokens: undefined,
+    contextBudgetTokens: undefined,
+    concurrencyLimit: undefined,
+    promptOverride: undefined,
+  }
+}
+
+function recordRoleUserDelta(
+  intent: RoleMigrationIntent,
+  before: PortableRoleConfiguration,
+  after: PortableRoleConfiguration,
+): void {
+  if (after.status !== before.status) intent.status = after.status
+  if (after.provider !== before.provider || after.model !== before.model) {
+    intent.route = {
+      provider: after.provider,
+      model: after.model,
+      modelCapabilityProfileId: after.modelCapabilityProfileId,
+      modelCapabilityProfileRevision:
+        after.modelCapabilityProfileRevision,
+      allowCanaryModel: after.allowCanaryModel,
+    }
+  }
+  if (after.reasoningEffort !== before.reasoningEffort) {
+    intent.reasoningEffort = after.reasoningEffort
+  }
+  if (after.maxOutputTokens !== before.maxOutputTokens) {
+    intent.maxOutputTokens = after.maxOutputTokens
+  }
+  if (after.contextBudgetTokens !== before.contextBudgetTokens) {
+    intent.contextBudgetTokens = after.contextBudgetTokens
+  }
+  if (after.concurrencyLimit !== before.concurrencyLimit) {
+    intent.concurrencyLimit = after.concurrencyLimit
+  }
+  if (after.promptOverride !== before.promptOverride) {
+    intent.promptOverride = after.promptOverride
+  }
+}
+
+function roleIntentIsCustomized(intent: RoleMigrationIntent): boolean {
+  return intent.status !== undefined
+    || intent.route !== undefined
+    || intent.reasoningEffort !== undefined
+    || intent.maxOutputTokens !== undefined
+    || intent.contextBudgetTokens !== undefined
+    || intent.concurrencyLimit !== undefined
+    || intent.promptOverride !== undefined
+}
+
+function roleMigrationHistory(
+  document: RoleWorkbenchDocument,
+  previous: PortableRoleConfiguration,
+  next: PortableRoleConfiguration,
+  customized: boolean,
+  workbenchRevision: number,
+  createdAt: string,
+): RoleConfigurationRevision {
+  const roleHistory = document.history
+    .filter(revision => revision.roleId === previous.roleId)
+  const priorReadiness = roleHistory.at(-1)?.readiness
+  const readiness = customized
+    ? priorReadiness ?? {
+        disposition: 'REVIEW' as const,
+        score: 0,
+        errorCount: 0,
+        warningCount: 1,
+      }
+    : {
+        disposition: 'READY' as const,
+        score: 100,
+        errorCount: 0,
+        warningCount: 0,
+      }
+  return {
+    schemaVersion: MILITARY_CONTROL_SCHEMA_VERSION,
+    revision: roleHistory.reduce(
+      (maximum, revision) => Math.max(maximum, revision.revision),
+      0,
+    ) + 1,
+    workbenchRevision,
+    roleId: previous.roleId,
+    source: 'PLUGIN_MIGRATION',
+    createdAt,
+    configuration: next,
+    previousConfiguration: previous,
+    promptDiff: diffPrompt(
+      effectiveRolePrompt(previous),
+      effectiveRolePrompt(next),
+    ),
+    readiness,
+    actor: 'plugin-migration',
+  }
+}
+
 function configurationMatchesTemplate(
   configuration: PortableRoleConfiguration,
   template: AgentTemplateProfile,
@@ -782,7 +1109,15 @@ function parseHistoryRevision(
   const roleId = normalizedIdentifier(value.roleId, `${at}.roleId`)
   if (!roleIds.includes(roleId)) throw new TypeError(`${at}.roleId is unknown`)
   const source = String(value.source)
-  if (!['BUNDLED', 'USER_SAVE', 'ROLLBACK', 'IMPORT'].includes(source)) {
+  if (
+    ![
+      'BUNDLED',
+      'USER_SAVE',
+      'ROLLBACK',
+      'IMPORT',
+      'PLUGIN_MIGRATION',
+    ].includes(source)
+  ) {
     throw new TypeError(`${at}.source is invalid`)
   }
   const actor = String(value.actor)

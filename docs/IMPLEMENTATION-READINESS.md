@@ -2,9 +2,9 @@
 
 ## 当前结论
 
-`0.9.0-alpha.27` 已完成 RC.2 源码与发行闭环：精确上游声明编译、13 个 package
+`0.9.0-alpha.28` 已完成 RC.2 源码与发行闭环：精确上游声明编译、13 个 package
 合同、干净 Profile 安装、Loader/Preset/Web Client 激活、Mission 纵向流程、
-持久化恢复、语义审查和可重复 tarball 均进入默认发布门禁。
+持久化恢复、Workbench 无损升级、语义审查和可重复 tarball 均进入默认发布门禁。
 
 ## 能力状态
 
@@ -25,6 +25,7 @@
 | RC.2 Compatibility Probe | Ready | `docs/45`、`reference/dsh-rc2/` |
 | Bundle/Installer npm 闭包 | Ready | clean Profile install、tarball inspection |
 | 角色工作台、模型目录、预算与提示词历史 | Ready | Desired/Applied、六层 Prompt、revision/rollback、catalog/cost tests |
+| Workbench/Legacy Template 升级 | Ready | exact revision 三方合并、Settings CAS mirror、真实数据库副本和幂等测试 |
 | Flash readiness、离线模拟与显式 Canary | Ready（确定性门） | actual ToolProfile/Schema、safe read-only confirmation、simulation receipts |
 | 简体中文提示词辅助检查 | Ready | 12 个默认 prompt、code/path/identifier skip、Host hash-bound receipt |
 | Session 诊断与安全恢复 | Ready | immutable timeline、Host redaction、preview/confirmation/idempotent receipts |
@@ -48,7 +49,7 @@ pnpm install --frozen-lockfile
 DSH_RC2_ROOT=/exact/built/deepseek-harness pnpm release:verify
 ```
 
-门禁依次覆盖生成物、strict typecheck、RC.2 合同快照、构建、217 项自动测试、
+门禁依次覆盖生成物、strict typecheck、RC.2 合同快照、构建、220 项自动测试、
 Mission fault/restart regression、semantic audit、静态 review、文档工程、精确
 上游声明编译、13/13 pack/publint、Bundle/Installer 两次打包一致性、空 DSH
 Home 安装、真实 Loader 激活和三次 Profile 启动 E2E。

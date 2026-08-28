@@ -2,7 +2,7 @@
 
 ## 1. 交付范围
 
-`0.9.0-alpha.27` 保留并深化此前分散在 Settings、运行日志和设计文档中的 15 项产品能力，
+`0.9.0-alpha.28` 保留并深化此前分散在 Settings、运行日志和设计文档中的 15 项产品能力，
 收敛为两个 DSH RC.2 原生入口：
 
 ```text
@@ -69,6 +69,19 @@ Workspace。
 外部更新和多标签页冲突提供字段级 Diff、采用外部版本、保留本地草稿和 rebase。
 导出只包含可移植角色设置；凭据、绝对路径、Session、运行 receipt、SQLite
 状态和 Provider 响应不在可表示类型中。导入必须先预览再提交。
+
+Bundle 升级时，持久化 Desired 可能落后于已经前移的运行时模板。Host 先要求
+Desired 与其声明的 exact immutable runtime revision 一致，再以 package-owned
+历史资产为基线做三方合并：未修改的内置字段采用 current runtime head，
+`USER_SAVE`、`ROLLBACK`、`IMPORT` 中真实发生变化的 status、route、
+reasoning、预算、并发和 prompt 才作为用户意图重放。工具、权限和 capability
+authority 始终来自当前 package。升级历史使用 `PLUGIN_MIGRATION`，但不会在
+下一次升级中被解释成用户修改。
+
+兼容镜像 `military-agent-templates` 不参与运行时真值裁决；runtime projection
+成功后，Host 从 exact template heads 重建它并使用 Settings revision/CAS 写回。
+只有镜像也成功收敛后 Desired/Applied 才进入 `APPLIED`。失败可重试，已经应用
+的 immutable revision 不会再次追加。
 
 ### 2.6 Session 诊断时间线
 

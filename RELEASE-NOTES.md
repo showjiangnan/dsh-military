@@ -1,5 +1,48 @@
 # dsh-military release notes
 
+## 0.9.0-alpha.28 — DSH RC.2
+
+This release repairs the installed Military Settings startup failure exposed
+by the user's long-lived Workbench document. Runtime template history had
+correctly advanced unmodified departments from revision 6 through 7 to 8,
+while the persisted Desired document still referenced revision 6. The prior
+reconciler treated that safe upgrade state as a rollback attempt and left the
+control plane at `Desired 3 / Applied 0`.
+
+Startup now performs a lossless, auditable Workbench rebase before runtime
+projection. Every stale role must match the exact immutable runtime revision
+it claims. The Host then uses the package's immutable historical asset as the
+three-way-merge base, advances unchanged built-ins to the current runtime
+head, and replays only fields that a user actually changed. User intent is
+derived from immutable `USER_SAVE`/`ROLLBACK`/`IMPORT` deltas, so a prior
+plugin migration never turns a later package capability revision into a fake
+user override. General routing, custom models, reasoning, token/context
+budgets, concurrency, prompts, status, Engineer history, and newer Worker
+revisions remain unchanged. Tool and permission authority always comes from
+the current package.
+
+The compatibility namespace `military-agent-templates` can no longer inject
+old revision-6 defaults into a reset or newly composed Workbench. Its startup
+base is migrated first, and after runtime application the namespace is rebuilt
+from exact runtime heads through a Settings revision/CAS write. The
+Desired/Applied record is marked `APPLIED` only after that mirror succeeds. A
+mirror conflict leaves a bounded `FAILED` state; retry observes an already
+applied immutable template and does not append a duplicate revision.
+
+Application bootstrap also preserves user-edited legacy templates while
+installing a newer bundled revision. It replays user-editable deltas onto each
+contiguous package revision instead of replacing them, while still upgrading
+Host-owned capability, tool, and permission references.
+
+The regression suite contains the exact installed topology: nine unchanged
+revision-6 departments, Engineer revision 8 with two immutable save records,
+Worker revision 10, and General on DeepSeek V4 Pro with `max` reasoning. A
+coherent copy of the real local Settings and SQLite state rebased from
+Workbench revision 3 to 4, converged to `Desired 4 / Applied 4`, and a second
+application left the attempt counter unchanged. The source now contains 220
+deterministic tests and remains pinned exclusively to DSH `0.1.1-rc.2` commit
+`b150a551b8d465e31e418e1b2eaf5e79bbb7d28e`.
+
 ## 0.9.0-alpha.27 — DSH RC.2
 
 This release completes the execution-liveness and production-truth audit that

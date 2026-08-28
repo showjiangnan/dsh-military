@@ -14,7 +14,7 @@ test('preset archive survives a compatible bundle-only upgrade across restart', 
       await readFile(join(presetDirectory, 'generation-manifest.json'), 'utf8'),
     ) as PresetGenerationManifest
     const original = { ...packaged, bundleVersion: '0.9.0-alpha.1' }
-    const upgraded = { ...packaged, bundleVersion: '0.9.0-alpha.27' }
+    const upgraded = { ...packaged, bundleVersion: '0.9.0-alpha.28' }
     const archive = new FilePresetGenerationArchive(root)
 
     const firstBoot = await archive.archiveAssets(presetDirectory, original)

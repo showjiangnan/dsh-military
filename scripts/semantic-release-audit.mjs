@@ -529,7 +529,7 @@ add(
 
 const failed = checks.filter(check => !check.ok)
 const report = {
-  version: '0.9.0-alpha.27',
+  version: '0.9.0-alpha.28',
   generatedAt: new Date().toISOString(),
   baseline: {
     release: '0.1.1-rc.2',

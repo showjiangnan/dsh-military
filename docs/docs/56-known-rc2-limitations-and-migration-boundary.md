@@ -2,7 +2,7 @@
 
 ## 1. 支持范围
 
-`0.9.0-alpha.27` 只对 `dsh@0.1.1-rc.2` commit `b150a551...` 声明完整支持。旧版部署必须使用其匹配的发布包，不允许两个 DSH runtime identity 在一个进程混装。
+`0.9.0-alpha.28` 只对 `dsh@0.1.1-rc.2` commit `b150a551...` 声明完整支持。旧版部署必须使用其匹配的发布包，不允许两个 DSH runtime identity 在一个进程混装。
 
 ## 2. Preset generation
 

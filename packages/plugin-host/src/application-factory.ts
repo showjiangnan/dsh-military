@@ -203,7 +203,11 @@ export async function createMilitaryApplication(ctx: Context, config: Applicatio
       continue
     }
     let expectedRevision = existing.revision
-    for (const revision of defaultTemplateUpgradePath(template, existing.revision)) {
+    for (const revision of defaultTemplateUpgradePath(
+      template,
+      existing.revision,
+      existing,
+    )) {
       await templates.revise(
         { ...revision, status: existing.status },
         expectedRevision,

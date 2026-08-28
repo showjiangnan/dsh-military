@@ -9,18 +9,24 @@ import {
   type TacticalTag,
 } from '@dsh-military/contracts'
 import type { MilitaryHostRuntime } from './context.js'
-import { defaultTemplates } from './defaults.js'
+import {
+  defaultTemplateUpgradePath,
+  defaultTemplates,
+} from './defaults.js'
 import type { PrivateSkillRemoteService } from './private-skill-remote.js'
 import { redactDiagnosticText } from './session-diagnostics.js'
 import {
   ROLE_WORKBENCH_NAMESPACE,
   initialRoleWorkbenchDocument,
   parseRoleWorkbenchDocument,
+  rebaseRoleWorkbenchForRuntime,
+  runtimeTemplateHeadsForWorkbench,
   serializeRoleWorkbenchDocument,
   synchronizeRoleWorkbench,
   synchronizeRoleWorkbenchReadiness,
 } from './role-workbench.js'
 
+const LEGACY_AGENT_TEMPLATE_NAMESPACE = 'military-agent-templates'
 const DEFAULT_TEMPLATE_JSON = JSON.stringify(defaultTemplates(), null, 2)
 
 /**
@@ -81,7 +87,7 @@ export function installMilitarySettings(
       }, ctx)
     })
 
-    const templates = settings.register(settingsNamespace('military-agent-templates'), z.object({
+    const templates = settings.register(settingsNamespace(LEGACY_AGENT_TEMPLATE_NAMESPACE), z.object({
       profilesJson: z.string().default(DEFAULT_TEMPLATE_JSON),
     }), {
       base: { profilesJson: DEFAULT_TEMPLATE_JSON },
@@ -91,7 +97,9 @@ export function installMilitarySettings(
     const roleWorkbenchBase = serializeRoleWorkbenchDocument(
       initialRoleWorkbenchDocument(
         modelRouting.get(),
-        parseTemplateProfiles(templates.get().profilesJson),
+        migrateLegacyTemplateProfiles(
+          parseTemplateProfiles(templates.get().profilesJson),
+        ),
       ),
     )
     const roleWorkbench = settings.register(settingsNamespace(ROLE_WORKBENCH_NAMESPACE), z.object({
@@ -333,14 +341,88 @@ async function synchronizeWorkbenchSettings(
   ctx: Context,
 ): Promise<void> {
   try {
-    const document = parseRoleWorkbenchDocument(source)
+    if (!workbenchSourceIsCurrent(source, ctx)) return
+    let document = parseRoleWorkbenchDocument(source)
     for (const route of uniqueModelRoutes(document.roles)) {
       await host.ensureDshModelCapability(route.provider, route.model)
     }
-    await synchronizeRoleWorkbench(host, document)
+    if (!workbenchSourceIsCurrent(source, ctx)) return
+    const rebased = await rebaseRoleWorkbenchForRuntime(host, document)
+    if (rebased.changedRoleIds.length > 0) {
+      const descriptor = requiredSettingsDescriptor(
+        ctx,
+        ROLE_WORKBENCH_NAMESPACE,
+      )
+      if (settingsString(descriptor.value, 'stateJson') !== source) return
+      await ctx.settings.update(
+        settingsNamespace(ROLE_WORKBENCH_NAMESPACE),
+        { stateJson: serializeRoleWorkbenchDocument(rebased.document) },
+        descriptor.revision,
+      )
+      document = rebased.document
+    }
+    await synchronizeRoleWorkbench(host, document, {
+      afterRuntimeApplied: async () => {
+        await synchronizeLegacyTemplateMirror(host, document, ctx)
+      },
+    })
   } catch (error) {
     ctx.logger.error('military-role-workbench settings rejected', error)
   }
+}
+
+async function synchronizeLegacyTemplateMirror(
+  host: MilitaryHostRuntime,
+  document: ReturnType<typeof parseRoleWorkbenchDocument>,
+  ctx: Context,
+): Promise<void> {
+  const profiles = await runtimeTemplateHeadsForWorkbench(host, document)
+  const profilesJson = JSON.stringify(profiles, null, 2)
+  const descriptor = requiredSettingsDescriptor(
+    ctx,
+    LEGACY_AGENT_TEMPLATE_NAMESPACE,
+  )
+  if (settingsString(descriptor.value, 'profilesJson') === profilesJson) return
+  await ctx.settings.update(
+    settingsNamespace(LEGACY_AGENT_TEMPLATE_NAMESPACE),
+    { profilesJson },
+    descriptor.revision,
+  )
+}
+
+function workbenchSourceIsCurrent(
+  source: string,
+  ctx: Context,
+): boolean {
+  const descriptor = requiredSettingsDescriptor(ctx, ROLE_WORKBENCH_NAMESPACE)
+  return settingsString(descriptor.value, 'stateJson') === source
+}
+
+function requiredSettingsDescriptor(
+  ctx: Context,
+  namespace: string,
+): ReturnType<Context['settings']['describe']>[number] {
+  const descriptor = ctx.settings.describe().find(value =>
+    String(value.ns) === namespace)
+  if (descriptor === undefined) {
+    throw new TypeError(`Military settings namespace ${namespace} is unavailable`)
+  }
+  return descriptor
+}
+
+function settingsString(
+  value: unknown,
+  key: string,
+): string {
+  if (
+    typeof value !== 'object'
+    || value === null
+    || Array.isArray(value)
+    || typeof (value as Record<string, unknown>)[key] !== 'string'
+  ) {
+    throw new TypeError(`Military settings ${key} must be a string`)
+  }
+  return (value as Record<string, string>)[key]!
 }
 
 function scheduleWorkbenchSettings(
@@ -593,6 +675,51 @@ function parseEvaluationDate(source: string, fallback: Date): Date {
   const value = new Date(source)
   if (!Number.isFinite(value.getTime())) throw new TypeError(`invalid evaluation date: ${source}`)
   return value
+}
+
+function migrateLegacyTemplateProfiles(
+  profiles: readonly AgentTemplateProfile[],
+): readonly AgentTemplateProfile[] {
+  const bundled = defaultTemplates()
+  const expectedIds = new Set(bundled.map(template =>
+    String(template.templateId)))
+  for (const profile of profiles) {
+    if (!expectedIds.has(String(profile.templateId))) {
+      throw new TypeError(
+        `unknown legacy Military template ${String(profile.templateId)}`,
+      )
+    }
+  }
+  const heads = new Map<string, AgentTemplateProfile>()
+  for (const profile of profiles) {
+    const id = String(profile.templateId)
+    const prior = heads.get(id)
+    if (
+      prior === undefined
+      || Number(profile.revision) > Number(prior.revision)
+    ) heads.set(id, profile)
+  }
+  return bundled.map((template) => {
+    const existing = heads.get(String(template.templateId))
+    if (existing === undefined) {
+      throw new TypeError(
+        `legacy Military templates must include ${String(template.templateId)}`,
+      )
+    }
+    if (Number(existing.revision) >= Number(template.revision)) return existing
+    const path = defaultTemplateUpgradePath(
+      template,
+      existing.revision,
+      existing,
+    )
+    const migrated = path.at(-1)
+    if (migrated === undefined) {
+      throw new TypeError(
+        `legacy Military template ${String(template.templateId)} did not migrate`,
+      )
+    }
+    return migrated
+  })
 }
 
 

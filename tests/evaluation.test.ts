@@ -664,7 +664,7 @@ function attempt(
         revision: template.capabilities.permissionProfileRevision,
       },
       presetGeneration: 'military@test',
-      bundleVersion: '0.9.0-alpha.27',
+      bundleVersion: '0.9.0-alpha.28',
       dshRelease: '0.1.1-rc.2',
       dshCommit: 'b150a551b8d465e31e418e1b2eaf5e79bbb7d28e',
     },

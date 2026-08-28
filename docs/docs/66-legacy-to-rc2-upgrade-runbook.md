@@ -11,7 +11,7 @@
 ## 2. 安装
 
 - 安装 `dsh@0.1.1-rc.2` commit `b150a551b8d465e31e418e1b2eaf5e79bbb7d28e`；
-- 安装 `dsh-military 0.9.0-alpha.27`；
+- 安装 `dsh-military 0.9.0-alpha.28`；
 - 运行 migration dry-run；
 - 验证 Web client package manifest；
 - 重新计算 Military preset generation；
@@ -32,11 +32,15 @@
 9. 旧 Session 冷恢复或显式 migration；
 10. `alpha.24` 模板 revision 6 经精确 revision 7 资产升级到 revision 8，且
     已高于内置版本的用户模板不被降级或覆盖；
-10. archive-only generation quarantine。
+11. Workbench stale Desired 先按 exact runtime revision 和 package base 三方
+    合并，再应用 runtime head；General、用户字段、历史和较新模板保持；
+12. `military-agent-templates` mirror 经 Settings CAS 从 runtime heads 重建，
+    第二次启动不新增 template/Workbench revision；
+13. archive-only generation quarantine。
 
 ## 4. 回滚
 
 RC.2 写入新的 Military Ledger Event、Activity State 或 Military Schema 后，
-不允许直接用旧 Runtime 继续同一可变 Mission。`0.9.0-alpha.27` 不写未知
+不允许直接用旧 Runtime 继续同一可变 Mission。`0.9.0-alpha.28` 不写未知
 `military/*` DSH Session Event。回滚应恢复升级前整套数据备份，或把已认证事实
 导入新 Mission；不得让两个版本同时写同一 Mission Ledger。

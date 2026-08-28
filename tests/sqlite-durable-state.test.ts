@@ -472,6 +472,50 @@ test('built-in model and template revisions upgrade without rewriting prior SQLi
       Number(upgradePath[0]?.modelPolicy.modelCapabilityProfileRevision),
       Number(legacyFlash.revision),
     )
+    const customizedLegacy = {
+      ...legacyTemplate,
+      rolePromptOverride: '用户自定义：读取证据后再提出建议，禁止扩大工具权限。',
+      modelPolicy: {
+        ...legacyTemplate.modelPolicy,
+        provider: 'third-party-provider',
+        model: 'economy-model',
+        reasoningEffort: 'max' as const,
+        maxOutputTokens: 24_576,
+        modelCapabilityProfileId: 'third-party-economy-v1',
+        modelCapabilityProfileRevision: brand<number, 'Revision'>(1),
+        allowCanaryModel: false,
+      },
+      contextPolicy: {
+        ...legacyTemplate.contextPolicy,
+        contextBudgetTokens: 72_000,
+      },
+      concurrencyLimit: 3,
+    }
+    const customizedPath = defaultTemplateUpgradePath(
+      currentTemplate,
+      customizedLegacy.revision,
+      customizedLegacy,
+    )
+    assert.deepEqual(
+      customizedPath.map(profile => Number(profile.revision)),
+      [7, Number(defaultTemplateRevision)],
+    )
+    const customizedCurrent = customizedPath.at(-1)
+    assert.equal(customizedCurrent?.modelPolicy.provider, 'third-party-provider')
+    assert.equal(customizedCurrent?.modelPolicy.model, 'economy-model')
+    assert.equal(customizedCurrent?.modelPolicy.reasoningEffort, 'max')
+    assert.equal(customizedCurrent?.modelPolicy.maxOutputTokens, 24_576)
+    assert.equal(
+      customizedCurrent?.modelPolicy.modelCapabilityProfileId,
+      'third-party-economy-v1',
+    )
+    assert.equal(customizedCurrent?.contextPolicy.contextBudgetTokens, 72_000)
+    assert.equal(customizedCurrent?.concurrencyLimit, 3)
+    assert.equal(
+      Number(customizedCurrent?.capabilities.toolProfileRevision),
+      Number(currentTemplate.capabilities.toolProfileRevision),
+      'package-owned tool authority must upgrade even when user fields are replayed',
+    )
     for (const profile of upgradePath) {
       await templates.revise(profile, expectedRevision)
       expectedRevision = profile.revision

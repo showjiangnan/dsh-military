@@ -13,7 +13,7 @@ import {
 import { tmpdir } from 'node:os'
 import { basename, join, resolve } from 'node:path'
 
-const VERSION = '0.9.0-alpha.27'
+const VERSION = '0.9.0-alpha.28'
 const RC2_RELEASE = '0.1.1-rc.2'
 const RC2_COMMIT = 'b150a551b8d465e31e418e1b2eaf5e79bbb7d28e'
 const dshRoot = resolve(process.env.DSH_RC2_ROOT ?? '../../deepseek-harness')

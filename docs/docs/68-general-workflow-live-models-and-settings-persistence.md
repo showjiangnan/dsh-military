@@ -1,6 +1,6 @@
 # General 全流程门、DSH 全模型接入与设置持久化
 
-> `0.9.0-alpha.27` 补充说明：本章保留 `71fe` 事故根因和模型/设置修复背景。
+> `0.9.0-alpha.28` 补充说明：本章保留 `71fe` 事故根因和模型/设置修复背景。
 > Workflow 的当前权威实现已经升级为独立 `WorkflowObligation`、Task Version、
 > Attempt、Activation 与 Dispatch，并使用 Desired/Applied 设置状态；完整语义见
 > [第 69 章](69-execution-liveness-flash-and-production-readiness.md)。

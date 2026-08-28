@@ -19,6 +19,7 @@ export type RoleConfigurationSource =
   | 'USER_SAVE'
   | 'ROLLBACK'
   | 'IMPORT'
+  | 'PLUGIN_MIGRATION'
 
 export interface PortableRoleConfiguration {
   readonly roleId: string

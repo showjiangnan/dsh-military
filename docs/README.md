@@ -1,13 +1,13 @@
 # dsh-military：验证驱动的多代理组织 Bundle
 
-> 源码实现：`0.9.0-alpha.27`；文档契约：`0.9.0-draft`
+> 源码实现：`0.9.0-alpha.28`；文档契约：`0.9.0-draft`
 > 完整支持基线：`dsh@0.1.1-rc.2`，commit `b150a551b8d465e31e418e1b2eaf5e79bbb7d28e`  
 > 固定公开 preset：`military`  
 > 文档语言：中文；机器契约使用稳定英文标识。
 
 ## 1. 项目定位
 
-> **0.9.0-alpha.27 的 Web 边界：** 当前源码实现侧栏独立
+> **0.9.0-alpha.28 的 Web 边界：** 当前源码实现侧栏独立
 > `Military 设置中心` 入口、原生弹窗、七个左侧一级选项卡、General/11 部门
 > 单角色工作台、模型目录、简体中文提示词/辅助检查、Prompt 预览、Flash
 > readiness/模拟、revision/回滚、成本、诊断/恢复、Specs 工作区、固定评测，
@@ -86,7 +86,7 @@ preset default
 
 部署可把军事显示词切换为中性术语，机器 ID 和权限语义保持不变。
 
-## 5. 0.9.0-alpha.27 的源码实现与工程收敛
+## 5. 0.9.0-alpha.28 的源码实现与工程收敛
 
 本版在 0.2.0 组织设计之上补齐了实施前的关键契约：
 
@@ -221,8 +221,8 @@ python scripts/validate_artifacts.py
 
 ## 10. 实施状态
 
-本目录已与 `dsh-military 0.9.0-alpha.27` 源码和 release artifact 同步。默认发布
-门禁覆盖本地 strict 与精确 RC.2 checkout 声明编译、构建、148 项测试、
+本目录已与 `dsh-military 0.9.0-alpha.28` 源码和 release artifact 同步。默认发布
+门禁覆盖本地 strict 与精确 RC.2 checkout 声明编译、构建、220 项测试、
 SQLite/Git/preset/私有 Skill 供应链故障恢复、静态与语义审查、13 个 package
 的 pack/publint、空 DSH Home 安装、真实 Loader 激活和三次 Profile 启动 E2E。
 [实施就绪矩阵](IMPLEMENTATION-READINESS.md) 与

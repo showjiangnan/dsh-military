@@ -146,3 +146,15 @@
 | Evaluation | ratio status + exact pricing snapshot | 0 denominator、missing authority、unknown cost | heartbeat/fence、N/A/INCOMPLETE |
 | Production Plane | local + injected provider descriptors | SQLite 冒充 Postgres、local queue/KMS 冒充 distributed | topology fail-closed、capacity/telemetry/signed restore |
 | Flash acceptance | N=50、96% first tool、92% E2E fixture PASS；唯一 nextTool/correctedShape | insufficient sample、Wilson lower-bound、secret/path 泄露、任一 safety violation | evidence export + independent offline recomputation |
+
+## 0.9.0-alpha.28 Workbench 无损升级专项
+
+| 领域 | 正向 | 负向/并发 | 恢复/证明 |
+|---|---|---|---|
+| 精确基线 | stale Desired 匹配 immutable runtime revision | 历史 revision 缺失、Desired 与 claimed runtime 不一致 | fail closed，不猜测、不恢复默认 |
+| 内置升级 | 未修改 revision 6 经 package base 前移到 runtime 8 | capability/tool revision 漂移被误判为用户配置 | `PLUGIN_MIGRATION` 历史；Host authority 使用当前 package |
+| 用户三方合并 | provider/model/reasoning/budget/concurrency/prompt/status delta 重放 | runtime 当前 head 已保留 delta、同 revision 内容冲突 | 只新增一个必要 revision；否则直接采用 current head |
+| 现场拓扑 | General Pro/Max、Engineer 8+两条历史、Worker 10 保持 | 九个旧角色 revision 6、Desired 3/Applied 0 | Workbench 4、Desired=Applied=4、历史 2→11 |
+| Legacy mirror | runtime heads 经 Settings CAS 重建 | 旧 profilesJson 回灌、并发修改、reset base | mirror 成功后才 APPLIED；冲突进入 FAILED 可重试 |
+| 幂等 | 同文档第二次启动不写模板 | runtime 已成功但 mirror 首次失败 | retry 不重复 revision，attempt 仅失败时增加 |
+| 未来升级 | prior plugin migration 不形成 user intent | 新 capability revision 被旧 migration 锁死 | 只解释 USER_SAVE/ROLLBACK/IMPORT 的逐字段 delta |

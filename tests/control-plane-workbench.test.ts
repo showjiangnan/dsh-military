@@ -1,7 +1,12 @@
 import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
 import test from 'node:test'
-import { MilitaryError } from '@dsh-military/contracts'
+import {
+  MilitaryError,
+  brand,
+  type AgentTemplateProfile,
+  type PortableRoleConfiguration,
+} from '@dsh-military/contracts'
 import {
   GENERAL_ROLE_ID,
   MILITARY_CONTROL_SCHEMA_VERSION,
@@ -20,16 +25,19 @@ import {
 import {
   applyRoleDraft,
   createSimplifiedChineseReviewReceipt,
+  defaultTemplateAtRevision,
   defaultToolProfiles,
   defaultTemplates,
   effectiveRolePrompt,
   initialRoleWorkbenchDocument,
   parseRoleWorkbenchDocument,
+  rebaseRoleWorkbenchForRuntime,
   roleDraftFromUnknown,
   requireRoleWorkbenchApplied,
   roleWorkbenchApplicationState,
   serializeRoleWorkbenchDocument,
   synchronizeRoleWorkbench,
+  templateRoleConfiguration,
 } from '@dsh-military/plugin-host'
 import { SqliteMilitaryDatabase } from '@dsh-military/storage-sqlite'
 
@@ -46,6 +54,65 @@ function summary(name: string): ToolSchemaSummary {
     name,
     ...SIMPLE_SCHEMA,
     terminal: TERMINAL_TOOL_NAMES.has(name),
+  }
+}
+
+function profileForConfiguration(
+  base: AgentTemplateProfile,
+  configuration: PortableRoleConfiguration,
+): AgentTemplateProfile {
+  const {
+    rolePromptOverride: _rolePromptOverride,
+    ...baseWithoutPrompt
+  } = base
+  const {
+    modelCapabilityProfileRevision: _modelCapabilityProfileRevision,
+    allowCanaryModel: _allowCanaryModel,
+    ...baseModelPolicy
+  } = base.modelPolicy
+  return {
+    ...baseWithoutPrompt,
+    revision: brand<number, 'Revision'>(configuration.templateRevision),
+    status: configuration.status,
+    ...(configuration.promptOverride === ''
+      ? {}
+      : { rolePromptOverride: configuration.promptOverride }),
+    modelPolicy: {
+      ...baseModelPolicy,
+      provider: configuration.provider,
+      model: configuration.model,
+      reasoningEffort: configuration.reasoningEffort,
+      maxOutputTokens: configuration.maxOutputTokens,
+      modelCapabilityProfileId: configuration.modelCapabilityProfileId,
+      ...(configuration.modelCapabilityProfileRevision === undefined
+        ? {}
+        : {
+            modelCapabilityProfileRevision: brand<number, 'Revision'>(
+              configuration.modelCapabilityProfileRevision,
+            ),
+          }),
+      allowCanaryModel: configuration.allowCanaryModel,
+    },
+    contextPolicy: {
+      ...base.contextPolicy,
+      contextBudgetTokens: configuration.contextBudgetTokens,
+      retainedTailTokens: Math.min(
+        base.contextPolicy.retainedTailTokens,
+        configuration.contextBudgetTokens - 1,
+      ),
+    },
+    capabilities: {
+      ...base.capabilities,
+      toolProfileId: configuration.toolProfileId,
+      toolProfileRevision: brand<number, 'Revision'>(
+        configuration.toolProfileRevision,
+      ),
+      permissionProfileId: configuration.permissionProfileId,
+      permissionProfileRevision: brand<number, 'Revision'>(
+        configuration.permissionProfileRevision,
+      ),
+    },
+    concurrencyLimit: configuration.concurrencyLimit,
   }
 }
 
@@ -178,6 +245,497 @@ test('Desired/Applied workbench state records the exact failure and converges on
     await assert.doesNotReject(
       requireRoleWorkbenchApplied(host as never),
     )
+  } finally {
+    database.close()
+  }
+})
+
+test('stale alpha.24 Workbench rebases built-ins without changing General, Engineer history or Worker head', async () => {
+  const database = new SqliteMilitaryDatabase({ path: ':memory:' })
+  try {
+    const bundled = defaultTemplates()
+    const legacy = bundled.map((template) => {
+      const value = defaultTemplateAtRevision(template, 6)
+      assert.ok(value)
+      return value
+    })
+    let document = initialRoleWorkbenchDocument({
+      provider: 'deepseek-official',
+      model: 'deepseek-v4-pro',
+      reasoningEffort: 'max',
+      maxOutputTokens: 32_768,
+      generalPromptOverride: '',
+    }, legacy)
+    const engineer = document.roles.find(configuration =>
+      configuration.roleId === 'engineer-default')!
+    const engineerTools = defaultToolProfiles().find(profile =>
+      String(profile.toolProfileId) === engineer.toolProfileId)!
+      .allowTools.map(summary)
+    document = applyRoleDraft({
+      document,
+      draft: {
+        roleId: engineer.roleId,
+        provider: 'deepseek-official',
+        model: 'deepseek-v4-pro',
+        reasoningEffort: 'max',
+        maxOutputTokens: 32_768,
+        contextBudgetTokens: engineer.contextBudgetTokens,
+        concurrencyLimit: engineer.concurrencyLimit,
+        prompt: effectiveRolePrompt(engineer),
+      },
+      source: 'USER_SAVE',
+      actor: 'web-user',
+      toolSchemas: engineerTools,
+      modelStatus: 'VALIDATED',
+      modelCapabilityProfileId: 'deepseek-v4-pro-rc2',
+      modelCapabilityProfileRevision: 2,
+      createdAt: '2026-08-27T03:36:44.740Z',
+    })
+    const engineerPro = document.roles.find(configuration =>
+      configuration.roleId === 'engineer-default')!
+    document = applyRoleDraft({
+      document,
+      draft: {
+        roleId: engineerPro.roleId,
+        provider: 'deepseek-official',
+        model: 'deepseek-v4-flash',
+        reasoningEffort: 'high',
+        maxOutputTokens: 16_384,
+        contextBudgetTokens: engineerPro.contextBudgetTokens,
+        concurrencyLimit: engineerPro.concurrencyLimit,
+        prompt: effectiveRolePrompt(engineerPro),
+      },
+      source: 'USER_SAVE',
+      actor: 'web-user',
+      toolSchemas: engineerTools,
+      modelStatus: 'CANARY',
+      modelCapabilityProfileId: 'deepseek-v4-flash-rc2',
+      modelCapabilityProfileRevision: 4,
+      createdAt: '2026-08-27T03:37:33.934Z',
+    })
+    const workerBundle = bundled.find(template =>
+      String(template.templateId) === 'worker-default')!
+    const workerTen: AgentTemplateProfile = {
+      ...workerBundle,
+      revision: brand<number, 'Revision'>(10),
+      supersedesRevision: brand<number, 'Revision'>(9),
+      updatedAt: brand<string, 'IsoDateTime'>(
+        '2026-08-27T03:38:00.000Z',
+      ),
+    }
+    document = {
+      ...document,
+      roles: document.roles.map(configuration =>
+        configuration.roleId === 'worker-default'
+          ? templateRoleConfiguration(workerTen)
+          : configuration),
+    }
+    const originalGeneral = document.roles.find(configuration =>
+      configuration.roleId === GENERAL_ROLE_ID)!
+    const originalEngineer = document.roles.find(configuration =>
+      configuration.roleId === 'engineer-default')!
+    const originalWorker = document.roles.find(configuration =>
+      configuration.roleId === 'worker-default')!
+    const originalHistory = document.history
+
+    const versions = new Map<string, AgentTemplateProfile>()
+    for (const template of bundled) {
+      const old = legacy.find(value =>
+        String(value.templateId) === String(template.templateId))!
+      versions.set(`${String(template.templateId)}@6`, old)
+      versions.set(
+        `${String(template.templateId)}@${Number(template.revision)}`,
+        template,
+      )
+    }
+    versions.set(
+      'engineer-default@8',
+      profileForConfiguration(
+        bundled.find(template =>
+          String(template.templateId) === 'engineer-default')!,
+        originalEngineer,
+      ),
+    )
+    versions.set('worker-default@10', workerTen)
+    const heads = new Map<string, AgentTemplateProfile>(
+      bundled.map(template => [
+        String(template.templateId),
+        versions.get(`${String(template.templateId)}@${Number(template.revision)}`)!,
+      ]),
+    )
+    heads.set('engineer-default', versions.get('engineer-default@8')!)
+    heads.set('worker-default', workerTen)
+    let batchCalls = 0
+    const host = {
+      tenantId: 'tenant-workbench-alpha24',
+      database,
+      updateGeneralRolePrompt() {},
+      application: {
+        policies: {
+          async modelCapability(provider: string, model: string) {
+            const configuration = document.roles.find(value =>
+              value.provider === provider && value.model === model)!
+            return {
+              profileId: configuration.modelCapabilityProfileId,
+              revision: configuration.modelCapabilityProfileRevision ?? 1,
+            }
+          },
+        },
+        generalRouting: {
+          async updatePresetDefault() {},
+        },
+        templates: {
+          async get(id: string, revision?: number) {
+            if (revision === undefined) return heads.get(String(id))!
+            const value = versions.get(`${String(id)}@${revision}`)
+            if (value === undefined) throw new Error(`missing ${String(id)}@${revision}`)
+            return value
+          },
+          async reviseBatch(values: readonly {
+            readonly profile: AgentTemplateProfile
+            readonly expectedRevision: AgentTemplateProfile['revision']
+          }[]) {
+            batchCalls += 1
+            assert.equal(values.length, 0)
+          },
+        },
+      },
+    }
+    const result = await rebaseRoleWorkbenchForRuntime(
+      host as never,
+      document,
+      '2026-08-28T02:00:00.000Z',
+    )
+    assert.equal(result.document.revision, 4)
+    assert.equal(result.changedRoleIds.length, bundled.length - 2)
+    assert.deepEqual(result.customizedRoleIds, [])
+    assert.deepEqual(
+      result.document.roles.find(value => value.roleId === GENERAL_ROLE_ID),
+      originalGeneral,
+    )
+    assert.deepEqual(
+      result.document.roles.find(value => value.roleId === 'engineer-default'),
+      originalEngineer,
+    )
+    assert.deepEqual(
+      result.document.roles.find(value => value.roleId === 'worker-default'),
+      originalWorker,
+    )
+    assert.deepEqual(result.document.history.slice(0, 2), originalHistory)
+    assert.ok(
+      result.document.roles
+        .filter(value =>
+          value.roleId !== GENERAL_ROLE_ID
+          && value.roleId !== 'engineer-default'
+          && value.roleId !== 'worker-default')
+        .every(value => value.templateRevision === 8),
+    )
+    assert.ok(
+      result.document.history.slice(2)
+        .every(value => value.source === 'PLUGIN_MIGRATION'),
+    )
+    assert.deepEqual(
+      parseRoleWorkbenchDocument(
+        serializeRoleWorkbenchDocument(result.document),
+      ),
+      result.document,
+    )
+    await synchronizeRoleWorkbench(host as never, result.document)
+    assert.equal(batchCalls, 1)
+    const state = roleWorkbenchApplicationState(
+      host as never,
+      result.document.revision,
+    )
+    assert.equal(state.state, 'APPLIED')
+    assert.equal(state.desiredRevision, 4)
+    assert.equal(state.appliedRevision, 4)
+
+    const second = await rebaseRoleWorkbenchForRuntime(
+      host as never,
+      result.document,
+      '2026-08-28T02:01:00.000Z',
+    )
+    assert.equal(second.document, result.document)
+    assert.deepEqual(second.changedRoleIds, [])
+    assert.deepEqual(second.customizedRoleIds, [])
+
+    const advisorEight = heads.get('advisor-generalist')!
+    const advisorNine: AgentTemplateProfile = {
+      ...advisorEight,
+      revision: brand<number, 'Revision'>(9),
+      modelPolicy: {
+        ...advisorEight.modelPolicy,
+        modelCapabilityProfileRevision: brand<number, 'Revision'>(5),
+      },
+    }
+    versions.set('advisor-generalist@9', advisorNine)
+    heads.set('advisor-generalist', advisorNine)
+    const future = await rebaseRoleWorkbenchForRuntime(
+      host as never,
+      result.document,
+      '2026-08-28T02:02:00.000Z',
+    )
+    assert.deepEqual(future.changedRoleIds, ['advisor-generalist'])
+    assert.deepEqual(future.customizedRoleIds, [])
+    const futureAdvisor = future.document.roles.find(value =>
+      value.roleId === 'advisor-generalist')!
+    assert.equal(futureAdvisor.templateRevision, 9)
+    assert.equal(futureAdvisor.modelCapabilityProfileRevision, 5)
+  } finally {
+    database.close()
+  }
+})
+
+test('stale customized role replays user fields onto current authority as one immutable revision', async () => {
+  const database = new SqliteMilitaryDatabase({ path: ':memory:' })
+  try {
+    const bundled = defaultTemplates()
+    const legacy = bundled.map((template) => {
+      const value = defaultTemplateAtRevision(template, 6)
+      assert.ok(value)
+      return value
+    })
+    const first = initialRoleWorkbenchDocument({
+      provider: 'deepseek-official',
+      model: 'deepseek-v4-flash',
+      reasoningEffort: 'high',
+      maxOutputTokens: 16_384,
+      generalPromptOverride: '',
+    }, legacy)
+    const advisor = first.roles.find(configuration =>
+      configuration.roleId === 'advisor-generalist')!
+    const customPrompt = `${effectiveRolePrompt(advisor)}\n\n用户要求：输出前核对全部只读证据。`
+    const saved = applyRoleDraft({
+      document: first,
+      draft: {
+        roleId: advisor.roleId,
+        provider: 'third-party-provider',
+        model: 'economy-model',
+        reasoningEffort: 'max',
+        maxOutputTokens: 24_576,
+        contextBudgetTokens: 72_000,
+        concurrencyLimit: 3,
+        prompt: customPrompt,
+      },
+      source: 'USER_SAVE',
+      actor: 'web-user',
+      toolSchemas: defaultToolProfiles().find(profile =>
+        String(profile.toolProfileId) === advisor.toolProfileId)!
+        .allowTools.map(summary),
+      modelStatus: 'VALIDATED',
+      modelCapabilityProfileId: 'third-party-economy-v1',
+      modelCapabilityProfileRevision: 1,
+      createdAt: '2026-08-27T04:00:00.000Z',
+    })
+    const currentConfigurationByRole = new Map(bundled.map(template => [
+      String(template.templateId),
+      templateRoleConfiguration(template),
+    ] as const))
+    const stale = {
+      ...saved,
+      roles: saved.roles.map(configuration =>
+        configuration.roleId === advisor.roleId
+          || configuration.roleId === GENERAL_ROLE_ID
+          ? configuration
+          : currentConfigurationByRole.get(configuration.roleId)!),
+    }
+    const staleAdvisor = stale.roles.find(configuration =>
+      configuration.roleId === advisor.roleId)!
+    const current = bundled.find(template =>
+      String(template.templateId) === advisor.roleId)!
+    const exactStale = profileForConfiguration(current, staleAdvisor)
+    const heads = new Map(bundled.map(template =>
+      [String(template.templateId), template] as const))
+    const versions = new Map<string, AgentTemplateProfile>([
+      [`${advisor.roleId}@7`, exactStale],
+    ])
+    let revised: AgentTemplateProfile | undefined
+    const host = {
+      tenantId: 'tenant-workbench-custom-rebase',
+      database,
+      updateGeneralRolePrompt() {},
+      application: {
+        policies: {
+          async modelCapability(provider: string, model: string) {
+            const configuration = stale.roles.find(value =>
+              value.provider === provider && value.model === model)!
+            return {
+              profileId: configuration.modelCapabilityProfileId,
+              revision: configuration.modelCapabilityProfileRevision ?? 1,
+            }
+          },
+        },
+        generalRouting: {
+          async updatePresetDefault() {},
+        },
+        templates: {
+          async get(id: string, revision?: number) {
+            if (revision !== undefined) {
+              const value = versions.get(`${String(id)}@${revision}`)
+              if (value !== undefined) return value
+              const legacyValue = legacy.find(template =>
+                String(template.templateId) === String(id)
+                && Number(template.revision) === revision)
+              if (legacyValue !== undefined) return legacyValue
+              throw new Error(`missing ${String(id)}@${revision}`)
+            }
+            return heads.get(String(id))!
+          },
+          async reviseBatch(values: readonly {
+            readonly profile: AgentTemplateProfile
+            readonly expectedRevision: AgentTemplateProfile['revision']
+          }[]) {
+            assert.equal(values.length, 1)
+            assert.equal(Number(values[0]?.expectedRevision), 8)
+            revised = values[0]?.profile
+            heads.set(advisor.roleId, revised!)
+          },
+        },
+      },
+    }
+    const result = await rebaseRoleWorkbenchForRuntime(
+      host as never,
+      stale,
+      '2026-08-28T02:10:00.000Z',
+    )
+    assert.deepEqual(result.changedRoleIds, [advisor.roleId])
+    assert.deepEqual(result.customizedRoleIds, [advisor.roleId])
+    const rebased = result.document.roles.find(configuration =>
+      configuration.roleId === advisor.roleId)!
+    assert.equal(rebased.templateRevision, 9)
+    assert.equal(rebased.provider, 'third-party-provider')
+    assert.equal(rebased.model, 'economy-model')
+    assert.equal(rebased.reasoningEffort, 'max')
+    assert.equal(rebased.maxOutputTokens, 24_576)
+    assert.equal(rebased.contextBudgetTokens, 72_000)
+    assert.equal(rebased.concurrencyLimit, 3)
+    assert.equal(rebased.promptOverride, customPrompt)
+    assert.equal(
+      rebased.toolProfileRevision,
+      Number(current.capabilities.toolProfileRevision),
+      'Host-owned tool authority comes from the current package',
+    )
+    await synchronizeRoleWorkbench(host as never, result.document)
+    assert.equal(Number(revised?.revision), 9)
+    assert.equal(revised?.modelPolicy.provider, 'third-party-provider')
+    assert.equal(
+      Number(revised?.capabilities.toolProfileRevision),
+      Number(current.capabilities.toolProfileRevision),
+    )
+    const second = await rebaseRoleWorkbenchForRuntime(
+      host as never,
+      result.document,
+      '2026-08-28T02:11:00.000Z',
+    )
+    assert.deepEqual(second.changedRoleIds, [])
+  } finally {
+    database.close()
+  }
+})
+
+test('post-apply mirror failure leaves readiness FAILED and retries without duplicating runtime revision', async () => {
+  const database = new SqliteMilitaryDatabase({ path: ':memory:' })
+  try {
+    const templates = defaultTemplates()
+    const first = initialRoleWorkbenchDocument({
+      provider: 'deepseek-official',
+      model: 'deepseek-v4-flash',
+      reasoningEffort: 'high',
+      maxOutputTokens: 16_384,
+      generalPromptOverride: '',
+    }, templates)
+    const worker = first.roles.find(configuration =>
+      configuration.roleId === 'worker-default')!
+    const next = applyRoleDraft({
+      document: first,
+      draft: {
+        ...roleDraftFromUnknown({
+          roleId: worker.roleId,
+          provider: worker.provider,
+          model: worker.model,
+          reasoningEffort: worker.reasoningEffort,
+          maxOutputTokens: worker.maxOutputTokens,
+          contextBudgetTokens: worker.contextBudgetTokens,
+          concurrencyLimit: worker.concurrencyLimit + 1,
+          prompt: effectiveRolePrompt(worker),
+        }),
+      },
+      source: 'USER_SAVE',
+      toolSchemas: defaultToolProfiles().find(profile =>
+        String(profile.toolProfileId) === worker.toolProfileId)!
+        .allowTools.map(summary),
+      modelStatus: 'CANARY',
+      modelCapabilityProfileId: worker.modelCapabilityProfileId,
+      ...(worker.modelCapabilityProfileRevision === undefined
+        ? {}
+        : {
+            modelCapabilityProfileRevision:
+              worker.modelCapabilityProfileRevision,
+          }),
+      createdAt: '2026-08-28T02:20:00.000Z',
+    })
+    const heads = new Map(templates.map(template =>
+      [String(template.templateId), template] as const))
+    let runtimeRevisions = 0
+    let mirrorAttempts = 0
+    const host = {
+      tenantId: 'tenant-workbench-mirror-retry',
+      database,
+      updateGeneralRolePrompt() {},
+      application: {
+        policies: {
+          async modelCapability(provider: string, model: string) {
+            const configuration = next.roles.find(value =>
+              value.provider === provider && value.model === model)!
+            return {
+              profileId: configuration.modelCapabilityProfileId,
+              revision: configuration.modelCapabilityProfileRevision ?? 1,
+            }
+          },
+        },
+        generalRouting: {
+          async updatePresetDefault() {},
+        },
+        templates: {
+          async get(id: string) {
+            return heads.get(String(id))!
+          },
+          async reviseBatch(values: readonly {
+            readonly profile: AgentTemplateProfile
+            readonly expectedRevision: AgentTemplateProfile['revision']
+          }[]) {
+            for (const value of values) {
+              runtimeRevisions += 1
+              heads.set(String(value.profile.templateId), value.profile)
+            }
+          },
+        },
+      },
+    }
+    const afterRuntimeApplied = async () => {
+      mirrorAttempts += 1
+      if (mirrorAttempts === 1) throw new Error('settings mirror CAS conflict')
+    }
+    await assert.rejects(
+      synchronizeRoleWorkbench(host as never, next, {
+        afterRuntimeApplied,
+      }),
+      /mirror CAS conflict/u,
+    )
+    assert.equal(runtimeRevisions, 1)
+    assert.equal(
+      roleWorkbenchApplicationState(host as never, next.revision).state,
+      'FAILED',
+    )
+    await synchronizeRoleWorkbench(host as never, next, {
+      afterRuntimeApplied,
+    })
+    assert.equal(runtimeRevisions, 1)
+    assert.equal(mirrorAttempts, 2)
+    const state = roleWorkbenchApplicationState(host as never, next.revision)
+    assert.equal(state.state, 'APPLIED')
+    assert.equal(state.desiredRevision, state.appliedRevision)
+    assert.equal(state.attempts, 2)
   } finally {
     database.close()
   }

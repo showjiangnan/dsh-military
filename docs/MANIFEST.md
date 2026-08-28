@@ -4,22 +4,22 @@
 `MANIFEST.sha256` 不包含清单自身和验证报告，避免自引用哈希。
 
 - 文件数：429
-- 总字节数：2279528
+- 总字节数：2285789
 
 ## `./`
 
 | 文件 | 字节 |
 |---|---:|
-| `CHANGELOG.md` | 41324 |
+| `CHANGELOG.md` | 42849 |
 | `CONTRIBUTING_DOCS.md` | 5677 |
 | `GLOSSARY.md` | 8482 |
-| `IMPLEMENTATION-READINESS.md` | 5213 |
+| `IMPLEMENTATION-READINESS.md` | 5374 |
 | `LICENSE-NOTICE.md` | 721 |
 | `README.md` | 15597 |
-| `REQUIREMENTS-TRACEABILITY.md` | 29544 |
+| `REQUIREMENTS-TRACEABILITY.md` | 30227 |
 | `VERSION.json` | 275 |
-| `VERSION.md` | 4108 |
-| `dsh-military-design-specification.md` | 505806 |
+| `VERSION.md` | 4106 |
+| `dsh-military-design-specification.md` | 507053 |
 
 ## `adr/`
 
@@ -204,8 +204,8 @@
 | `docs/63-agentic-zero-trust-and-capability-grants.md` | 1212 |
 | `docs/64-observability-and-decision-chain-evaluation.md` | 1913 |
 | `docs/65-rc2-compatibility-and-adapter-migration.md` | 2932 |
-| `docs/66-legacy-to-rc2-upgrade-runbook.md` | 1576 |
-| `docs/67-military-control-center-flash-workbench-and-accessibility.md` | 13439 |
+| `docs/66-legacy-to-rc2-upgrade-runbook.md` | 1895 |
+| `docs/67-military-control-center-flash-workbench-and-accessibility.md` | 14367 |
 | `docs/68-general-workflow-live-models-and-settings-persistence.md` | 7543 |
 | `docs/69-execution-liveness-flash-and-production-readiness.md` | 17406 |
 | `docs/INDEX.md` | 9051 |
@@ -426,7 +426,7 @@
 | `quality/SOURCE-CODE-REVIEW.md` | 1086 |
 | `quality/SOURCE-TEST-REPORT.md` | 959 |
 | `quality/TACTICAL-INGESTION-QUALITY.md` | 1109 |
-| `quality/TEST-MATRIX.md` | 14032 |
+| `quality/TEST-MATRIX.md` | 15432 |
 | `quality/THREAT-MODEL.md` | 7571 |
 
 ## `reference/dsh-rc2/`

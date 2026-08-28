@@ -978,7 +978,7 @@
     签名资产、备份恢复、灾备和 legal hold 演练；本地 SQLite 模式继续受支持。
 
 - [ ] **P2.15 完成纵向测试、真实 Flash 外部验收、文档与发行推送**
-  - 源码实现、217 项确定性测试、767 项文档/合同检查、exact RC.2、
+  - 源码实现、220 项确定性测试、767 项文档/合同检查、exact RC.2、
     13/13 pack/publint、可重复发布、空 Profile、三启动纵向 E2E、代码审查和
     source-only 归档均已完成；本项只因真实 Provider 的
     `exact configuration × scenario × N≥50` 外部证据尚未产生而保持未勾选。
@@ -994,6 +994,34 @@
     空 Profile 与浏览器验收。
   - 最终代码审查无未解决 P0/P1；提交完整源码交付单元并使用本机已授权 GitHub
     identity 推送 `origin`，记录 commit 与远端确认。
+
+## 2026-08-28 Workbench 无损升级回归
+
+- [x] **P0.58 无损迁移持久化角色工作台**
+  - 以运行时不可变历史中的精确旧 revision 为三方合并基线；未修改的内置角色
+    自动前移到最新模板，用户已修改字段重放到新的不可变 revision。
+  - General、已经领先/持平的角色、角色状态、模型、推理强度、预算、并发和
+    用户提示词不得被默认配置覆盖。
+
+- [x] **P0.59 消除旧 Agent Template 镜像回灌**
+  - `military-agent-templates.profilesJson` 在 Workbench 成功应用后从运行时真值
+    重建，不能在重启、恢复默认或新建设置文档时把 revision 6 再次写回。
+  - 迁移和镜像同步必须使用 Settings revision/CAS，冲突时失败可诊断且不产生
+    半写状态。
+
+- [x] **P0.60 恢复 Desired/Applied 就绪门并保证幂等**
+  - 升级事务按“迁移文档→应用运行时→同步兼容镜像→标记 APPLIED”收敛；
+    失败保留明确错误和可重试状态，不通过全量恢复默认绕过。
+  - 第二次启动不得新增模板/工作台 revision；`desiredRevision ===
+    appliedRevision` 且执行路径不再被 readiness gate 阻断。
+
+- [x] **P1.31 建立真实故障夹具、发行和浏览器验收**
+  - 固定复现当前现场：大多数角色 revision 6、工兵 revision 8 且有两条用户
+    保存历史、Worker revision 10、General 使用 Pro/Max。
+  - 验收后大多数未修改角色迁移到 revision 8，工兵/Worker/General 配置与历史
+    保持，应用状态收敛；覆盖首次迁移、重启幂等、CAS 冲突和失败恢复。
+  - 完成生成、类型、测试、文档、exact RC.2、13 包发布门、隔离 Profile、
+    本机升级、DSH Web 重启及真实浏览器复验，发布不可变 `0.9.0-alpha.28`。
 
 ## 总体验收标准
 
@@ -1138,6 +1166,15 @@
     文档/合同检查、82 项架构审查、exact RC.2、13/13 pack/publint、可重复
     release、空 Profile 和三启动 E2E 全部通过；源码 ZIP 已证明不含 `lib/`、
     `release/`、本地报告、数据库或凭据。
+31. 完成 `0.9.0-alpha.28` Workbench 无损升级闭环：以运行时不可变旧模板为
+    三方合并基线，将现场九个 revision 6 内置角色前移到 revision 8，同时保留
+    General Pro/Max、工兵 revision 8、Worker revision 10 及用户保存历史；
+    Runtime 应用成功后才以 CAS 同步兼容镜像并标记 APPLIED。220 项确定性测试、
+    767 项文档/合同检查、exact RC.2 typecheck、13/13 pack/publint、可重复
+    release、隔离 Profile 和重启 E2E 全部通过；本机真实状态已由 Desired 3 /
+    Applied 0 收敛为 Desired 4 / Applied 4，第二次 DSH Web 重启没有新增
+    revision、history、attempt 或模板版本，浏览器确认“当前配置已生效”且无
+    新增控制台错误。
 
 当前确定性开发状态：
 

@@ -3414,7 +3414,7 @@ Git commit、Artifact rename、Profile write 和 API 调用不能与数据库假
 
 WebUI 让用户以“统帅”视角配置组织、观察 Mission、处理授权和审计证据，而不是把所有 Agent 对话平铺成聊天噪声。
 
-### 1.1 0.9.0-alpha.27 源码实现边界
+### 1.1 0.9.0-alpha.28 源码实现边界
 
 当前 Integration Alpha 已实现：
 
@@ -3911,7 +3911,7 @@ Agent/Model/API/Artifact 各有 classification ceiling。路由到外部模型�
 
 Workspace 路径授权必须处理绝对路径、符号链接、大小写、Git worktree 和临时文件。普通 Session 与 Military Session 同 cwd 不代表互相获得会话控制权。
 
-### 0.9.0-alpha.27 Web 控制面安全
+### 0.9.0-alpha.28 Web 控制面安全
 
 - Client 只提交角色草稿、用户选择的 lint 位置、不透明 workspace ID、已有
   Session ID 和受限 operation intent；
@@ -6107,7 +6107,7 @@ EVALUATION_APPEAL_EVIDENCE_REQUIRED
 
 所有回执必须在声明状态改变前持久化。模型不能构造 Authorization、Binding、Resume、Integration、Budget 或 Appeal resolution 的权威 Receipt；模型最多提出经过 Schema 校验的建议内容。
 
-### 11. 0.9.0-alpha.27 Web 控制面契约
+### 11. 0.9.0-alpha.28 Web 控制面契约
 
 Web Client 只通过六个窄 Typert Remote 访问 Host；每个 Remote 只有只读
 `snapshot` 和一个带判别字段的 `execute`，不暴露数据库、文件系统或 Git 对象。
@@ -6595,7 +6595,7 @@ min(template/preset budget, resolved model context, deployment safety cap)
 
 达到 trigger 必须创建可审计 `CompactionAttempt`。无安全区间或摘要不缩小则暂停/handoff，不能继续溢出。General 切换到更小上下文模型前应先评估当前 surface；无法安全适配则拒绝切换。
 
-### 0.9.0-alpha.27 能力目录与样本纪律
+### 0.9.0-alpha.28 能力目录与样本纪律
 
 模型控制面把四个概念独立存储：
 
@@ -6845,7 +6845,7 @@ Attempt missingness 中分别归因。
 
 所有故障注入必须得到有限终态：`RECOVERED/PAUSED/QUARANTINED/CANCELLED/FAILED`，不得停留在未知“可能已完成”。
 
-### 0.9.0-alpha.27 Command Saga 恢复合同
+### 0.9.0-alpha.28 Command Saga 恢复合同
 
 Mission command 的外部 operation 具有稳定 idempotency key 和 durable state：
 
@@ -6872,7 +6872,7 @@ Provider 错误正文，也不会凭 UI 猜测副作用。
 - 同 idempotency key 使用不同 authority/semantic payload；
 - async SQLite transaction callback 的同步前缀 rollback。
 
-### 0.9.0-alpha.27 控制中心恢复合同
+### 0.9.0-alpha.28 控制中心恢复合同
 
 浏览器恢复流程是三步协议：
 
@@ -7590,7 +7590,7 @@ Binding generation missing/incompatible
 
 ### 1.1 当前源码实现
 
-`0.9.0-alpha.27` 已把本章从目标设计落实为一条 Host-owned 供应链：
+`0.9.0-alpha.28` 已把本章从目标设计落实为一条 Host-owned 供应链：
 
 ```text
 Knowledge Center
@@ -10305,7 +10305,7 @@ ROLLBACK
 
 #### RC.2 本地发行安装
 
-`0.9.0-alpha.27` 标准安装只把自包含 Bundle 添加为 Profile layer；Installer 已
+`0.9.0-alpha.28` 标准安装只把自包含 Bundle 添加为 Profile layer；Installer 已
 嵌入 Bundle：
 
 ```bash
@@ -10313,7 +10313,7 @@ cd release
 shasum -a 256 -c checksums.sha256
 
 dsh plugin --profile web add \
-  ./dsh-military-bundle-0.9.0-alpha.27.tgz
+  ./dsh-military-bundle-0.9.0-alpha.28.tgz
 
 pnpm --dir "${DSH_HOME:-$HOME/.dsh}/profiles/web" exec \
   dsh-military-install install \
@@ -10324,7 +10324,7 @@ pnpm --dir "${DSH_HOME:-$HOME/.dsh}/profiles/web" exec \
   --dsh-home "${DSH_HOME:-$HOME/.dsh}"
 ```
 
-独立 `dsh-military-installer-0.9.0-alpha.27.tgz` 只用于 preset-only 生命周期，
+独立 `dsh-military-installer-0.9.0-alpha.28.tgz` 只用于 preset-only 生命周期，
 不能作为 DSH Bundle layer 添加。Profile 使用 `file:` 引用时，安装中的旧 tarball
 在该 Profile 升级并验证前必须保留。
 
@@ -11320,7 +11320,7 @@ WebUI 不只是展示军事组织名词，而是所有高风险管理动作的�
 
 ### 1.1 实施状态
 
-`0.9.0-alpha.27` 已实现独立 Settings/Knowledge Modal、七个一级选项卡、角色
+`0.9.0-alpha.28` 已实现独立 Settings/Knowledge Modal、七个一级选项卡、角色
 工作台、revision 冲突、字段 Diff、可移植导入导出、诊断与恢复、Specs
 Workspace、固定基准、知识供应链透明度、模拟召回和键盘/IME/高对比度合同。
 这些页面读取 Military 自有 Remote/Projection，不依赖未知外部 Session Event。
@@ -11699,7 +11699,7 @@ README、安装页和 WebUI About 应包含：
 
 ### 1. 实现状态
 
-`dsh-military 0.9.0-alpha.27` 已形成独立 npm workspace 源码工程，唯一完整兼容目标是：
+`dsh-military 0.9.0-alpha.28` 已形成独立 npm workspace 源码工程，唯一完整兼容目标是：
 
 ```text
 dsh@0.1.1-rc.2
@@ -11947,7 +11947,7 @@ Host profile 通过发行 tarball 叠加：
 
 ```bash
 dsh plugin --profile web add \
-  ./dsh-military-bundle-0.9.0-alpha.27.tgz
+  ./dsh-military-bundle-0.9.0-alpha.28.tgz
 ```
 
 Bundle 自包含全部私有运行时 package、Installer 与
@@ -12094,7 +12094,7 @@ RC.2 已知事件目录不提供外部 required event 动态注册。审查脚�
 -无同步模块请求环；
 - Settings 使用 RC.2 共享 mirror；
 -业务组件不建立重复 wire reader；
-- 当前 0.9.0-alpha.27 Web 包不注册 Military Conversation Log Node；角色治理、
+- 当前 0.9.0-alpha.28 Web 包不注册 Military Conversation Log Node；角色治理、
   诊断/恢复、Workspace、固定基准、知识透明度和完整 Runtime Center 使用插件
   自有窄 Remote/Projection。运行节点以稳定业务 ID、source revision 和
   staleness 聚合，不把 Session Log 变成第二个 Mission 真源。
@@ -12117,7 +12117,7 @@ RC.2 已知事件目录不提供外部 required event 动态注册。审查脚�
 
 ### 1. 支持范围
 
-`0.9.0-alpha.27` 只对 `dsh@0.1.1-rc.2` commit `b150a551...` 声明完整支持。旧版部署必须使用其匹配的发布包，不允许两个 DSH runtime identity 在一个进程混装。
+`0.9.0-alpha.28` 只对 `dsh@0.1.1-rc.2` commit `b150a551...` 声明完整支持。旧版部署必须使用其匹配的发布包，不允许两个 DSH runtime identity 在一个进程混装。
 
 ### 2. Preset generation
 
@@ -12803,7 +12803,7 @@ RC.2 `ui-settings` 拥有唯一 `settings.describe` mirror，并监听 document 
 
 ### 4. 运行态投影边界
 
-RC.2 没有外部 required Session Event 注册面。0.9.0-alpha.27 因而不注册
+RC.2 没有外部 required Session Event 注册面。0.9.0-alpha.28 因而不注册
 Military Conversation Node，也不把 Mission/Task/Radio/Freeze/Candidate 写入
 DSH Session Log。Settings 基础字段读取 RC.2 shared mirror；角色治理、诊断/
 恢复、Workspace、固定评测、Runtime Center 和私有知识通过插件自有窄 Typert
@@ -13181,7 +13181,7 @@ dsh@0.1.1-rc.2
 commit b150a551b8d465e31e418e1b2eaf5e79bbb7d28e
 ```
 
-`0.9.0-alpha.27` 源码只对该提交声明完整支持。旧版部署继续使用其匹配发布包，不在同一进程混装两个 DSH runtime identity。
+`0.9.0-alpha.28` 源码只对该提交声明完整支持。旧版部署继续使用其匹配发布包，不在同一进程混装两个 DSH runtime identity。
 
 ### 2. 稳定面
 
@@ -13256,7 +13256,7 @@ DSH_RC2_ROOT=/path/to/exact-built-rc2 pnpm typecheck:rc2
 ### 2. 安装
 
 - 安装 `dsh@0.1.1-rc.2` commit `b150a551b8d465e31e418e1b2eaf5e79bbb7d28e`；
-- 安装 `dsh-military 0.9.0-alpha.27`；
+- 安装 `dsh-military 0.9.0-alpha.28`；
 - 运行 migration dry-run；
 - 验证 Web client package manifest；
 - 重新计算 Military preset generation；
@@ -13277,12 +13277,16 @@ DSH_RC2_ROOT=/path/to/exact-built-rc2 pnpm typecheck:rc2
 9. 旧 Session 冷恢复或显式 migration；
 10. `alpha.24` 模板 revision 6 经精确 revision 7 资产升级到 revision 8，且
     已高于内置版本的用户模板不被降级或覆盖；
-10. archive-only generation quarantine。
+11. Workbench stale Desired 先按 exact runtime revision 和 package base 三方
+    合并，再应用 runtime head；General、用户字段、历史和较新模板保持；
+12. `military-agent-templates` mirror 经 Settings CAS 从 runtime heads 重建，
+    第二次启动不新增 template/Workbench revision；
+13. archive-only generation quarantine。
 
 ### 4. 回滚
 
 RC.2 写入新的 Military Ledger Event、Activity State 或 Military Schema 后，
-不允许直接用旧 Runtime 继续同一可变 Mission。`0.9.0-alpha.27` 不写未知
+不允许直接用旧 Runtime 继续同一可变 Mission。`0.9.0-alpha.28` 不写未知
 `military/*` DSH Session Event。回滚应恢复升级前整套数据备份，或把已认证事实
 导入新 Mission；不得让两个版本同时写同一 Mission Ledger。
 
@@ -13297,7 +13301,7 @@ RC.2 写入新的 Military Ledger Event、Activity State 或 Military Schema 后
 
 ### 1. 交付范围
 
-`0.9.0-alpha.27` 保留并深化此前分散在 Settings、运行日志和设计文档中的 15 项产品能力，
+`0.9.0-alpha.28` 保留并深化此前分散在 Settings、运行日志和设计文档中的 15 项产品能力，
 收敛为两个 DSH RC.2 原生入口：
 
 ```text
@@ -13364,6 +13368,19 @@ Workspace。
 外部更新和多标签页冲突提供字段级 Diff、采用外部版本、保留本地草稿和 rebase。
 导出只包含可移植角色设置；凭据、绝对路径、Session、运行 receipt、SQLite
 状态和 Provider 响应不在可表示类型中。导入必须先预览再提交。
+
+Bundle 升级时，持久化 Desired 可能落后于已经前移的运行时模板。Host 先要求
+Desired 与其声明的 exact immutable runtime revision 一致，再以 package-owned
+历史资产为基线做三方合并：未修改的内置字段采用 current runtime head，
+`USER_SAVE`、`ROLLBACK`、`IMPORT` 中真实发生变化的 status、route、
+reasoning、预算、并发和 prompt 才作为用户意图重放。工具、权限和 capability
+authority 始终来自当前 package。升级历史使用 `PLUGIN_MIGRATION`，但不会在
+下一次升级中被解释成用户修改。
+
+兼容镜像 `military-agent-templates` 不参与运行时真值裁决；runtime projection
+成功后，Host 从 exact template heads 重建它并使用 Settings revision/CAS 写回。
+只有镜像也成功收敛后 Desired/Applied 才进入 `APPLIED`。失败可重试，已经应用
+的 immutable revision 不会再次追加。
 
 #### 2.6 Session 诊断时间线
 
@@ -13572,7 +13589,7 @@ N≥50/Wilson/零安全失败外部 acceptance、evidence 导出与独立重算�
 
 源文件：`docs/68-general-workflow-live-models-and-settings-persistence.md`
 
-> `0.9.0-alpha.27` 补充说明：本章保留 `71fe` 事故根因和模型/设置修复背景。
+> `0.9.0-alpha.28` 补充说明：本章保留 `71fe` 事故根因和模型/设置修复背景。
 > Workflow 的当前权威实现已经升级为独立 `WorkflowObligation`、Task Version、
 > Attempt、Activation 与 Dispatch，并使用 Desired/Applied 设置状态；完整语义见
 > [第 69 章](docs/69-execution-liveness-flash-and-production-readiness.md)。
@@ -13741,7 +13758,7 @@ General compaction 使用当前 Session 的实际 route，而不是错误沿用 
 
 ### 1. 本轮闭环的目标
 
-本章记录 `0.9.0-alpha.27` 对执行活性、状态机、恢复、轻量模型、WebUI、安全、
+本章记录 `0.9.0-alpha.28` 对执行活性、状态机、恢复、轻量模型、WebUI、安全、
 评测和生产 Provider 的纵向收敛。它补充并在冲突处取代第 60—68 章中仍以
 Session/Task 粗粒度描述的部分。
 

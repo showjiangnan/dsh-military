@@ -1,6 +1,6 @@
 {
   "name": "@dsh-military/bundle",
-  "version": "0.9.0-alpha.27",
+  "version": "0.9.0-alpha.28",
   "description": "Self-contained RC.2 Cordis bundle, Military preset installer, and Web client.",
   "type": "module",
   "license": "Apache-2.0",
@@ -49,17 +49,17 @@
     "build": "tsc -p tsconfig.json"
   },
   "dependencies": {
-    "@dsh-military/command-brainstorm": "0.9.0-alpha.27",
-    "@dsh-military/contracts": "0.9.0-alpha.27",
-    "@dsh-military/core": "0.9.0-alpha.27",
-    "@dsh-military/infrastructure": "0.9.0-alpha.27",
-    "@dsh-military/installer": "0.9.0-alpha.27",
-    "@dsh-military/plugin-host": "0.9.0-alpha.27",
-    "@dsh-military/preset": "0.9.0-alpha.27",
-    "@dsh-military/runtime": "0.9.0-alpha.27",
-    "@dsh-military/storage-sqlite": "0.9.0-alpha.27",
-    "@dsh-military/tools": "0.9.0-alpha.27",
-    "@dsh-military/webui": "0.9.0-alpha.27"
+    "@dsh-military/command-brainstorm": "0.9.0-alpha.28",
+    "@dsh-military/contracts": "0.9.0-alpha.28",
+    "@dsh-military/core": "0.9.0-alpha.28",
+    "@dsh-military/infrastructure": "0.9.0-alpha.28",
+    "@dsh-military/installer": "0.9.0-alpha.28",
+    "@dsh-military/plugin-host": "0.9.0-alpha.28",
+    "@dsh-military/preset": "0.9.0-alpha.28",
+    "@dsh-military/runtime": "0.9.0-alpha.28",
+    "@dsh-military/storage-sqlite": "0.9.0-alpha.28",
+    "@dsh-military/tools": "0.9.0-alpha.28",
+    "@dsh-military/webui": "0.9.0-alpha.28"
   },
   "bundledDependencies": [
     "@dsh-military/command-brainstorm",

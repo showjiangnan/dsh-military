@@ -313,6 +313,47 @@ export function defaultTemplates(): readonly AgentTemplateProfile[] {
 }
 
 /**
+ * Reconstruct one immutable bundled template asset that can be used as a
+ * three-way-merge base. These are package-owned bytes, not whatever happens
+ * to occupy the same revision in a user's runtime registry.
+ */
+export function defaultTemplateAtRevision(
+  template: AgentTemplateProfile,
+  revision: AgentTemplateProfile['revision'] | number,
+): AgentTemplateProfile | undefined {
+  const requested = Number(revision)
+  if (requested === Number(template.revision)) return template
+  if (requested === Number(previousDefaultTemplateRevision)) {
+    return {
+      ...template,
+      revision: previousDefaultTemplateRevision,
+      modelPolicy: {
+        ...template.modelPolicy,
+        modelCapabilityProfileRevision: previousDefaultFlashModelRevision,
+      },
+    }
+  }
+  if (requested === oldestSupportedTemplateUpgradeRevision) {
+    const {
+      modelCapabilityProfileRevision: _modelCapabilityProfileRevision,
+      ...modelPolicy
+    } = template.modelPolicy
+    return {
+      ...template,
+      revision: brand<number, 'Revision'>(oldestSupportedTemplateUpgradeRevision),
+      modelPolicy,
+      capabilities: {
+        ...template.capabilities,
+        toolProfileRevision: brand<number, 'Revision'>(
+          oldestSupportedTemplateUpgradeRevision,
+        ),
+      },
+    }
+  }
+  return undefined
+}
+
+/**
  * Return the immutable built-in template revisions required to reach the
  * current package asset. RC.2 registries deliberately require contiguous
  * revisions, so an alpha.24 database at revision 6 must receive the exact
@@ -321,6 +362,7 @@ export function defaultTemplates(): readonly AgentTemplateProfile[] {
 export function defaultTemplateUpgradePath(
   template: AgentTemplateProfile,
   existingRevision: AgentTemplateProfile['revision'],
+  existingProfile?: AgentTemplateProfile,
 ): readonly AgentTemplateProfile[] {
   const existing = Number(existingRevision)
   const target = Number(template.revision)
@@ -331,21 +373,37 @@ export function defaultTemplateUpgradePath(
     )
   }
 
-  const revisions: AgentTemplateProfile[] = []
-  if (existing < Number(previousDefaultTemplateRevision)
-    && target >= Number(previousDefaultTemplateRevision)) {
-    revisions.push({
-      ...template,
-      revision: previousDefaultTemplateRevision,
-      modelPolicy: {
-        ...template.modelPolicy,
-        modelCapabilityProfileRevision: previousDefaultFlashModelRevision,
-      },
-    })
+  const baseline = defaultTemplateAtRevision(template, existingRevision)
+  if (baseline === undefined) {
+    throw new Error(
+      `cannot reconstruct bundled template ${String(template.templateId)}@${existing}`,
+    )
   }
-  if (existing < target
-    && Number(revisions.at(-1)?.revision) !== target) {
-    revisions.push(template)
+  if (
+    existingProfile !== undefined
+    && (
+      String(existingProfile.templateId) !== String(template.templateId)
+      || Number(existingProfile.revision) !== existing
+    )
+  ) {
+    throw new Error(
+      `template upgrade source must be ${String(template.templateId)}@${existing}`,
+    )
+  }
+
+  const revisions: AgentTemplateProfile[] = []
+  for (let revision = existing + 1; revision <= target; revision += 1) {
+    const bundled = defaultTemplateAtRevision(template, revision)
+    if (bundled === undefined) {
+      throw new Error(
+        `cannot reconstruct bundled template ${String(template.templateId)}@${revision}`,
+      )
+    }
+    revisions.push(
+      existingProfile === undefined
+        ? bundled
+        : replayTemplateUserFields(baseline, existingProfile, bundled),
+    )
   }
 
   let expected = existing + 1
@@ -359,4 +417,116 @@ export function defaultTemplateUpgradePath(
     expected += 1
   }
   return revisions
+}
+
+/**
+ * Replay only user-editable template deltas onto a newer bundled asset.
+ * Capability/tool/permission authority always comes from the new package.
+ */
+function replayTemplateUserFields(
+  baseline: AgentTemplateProfile,
+  existing: AgentTemplateProfile,
+  target: AgentTemplateProfile,
+): AgentTemplateProfile {
+  const routeChanged = existing.modelPolicy.provider !== baseline.modelPolicy.provider
+    || existing.modelPolicy.model !== baseline.modelPolicy.model
+  const promptChanged = existing.rolePromptOverride
+    !== baseline.rolePromptOverride
+  const status = existing.status !== baseline.status
+    ? existing.status
+    : target.status
+  const provider = routeChanged
+    ? existing.modelPolicy.provider
+    : target.modelPolicy.provider
+  const model = routeChanged
+    ? existing.modelPolicy.model
+    : target.modelPolicy.model
+  const capabilityProfileId = routeChanged
+    ? existing.modelPolicy.modelCapabilityProfileId
+    : target.modelPolicy.modelCapabilityProfileId
+  const capabilityRevision = routeChanged
+    ? existing.modelPolicy.modelCapabilityProfileRevision
+    : target.modelPolicy.modelCapabilityProfileRevision
+  const allowCanaryModel = routeChanged
+    ? existing.modelPolicy.allowCanaryModel
+    : target.modelPolicy.allowCanaryModel
+  const {
+    rolePromptOverride: _targetRolePromptOverride,
+    ...targetWithoutPrompt
+  } = target
+  const {
+    modelCapabilityProfileRevision: _targetCapabilityRevision,
+    allowCanaryModel: _targetAllowCanaryModel,
+    ...targetModelPolicy
+  } = target.modelPolicy
+  const hasUserDelta = routeChanged
+    || promptChanged
+    || existing.status !== baseline.status
+    || existing.modelPolicy.reasoningEffort
+      !== baseline.modelPolicy.reasoningEffort
+    || existing.modelPolicy.maxOutputTokens
+      !== baseline.modelPolicy.maxOutputTokens
+    || existing.contextPolicy.contextBudgetTokens
+      !== baseline.contextPolicy.contextBudgetTokens
+    || existing.concurrencyLimit !== baseline.concurrencyLimit
+  return {
+    ...targetWithoutPrompt,
+    status,
+    ...(promptChanged && existing.rolePromptOverride !== undefined
+      ? { rolePromptOverride: existing.rolePromptOverride }
+      : promptChanged
+        ? {}
+        : target.rolePromptOverride === undefined
+          ? {}
+          : { rolePromptOverride: target.rolePromptOverride }),
+    modelPolicy: {
+      ...targetModelPolicy,
+      provider,
+      model,
+      reasoningEffort:
+        existing.modelPolicy.reasoningEffort
+          !== baseline.modelPolicy.reasoningEffort
+          ? existing.modelPolicy.reasoningEffort
+          : target.modelPolicy.reasoningEffort,
+      maxOutputTokens:
+        existing.modelPolicy.maxOutputTokens
+          !== baseline.modelPolicy.maxOutputTokens
+          ? existing.modelPolicy.maxOutputTokens
+          : target.modelPolicy.maxOutputTokens,
+      modelCapabilityProfileId: capabilityProfileId,
+      ...(capabilityRevision === undefined
+        ? {}
+        : { modelCapabilityProfileRevision: capabilityRevision }),
+      ...(allowCanaryModel === undefined ? {} : { allowCanaryModel }),
+    },
+    contextPolicy: {
+      ...target.contextPolicy,
+      contextBudgetTokens:
+        existing.contextPolicy.contextBudgetTokens
+          !== baseline.contextPolicy.contextBudgetTokens
+          ? existing.contextPolicy.contextBudgetTokens
+          : target.contextPolicy.contextBudgetTokens,
+      retainedTailTokens: Math.min(
+        target.contextPolicy.retainedTailTokens,
+        Math.max(
+          0,
+          (
+            existing.contextPolicy.contextBudgetTokens
+              !== baseline.contextPolicy.contextBudgetTokens
+              ? existing.contextPolicy.contextBudgetTokens
+              : target.contextPolicy.contextBudgetTokens
+          ) - 1,
+        ),
+      ),
+    },
+    concurrencyLimit:
+      existing.concurrencyLimit !== baseline.concurrencyLimit
+        ? existing.concurrencyLimit
+        : target.concurrencyLimit,
+    ...(hasUserDelta
+      ? { updatedAt: existing.updatedAt ?? existing.createdAt }
+      : target.updatedAt === undefined
+        ? {}
+        : { updatedAt: target.updatedAt }),
+  }
 }
